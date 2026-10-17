@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vavi Labels</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Vavi Labels">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one narrow column built for a phone. Pick files, read the totals, copy the summary, save the courier PDFs. */
+:root {
+  --bg: #f1f5f5;
+  --surface: #ffffff;
+  --ink: #12232b;
+  --muted: #566871;
+  --line: #d3dcdf;
+  --accent: #0a6c68;
+  --accent-ink: #ffffff;
+  --accent-soft: #dff0ee;
+  --warn-bg: #fff0d1;
+  --warn-ink: #6a4000;
+  --warn-line: #e8c47a;
+  --bad-bg: #fde5e3;
+  --bad-ink: #7a1b14;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1a1f;
+    --surface: #14252b;
+    --ink: #e5eef0;
+    --muted: #93a7ae;
+    --line: #28393f;
+    --accent: #45c6bb;
+    --accent-ink: #052321;
+    --accent-soft: #163a3a;
+    --warn-bg: #3b2d10;
+    --warn-ink: #ffd68c;
+    --warn-line: #7a5a1c;
+    --bad-bg: #44201d;
+    --bad-ink: #ffb9b2;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1a1f;
+  --surface: #14252b;
+  --ink: #e5eef0;
+  --muted: #93a7ae;
+  --line: #28393f;
+  --accent: #45c6bb;
+  --accent-ink: #052321;
+  --accent-soft: #163a3a;
+  --warn-bg: #3b2d10;
+  --warn-ink: #ffd68c;
+  --warn-line: #7a5a1c;
+  --bad-bg: #44201d;
+  --bad-ink: #ffb9b2;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { color-scheme: light; }
+body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  padding-top: max(20px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(48px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+main { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.9rem; line-height: 1.1; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 1.1rem; margin: 0; }
+p { margin: 0; }
+.lede { color: var(--muted); max-width: 52ch; margin-top: 8px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.btn {
+  appearance: none; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink);
+  font: 600 1rem var(--font-body); min-height: 48px; padding: 0 18px; border-radius: 8px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-align: center;
+}
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn.wide { width: 100%; }
+.btn:disabled { opacity: 0.55; cursor: default; }
+.btn:focus-visible, #pick:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+#pick { position: relative; }
+#pick input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; font-size: 0; }
+#status { color: var(--muted); font-size: 0.95rem; min-height: 1.4em; }
+#status.err { color: var(--bad-ink); background: var(--bad-bg); padding: 8px 10px; border-radius: 6px; }
+.gets { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; color: var(--muted); }
+.gets b { color: var(--ink); font-weight: 600; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.stat { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-width: 0; }
+.stat .n { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.stat .l { color: var(--muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.stat.main { background: var(--accent-soft); border-color: transparent; }
+.note { border-radius: 8px; padding: 10px 12px; font-size: 0.95rem; }
+.note.warn { background: var(--warn-bg); color: var(--warn-ink); border: 1px solid var(--warn-line); }
+.note.info { background: var(--accent-soft); color: var(--ink); }
+.note h3 { margin: 0 0 4px; font-size: 1rem; }
+.addr { margin: 8px 0 0; padding: 8px 10px; background: var(--surface); color: var(--ink); border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.addr small { display: block; color: var(--muted); margin-bottom: 4px; font-family: var(--font-body); font-size: 0.8rem; }
+pre#summary {
+  margin: 0; padding: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+  font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere;
+  user-select: text; -webkit-user-select: text; max-height: 70vh; overflow: auto;
+}
+.files { display: flex; flex-direction: column; gap: 8px; }
+.files .btn small { font-weight: 400; opacity: 0.85; }
+.muted { color: var(--muted); font-size: 0.9rem; }
+@media (prefers-reduced-motion: no-preference) { .btn { transition: background-color 0.15s, color 0.15s; } }
+</style>
+</head>
+<body>
+
+<main>
+  <header>
+    <h1>Vavi Meesho Labels</h1>
+    <p class="lede">Choose the day's label PDFs. You get the courier-wise PDFs, the WhatsApp summary and an orders file. Everything runs on this device and your PDFs are not uploaded.</p>
+  </header>
+
+  <section class="card" aria-labelledby="h-pick">
+    <h2 id="h-pick">Label PDFs</h2>
+    <label class="btn wide" id="pick">
+      <span id="pick-text">Choose label PDFs</span>
+      <input id="files" type="file" accept="application/pdf,.pdf" multiple>
+    </label>
+    <p id="status" role="status" aria-live="polite">Pick one or more PDFs. Delhivery and Xpress Bees labels can be mixed in any order.</p>
+    <ul class="gets" id="gets">
+      <li><b>Courier PDFs.</b> One PDF per courier, labels grouped by product.</li>
+      <li><b>WhatsApp summary.</b> Totals, SKU counts and multi-qty orders, ready to copy.</li>
+      <li><b>Vizianagaram check.</b> Full address of any customer from Vizianagaram.</li>
+    </ul>
+  </section>
+
+  <div id="results" hidden>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <section class="card" aria-labelledby="h-totals">
+        <div class="row"><h2 id="h-totals">Totals for <span id="date"></span></h2></div>
+        <div class="stats" id="stats"></div>
+      </section>
+
+      <div id="notes" style="display:flex;flex-direction:column;gap:12px"></div>
+
+      <section class="card" aria-labelledby="h-sum">
+        <div class="row">
+          <h2 id="h-sum">WhatsApp summary</h2>
+          <button class="btn" id="copy" type="button">Copy summary</button>
+        </div>
+        <pre id="summary"></pre>
+      </section>
+
+      <section class="card" aria-labelledby="h-files">
+        <h2 id="h-files">Files</h2>
+        <div class="files" id="files-list"></div>
+        <p class="muted" id="save-note"></p>
+      </section>
+
+      <button class="btn ghost wide" id="again" type="button">Start over with new PDFs</button>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script>
+// Core logic for the Vavi Meesho Labels page. Plain JS so the same file runs in the browser and in node tests.
+(function (root) {
+  var KNOWN_COURIERS = ["Delhivery", "Xpress Bees", "Shadowfax", "Ecom Express", "Valmo", "DTDC", "Ekart", "Blue Dart", "India Post"];
+  var CATEGORY_ORDER = [
+    "1 Mtr pack of 10",
+    "0.8 Mtr pack of 10",
+    "1 Mtr pack of 5",
+    "0.8 Mtr pack of 5",
+    "Dhanushri 0.8 Mtr pack of 10"
+  ];
+
+  // pdf.js text items (in drawing order) -> readable lines
+  function linesFromItems(items) {
+    var lines = [], cur = "", lastY = null, lastEOL = false;
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      if (it.str === undefined) continue;
+      var y = it.transform ? it.transform[5] : 0;
+      if (lastY !== null && (Math.abs(y - lastY) > 2 || lastEOL)) { lines.push(cur); cur = ""; }
+      if (cur && it.str && cur.slice(-1) !== " " && it.str.charAt(0) !== " ") cur += " ";
+      cur += it.str;
+      lastY = y;
+      lastEOL = !!it.hasEOL;
+    }
+    if (cur) lines.push(cur);
+    return lines.map(function (s) { return s.replace(/\s+/g, " ").trim(); }).filter(Boolean);
+  }
+
+  function getCategory(sku, size, desc) {
+    var s = (sku || "").toUpperCase().replace(/\s+/g, "");
+    if (s.indexOf("DHAN") >= 0) return "Dhanushri 0.8 Mtr pack of 10";
+    var metres = null;
+    var m = /([\d.]+)/.exec(size || "");
+    if (m) { var f = parseFloat(m[1]); if (!isNaN(f)) metres = f; }
+    var packs = s.match(/(\d+)PCS?/g);
+    var pack = null;
+    if (packs) pack = parseInt(/(\d+)/.exec(packs[packs.length - 1])[1], 10);
+    if (pack === null) {
+      var pm = /pack of\s*(\d+)/i.exec(desc || "");
+      if (pm) pack = parseInt(pm[1], 10);
+    }
+    if (metres === null || pack === null) return null;
+    var mtr = Math.abs(metres - 1) < 0.01 ? "1" : (Math.abs(metres - 0.8) < 0.01 ? "0.8" : null);
+    if (mtr === null || (pack !== 5 && pack !== 10)) return null;
+    return mtr + " Mtr pack of " + pack;
+  }
+
+  // lines of one page -> label row, or null when the page is not a label
+  function parseLabel(lines, source, pageIndex) {
+    var hasProduct = lines.some(function (l) { return l.indexOf("Product Details") >= 0; });
+    if (!hasProduct) return null;
+    var full = lines.join("\n");
+    var top = full.split("Product Details")[0];
+    var topLines = top.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
+
+    var courier = null;
+    for (var i = 0; i < KNOWN_COURIERS.length; i++) {
+      if (top.toLowerCase().indexOf(KNOWN_COURIERS[i].toLowerCase()) >= 0) { courier = KNOWN_COURIERS[i]; break; }
+    }
+    if (!courier) {
+      var cm = /(?:COD:.*|Prepaid:.*)\n(.+)/.exec(top);
+      courier = cm ? cm[1].trim() : "Unknown";
+    }
+
+    var payment = top.indexOf("Prepaid:") >= 0 ? "Prepaid" : (top.indexOf("COD:") >= 0 ? "COD" : "Unknown");
+
+    var flatTop = topLines.join(" ");
+    var awbTop = flatTop.match(/(?:^|\s)(\d{12,16})(?=\s|$)/g) || [];
+    var awb = awbTop.length ? awbTop[awbTop.length - 1].trim() : "";
+
+    var sku = "", size = "", color = "", orderNo = "", qty = 1;
+    var flat = lines.join(" ");
+    var pm0 = /SKU\s+Size\s+Qty\s+Color\s+Order No\.?\s+(.+?)\s+([\d.]+\s*Mtr|\S+)\s+(\d+)\s+(.+?)\s+(\d{12,}_\d+)/.exec(flat);
+    if (pm0) { sku = pm0[1].trim(); size = pm0[2].trim(); qty = parseInt(pm0[3], 10); color = pm0[4].trim(); orderNo = pm0[5]; }
+
+    var desc = "";
+    var dm = /Description[^\n]*\n([\s\S]*?)Other Charges/.exec(full);
+    if (dm) desc = dm[1].replace(/\s+/g, " ").trim();
+
+    var amount = 0;
+    var am, re = /Total\s+Rs\.[\d.]+\s+Rs\.([\d.]+)/g;
+    while ((am = re.exec(full)) !== null) amount = parseFloat(am[1]);
+
+    var customer = "";
+    var cu = /Customer Address\s*\n([\s\S]*?)\nIf undelivered/.exec(full);
+    if (cu) customer = cu[1];
+    var pins = customer.match(/\b\d{6}\b/g);
+    var pincode = pins ? pins[pins.length - 1] : "";
+
+    var dates = full.match(/\d{2}\.\d{2}\.\d{4}/g) || [];
+    var invoiceDate = dates.length >= 2 ? dates[1] : (dates[0] || "");
+
+    return {
+      source: source, page: pageIndex, courier: courier, payment: payment, awb: awb,
+      sku: sku, size: size, qty: qty, color: color, orderNo: orderNo, amount: amount,
+      customer: customer, pincode: pincode, invoiceDate: invoiceDate,
+      category: getCategory(sku, size, desc)
+    };
+  }
+
+  function catRank(cat) {
+    var i = CATEGORY_ORDER.indexOf(cat);
+    return i >= 0 ? i : CATEGORY_ORDER.length;
+  }
+
+  function fmtDate(d) { return d ? d.replace(/\./g, "-") : ""; }
+
+  function manifestDate(rows) {
+    var count = {}, best = "", n = 0;
+    rows.forEach(function (r) { if (r.invoiceDate) count[r.invoiceDate] = (count[r.invoiceDate] || 0) + 1; });
+    Object.keys(count).forEach(function (d) { if (count[d] > n) { n = count[d]; best = d; } });
+    if (best) return fmtDate(best);
+    var t = new Date();
+    var p = function (x) { return (x < 10 ? "0" : "") + x; };
+    return p(t.getDate()) + "-" + p(t.getMonth() + 1) + "-" + t.getFullYear();
+  }
+
+  function groupBy(rows, keyFn) {
+    var map = {}, order = [];
+    rows.forEach(function (r) {
+      var k = keyFn(r);
+      if (!map[k]) { map[k] = []; order.push(k); }
+      map[k].push(r);
+    });
+    return { map: map, order: order };
+  }
+
+  function courierGroups(rows) {
+    var g = groupBy(rows, function (r) { return r.courier; });
+    g.order.sort(function (a, b) { return g.map[b].length - g.map[a].length || (a < b ? -1 : 1); });
+    return g;
+  }
+
+  function sortForPdf(rows) {
+    return rows.map(function (r, i) { return { r: r, i: i }; }).sort(function (a, b) {
+      var ra = catRank(a.r.category), rb = catRank(b.r.category);
+      if (ra !== rb) return ra - rb;
+      var ca = a.r.category || "", cb = b.r.category || "";
+      if (ca !== cb) return ca < cb ? -1 : 1;
+      var sa = a.r.sku.toUpperCase(), sb = b.r.sku.toUpperCase();
+      if (sa !== sb) return sa < sb ? -1 : 1;
+      return a.i - b.i;
+    }).map(function (x) { return x.r; });
+  }
+
+  function buildSummary(rows, dateStr) {
+    var out = [];
+    var cg = courierGroups(rows);
+    out.push("📦 *MEESHO ORDER SUMMARY*");
+    out.push("📅 Date: " + dateStr);
+    out.push("🧾 *Total Orders: " + rows.length + "*");
+    cg.order.forEach(function (c) { out.push("   • " + c + ": " + cg.map[c].length); });
+    out.push("");
+    cg.order.forEach(function (c) {
+      var rs = cg.map[c];
+      out.push("🚚 *" + c.toUpperCase() + " – " + rs.length + "*");
+      out.push("📋 SKU-wise count");
+      var bc = groupBy(rs, function (r) { return r.category || ("Other (" + r.sku + ")"); });
+      bc.order.sort(function (a, b) {
+        var d = catRank(a) - catRank(b);
+        return d || (a < b ? -1 : 1);
+      });
+      bc.order.forEach(function (cat) {
+        var items = bc.map[cat];
+        out.push("*" + cat + " – " + items.length + "*");
+        var sc = groupBy(items, function (r) { return r.sku; });
+        sc.order.sort();
+        sc.order.forEach(function (s) { out.push("  " + s + " – " + sc.map[s].length); });
+      });
+      out.push("");
+    });
+    out.push("🔁 *Multi-Qty Orders*");
+    var multi = rows.filter(function (r) { return r.qty > 1; });
+    if (!multi.length) out.push("None");
+    multi.forEach(function (r) {
+      out.push(r.courier + " | " + r.sku + " | Qty " + r.qty + " | " + (r.customer.split("\n")[0] || ""));
+    });
+    return out.join("\n") + "\n";
+  }
+
+  function buildCsv(rows) {
+    var esc = function (v) {
+      v = String(v == null ? "" : v);
+      return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+    };
+    var lines = [["Date", "Courier", "AWB", "Order No", "SKU", "Category", "Qty", "Payment", "Amount", "Pincode"].join(",")];
+    rows.forEach(function (r) {
+      lines.push([fmtDate(r.invoiceDate), r.courier, r.awb, r.orderNo, r.sku, r.category || "", r.qty, r.payment, r.amount, r.pincode].map(esc).join(","));
+    });
+    return "﻿" + lines.join("\n") + "\n";
+  }
+
+  // rows from every file in upload order; drops a second copy of the same AWB
+  function dedupe(allRows) {
+    var seen = {}, rows = [], dups = [];
+    allRows.forEach(function (r) {
+      if (r.awb && seen[r.awb]) { dups.push(r); return; }
+      if (r.awb) seen[r.awb] = true;
+      rows.push(r);
+    });
+    return { rows: rows, dups: dups };
+  }
+
+  function stats(rows) {
+    var cod = rows.filter(function (r) { return r.payment === "COD"; }).length;
+    var sales = rows.reduce(function (a, r) { return a + r.amount; }, 0);
+    return { total: rows.length, cod: cod, prepaid: rows.length - cod, sales: sales };
+  }
+
+  var api = {
+    linesFromItems: linesFromItems, parseLabel: parseLabel, getCategory: getCategory,
+    buildSummary: buildSummary, buildCsv: buildCsv, dedupe: dedupe, stats: stats,
+    manifestDate: manifestDate, courierGroups: courierGroups, sortForPdf: sortForPdf,
+    CATEGORY_ORDER: CATEGORY_ORDER
+  };
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  else root.MeeshoCore = api;
+})(typeof window !== "undefined" ? window : this);
+
+</script>
+<script>
+(function () {
+  var core = window.MeeshoCore;
+  var $ = function (id) { return document.getElementById(id); };
+  var input = $("files"), statusEl = $("status"), results = $("results");
+  var downloads = null;
+  var current = null; // { rows, dateStr, outputs: [{name, blob, label}] }
+
+  function setStatus(msg, isErr) {
+    statusEl.textContent = msg;
+    statusEl.className = isErr ? "err" : "";
+  }
+  function tick() { return new Promise(function (r) { setTimeout(r, 0); }); }
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+
+  function canSave() { return true; }
+
+  if (!window.pdfjsLib || !window.PDFLib) {
+    setStatus("The PDF tools did not load. Check your internet connection and reopen this page.", true);
+    input.disabled = true;
+    return;
+  }
+  try { pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; } catch (e) {}
+
+  input.addEventListener("change", function () {
+    var files = Array.prototype.slice.call(input.files || []);
+    if (files.length) run(files);
+  });
+  $("again").addEventListener("click", function () {
+    current = null;
+    results.hidden = true;
+    $("gets").hidden = false;
+    $("pick-text").textContent = "Choose label PDFs";
+    input.value = "";
+    setStatus("Pick one or more PDFs. Delhivery and Xpress Bees labels can be mixed in any order.");
+    window.scrollTo(0, 0);
+  });
+
+  async function run(files) {
+    input.disabled = true;
+    results.hidden = true;
+    var all = [], skippedPages = 0, sources = [];
+    try {
+      for (var f = 0; f < files.length; f++) {
+        setStatus("Opening " + files[f].name + " …");
+        var buf = await files[f].arrayBuffer();
+        sources.push({ name: files[f].name, bytes: new Uint8Array(buf.slice(0)), doc: null });
+        var pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf.slice(0)) }).promise;
+        for (var p = 1; p <= pdf.numPages; p++) {
+          var page = await pdf.getPage(p);
+          var tc = await page.getTextContent();
+          var row = null;
+          try { row = core.parseLabel(core.linesFromItems(tc.items), files[f].name, p - 1); } catch (e) { row = null; }
+          if (row) { row.fileIdx = f; all.push(row); } else { skippedPages++; }
+          if (p % 5 === 0) {
+            setStatus("Reading " + files[f].name + ": page " + p + " of " + pdf.numPages + " …");
+            await tick();
+          }
+        }
+        pdf.destroy && pdf.destroy();
+      }
+      if (!all.length) {
+        setStatus("No Meesho labels were found in these PDFs. Check that you picked the sub order label PDFs.", true);
+        input.disabled = false;
+        return;
+      }
+      var d = core.dedupe(all);
+      var rows = d.rows;
+      var dateStr = core.manifestDate(rows);
+      var groups = core.courierGroups(rows);
+      var outputs = [];
+      for (var g = 0; g < groups.order.length; g++) {
+        var courier = groups.order[g];
+        setStatus("Building " + courier + " PDF …");
+        await tick();
+        var out = await PDFLib.PDFDocument.create();
+        var sorted = core.sortForPdf(groups.map[courier]);
+        for (var i = 0; i < sorted.length; i++) {
+          var src = sources[sorted[i].fileIdx];
+          if (!src.doc) src.doc = await PDFLib.PDFDocument.load(src.bytes, { ignoreEncryption: true });
+          var copied = await out.copyPages(src.doc, [sorted[i].page]);
+          out.addPage(copied[0]);
+        }
+        var bytes = await out.save();
+        outputs.push({
+          name: courier.replace(/[^A-Za-z0-9]+/g, "_") + "_" + dateStr + ".pdf",
+          blob: new Blob([bytes], { type: "application/pdf" }),
+          label: courier + " PDF", count: sorted.length
+        });
+      }
+      outputs.push({
+        name: "orders_" + dateStr + ".csv",
+        blob: new Blob([core.buildCsv(rows)], { type: "text/csv" }),
+        label: "Orders file (CSV)", count: rows.length, csv: true
+      });
+      current = { rows: rows, dups: d.dups, dateStr: dateStr, outputs: outputs, skippedPages: skippedPages, groups: groups };
+      render();
+      setStatus(rows.length + " labels read from " + files.length + (files.length === 1 ? " file." : " files."));
+    } catch (e) {
+      setStatus("Could not read these PDFs. " + (e && e.message ? e.message : "") , true);
+    }
+    input.disabled = false;
+    input.value = "";
+  }
+
+  function render() {
+    var c = current, st = core.stats(c.rows);
+    $("gets").hidden = true;
+    $("pick-text").textContent = "Choose different PDFs";
+    $("date").textContent = c.dateStr;
+
+    var stats = $("stats");
+    stats.textContent = "";
+    function stat(n, l, main) { var s = el("div", "stat" + (main ? " main" : "")); s.appendChild(el("div", "n", String(n))); s.appendChild(el("div", "l", l)); stats.appendChild(s); }
+    stat(st.total, "Total labels", true);
+    c.groups.order.forEach(function (k) { stat(c.groups.map[k].length, k); });
+    stat(st.cod, "COD");
+    stat(st.prepaid, "Prepaid");
+    stat("Rs " + Math.round(st.sales).toLocaleString("en-IN"), "Order value");
+
+    var notes = $("notes");
+    notes.textContent = "";
+    var viz = c.rows.filter(function (r) { return r.customer.toLowerCase().indexOf("vizianagaram") >= 0; });
+    if (viz.length) {
+      var n = el("div", "note warn");
+      n.appendChild(el("h3", "", viz.length + (viz.length === 1 ? " customer is" : " customers are") + " from Vizianagaram"));
+      viz.forEach(function (r) {
+        var a = el("div", "addr");
+        a.appendChild(el("small", "", r.courier + " · " + r.sku + " · AWB " + r.awb));
+        a.appendChild(document.createTextNode(r.customer));
+        n.appendChild(a);
+      });
+      notes.appendChild(n);
+    } else {
+      notes.appendChild(el("div", "note info", "No customer from Vizianagaram."));
+    }
+    if (c.dups.length) notes.appendChild(el("div", "note warn", c.dups.length + " repeated label" + (c.dups.length === 1 ? " was" : "s were") + " ignored because the same AWB appeared twice in these PDFs."));
+    var uncat = {};
+    c.rows.forEach(function (r) { if (!r.category) uncat[r.sku || "(no SKU)"] = 1; });
+    if (Object.keys(uncat).length) notes.appendChild(el("div", "note warn", "Product group not recognised for: " + Object.keys(uncat).join(", ") + ". They are listed as Other in the summary and placed last in the PDFs."));
+    if (c.skippedPages) notes.appendChild(el("div", "note info", c.skippedPages + " page" + (c.skippedPages === 1 ? "" : "s") + " without a label were skipped."));
+
+    $("summary").textContent = core.buildSummary(c.rows, c.dateStr);
+    renderFiles();
+    results.hidden = false;
+    results.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function saveFile(o) {
+    var file = new File([o.blob], o.name, { type: o.blob.type });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      return navigator.share({ files: [file], title: o.name }).catch(function (e) {
+        if (e && e.name === "AbortError") return;
+        throw e;
+      });
+    }
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(o.blob);
+    a.download = o.name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+    return Promise.resolve();
+  }
+
+  function renderFiles() {
+    var list = $("files-list");
+    list.textContent = "";
+    if (!current) return;
+    $("save-note").textContent = "Tap a button and the share sheet opens. Choose WhatsApp to send the PDF, or Save to Files to keep it.";
+    current.outputs.forEach(function (o) {
+      var b = el("button", "btn" + (o.csv ? " ghost" : ""));
+      b.type = "button";
+      b.appendChild(document.createTextNode("Save " + o.label + " "));
+      b.appendChild(el("small", "", "(" + o.count + (o.csv ? " rows)" : " labels)")));
+      b.addEventListener("click", function () {
+        saveFile(o).catch(function () { $("save-note").textContent = "Could not save " + o.name + ". Try again."; });
+      });
+      list.appendChild(b);
+    });
+  }
+
+  $("copy").addEventListener("click", function () {
+    var text = $("summary").textContent;
+    var btn = $("copy");
+    function done(msg) { btn.textContent = msg; setTimeout(function () { btn.textContent = "Copy summary"; }, 2000); }
+    function fallback() {
+      try {
+        var r = document.createRange();
+        r.selectNodeContents($("summary"));
+        var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+        done("Selected. Tap Copy");
+      } catch (e) { done("Select and copy"); }
+    }
+    try {
+      navigator.clipboard.writeText(text).then(function () { done("Copied"); }, fallback);
+    } catch (e) { fallback(); }
+  });
+})();
+</script>
+
+</body>
+</html>

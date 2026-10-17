@@ -101,6 +101,8 @@ p { margin: 0; }
 #status { color: var(--muted); font-size: 0.95rem; min-height: 1.4em; }
 #status.err { color: var(--bad-ink); background: var(--bad-bg); padding: 8px 10px; border-radius: 6px; }
 .gets { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; color: var(--muted); }
+.added { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; color: var(--muted); }
+.added li { overflow-wrap: anywhere; }
 .gets b { color: var(--ink); font-weight: 600; }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
 .stat { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-width: 0; }
@@ -139,6 +141,7 @@ pre#summary {
       <input id="files" type="file" accept="application/pdf,.pdf" multiple>
     </label>
     <p id="status" role="status" aria-live="polite">Pick one or more PDFs. Delhivery and Xpress Bees labels can be mixed in any order.</p>
+    <ul class="added" id="added"></ul>
     <ul class="gets" id="gets">
       <li><b>Courier PDFs.</b> One PDF per courier, labels grouped by product.</li>
       <li><b>WhatsApp summary.</b> Totals, SKU counts and multi-qty orders, ready to copy.</li>
@@ -169,6 +172,7 @@ pre#summary {
         <p class="muted" id="save-note"></p>
       </section>
 
+      <label class="btn wide" for="files">Add more PDFs</label>
       <button class="btn ghost wide" id="again" type="button">Start over with new PDFs</button>
     </div>
   </div>
@@ -219,6 +223,10 @@ pre#summary {
       var pm = /pack of\s*(\d+)/i.exec(desc || "");
       if (pm) pack = parseInt(pm[1], 10);
     }
+    if (metres === null) {
+      var dmm = /([\d.]+)\s*(?:Mtrs?|Meters?)/i.exec(desc || "");
+      if (dmm) { var f2 = parseFloat(dmm[1]); if (!isNaN(f2)) metres = f2; }
+    }
     if (metres === null || pack === null) return null;
     var mtr = Math.abs(metres - 1) < 0.01 ? "1" : (Math.abs(metres - 0.8) < 0.01 ? "0.8" : null);
     if (mtr === null || (pack !== 5 && pack !== 10)) return null;
@@ -250,7 +258,9 @@ pre#summary {
 
     var sku = "", size = "", color = "", orderNo = "", qty = 1;
     var flat = lines.join(" ");
-    var pm0 = /SKU\s+Size\s+Qty\s+Color\s+Order No\.?\s+(.+?)\s+([\d.]+\s*Mtr|\S+)\s+(\d+)\s+(.+?)\s+(\d{12,}_\d+)/.exec(flat);
+    // SKU names can contain spaces ("BOOK FOLD 5pc"), so look for the size ("1 Mtr") first
+    var pm0 = /SKU\s+Size\s+Qty\s+Color\s+Order No\.?\s+(.+?)\s+([\d.]+\s*(?:Mtrs?|Meters?))\s+(\d+)\s+(.+?)\s+(\d{12,}_\d+)/i.exec(flat) ||
+      /SKU\s+Size\s+Qty\s+Color\s+Order No\.?\s+(.+?)\s+(\S+)\s+(\d+)\s+(.+?)\s+(\d{12,}_\d+)/.exec(flat);
     if (pm0) { sku = pm0[1].trim(); size = pm0[2].trim(); qty = parseInt(pm0[3], 10); color = pm0[4].trim(); orderNo = pm0[5]; }
 
     var desc = "";
@@ -258,7 +268,8 @@ pre#summary {
     if (dm) desc = dm[1].replace(/\s+/g, " ").trim();
 
     var amount = 0;
-    var am, re = /Total\s+Rs\.[\d.]+\s+Rs\.([\d.]+)/g;
+    // tax invoice: "Total Rs.29.28 Rs.615.00"; bill of supply: "Total Rs.344.00"
+    var am, re = /Total\s+(?:Rs\.[\d.]+\s+)?Rs\.([\d.]+)/g;
     while ((am = re.exec(full)) !== null) amount = parseFloat(am[1]);
 
     var customer = "";
@@ -427,49 +438,69 @@ pre#summary {
   }
   try { pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; } catch (e) {}
 
+  var S = { sources: [], rows: [], skipped: 0, seen: {} };
+  var START_MSG = "Pick one or more PDFs. Delhivery and Xpress Bees labels can be mixed in any order.";
+
   input.addEventListener("change", function () {
     var files = Array.prototype.slice.call(input.files || []);
     if (files.length) run(files);
   });
   $("again").addEventListener("click", function () {
+    S = { sources: [], rows: [], skipped: 0, seen: {} };
     current = null;
     results.hidden = true;
     $("gets").hidden = false;
+    $("added").textContent = "";
     $("pick-text").textContent = "Choose label PDFs";
     input.value = "";
-    setStatus("Pick one or more PDFs. Delhivery and Xpress Bees labels can be mixed in any order.");
+    setStatus(START_MSG);
     window.scrollTo(0, 0);
   });
 
   async function run(files) {
     input.disabled = true;
-    results.hidden = true;
-    var all = [], skippedPages = 0, sources = [];
+    var repeated = [], failed = [];
     try {
       for (var f = 0; f < files.length; f++) {
-        setStatus("Opening " + files[f].name + " …");
-        var buf = await files[f].arrayBuffer();
-        sources.push({ name: files[f].name, bytes: new Uint8Array(buf.slice(0)), doc: null });
-        var pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf.slice(0)) }).promise;
-        for (var p = 1; p <= pdf.numPages; p++) {
-          var page = await pdf.getPage(p);
-          var tc = await page.getTextContent();
-          var row = null;
-          try { row = core.parseLabel(core.linesFromItems(tc.items), files[f].name, p - 1); } catch (e) { row = null; }
-          if (row) { row.fileIdx = f; all.push(row); } else { skippedPages++; }
-          if (p % 5 === 0) {
-            setStatus("Reading " + files[f].name + ": page " + p + " of " + pdf.numPages + " …");
-            await tick();
+        var file = files[f];
+        var key = file.name + "|" + file.size + "|" + file.lastModified;
+        if (S.seen[key]) { repeated.push(file.name); continue; }
+        try {
+          setStatus("Opening " + file.name + " …");
+          var buf = await file.arrayBuffer();
+          var idx = S.sources.length;
+          var src = { name: file.name, bytes: new Uint8Array(buf.slice(0)), doc: null, labels: 0 };
+          var newRows = [], skipped = 0;
+          var pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf.slice(0)) }).promise;
+          for (var p = 1; p <= pdf.numPages; p++) {
+            var page = await pdf.getPage(p);
+            var tc = await page.getTextContent();
+            var row = null;
+            try { row = core.parseLabel(core.linesFromItems(tc.items), file.name, p - 1); } catch (e) { row = null; }
+            if (row) { row.fileIdx = idx; newRows.push(row); } else { skipped++; }
+            if (p % 5 === 0) {
+              setStatus("Reading " + file.name + ": page " + p + " of " + pdf.numPages + " …");
+              await tick();
+            }
           }
+          pdf.destroy && pdf.destroy();
+          if (!newRows.length) { failed.push(file.name); continue; }
+          src.labels = newRows.length;
+          S.sources.push(src);
+          S.rows = S.rows.concat(newRows);
+          S.skipped += skipped;
+          S.seen[key] = true;
+        } catch (e) {
+          failed.push(file.name);
         }
-        pdf.destroy && pdf.destroy();
       }
-      if (!all.length) {
-        setStatus("No Meesho labels were found in these PDFs. Check that you picked the sub order label PDFs.", true);
+      if (!S.rows.length) {
+        setStatus("No Meesho labels were found in " + (failed.length ? failed.join(", ") : "these PDFs") + ". Check that you picked the sub order label PDFs.", true);
         input.disabled = false;
+        input.value = "";
         return;
       }
-      var d = core.dedupe(all);
+      var d = core.dedupe(S.rows);
       var rows = d.rows;
       var dateStr = core.manifestDate(rows);
       var groups = core.courierGroups(rows);
@@ -481,9 +512,9 @@ pre#summary {
         var out = await PDFLib.PDFDocument.create();
         var sorted = core.sortForPdf(groups.map[courier]);
         for (var i = 0; i < sorted.length; i++) {
-          var src = sources[sorted[i].fileIdx];
-          if (!src.doc) src.doc = await PDFLib.PDFDocument.load(src.bytes, { ignoreEncryption: true });
-          var copied = await out.copyPages(src.doc, [sorted[i].page]);
+          var s = S.sources[sorted[i].fileIdx];
+          if (!s.doc) s.doc = await PDFLib.PDFDocument.load(s.bytes, { ignoreEncryption: true });
+          var copied = await out.copyPages(s.doc, [sorted[i].page]);
           out.addPage(copied[0]);
         }
         var bytes = await out.save();
@@ -498,11 +529,14 @@ pre#summary {
         blob: new Blob([core.buildCsv(rows)], { type: "text/csv" }),
         label: "Orders file (CSV)", count: rows.length, csv: true
       });
-      current = { rows: rows, dups: d.dups, dateStr: dateStr, outputs: outputs, skippedPages: skippedPages, groups: groups };
+      current = { rows: rows, dups: d.dups, dateStr: dateStr, outputs: outputs, skippedPages: S.skipped, groups: groups };
       render();
-      setStatus(rows.length + " labels read from " + files.length + (files.length === 1 ? " file." : " files."));
+      var msg = rows.length + " labels from " + S.sources.length + (S.sources.length === 1 ? " file." : " files.");
+      if (repeated.length) msg += " Already added, skipped: " + repeated.join(", ") + ".";
+      if (failed.length) msg += " No labels found in: " + failed.join(", ") + ".";
+      setStatus(msg, failed.length > 0);
     } catch (e) {
-      setStatus("Could not read these PDFs. " + (e && e.message ? e.message : "") , true);
+      setStatus("Could not read these PDFs. " + (e && e.message ? e.message : ""), true);
     }
     input.disabled = false;
     input.value = "";
@@ -511,7 +545,10 @@ pre#summary {
   function render() {
     var c = current, st = core.stats(c.rows);
     $("gets").hidden = true;
-    $("pick-text").textContent = "Choose different PDFs";
+    $("pick-text").textContent = "Add more PDFs";
+    var added = $("added");
+    added.textContent = "";
+    S.sources.forEach(function (s) { added.appendChild(el("li", "", s.name + " – " + s.labels + " labels")); });
     $("date").textContent = c.dateStr;
 
     var stats = $("stats");

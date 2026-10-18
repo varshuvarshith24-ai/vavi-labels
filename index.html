@@ -149,6 +149,9 @@ pre#summary {
 .tab, .chip { appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 500 0.95rem var(--font-body); min-height: 44px; padding: 0 16px; border-radius: 8px; cursor: pointer; }
 .tab.on, .chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); font-weight: 600; }
 .tab.gear { margin-left: auto; color: var(--muted); }
+.custom { display: flex; flex-wrap: wrap; gap: 12px; }
+.custom label { display: flex; flex-direction: column; gap: 4px; font: 500 0.85rem var(--font-body); color: var(--muted); }
+.custom input { min-height: 44px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: 500 1rem var(--font-body); }
 .tab:focus-visible, .chip:focus-visible, svg rect:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .filters .btn { min-height: 44px; padding: 0 14px; }
@@ -262,8 +265,14 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       <button class="chip" type="button" data-n="7">Last 7 days</button>
       <button class="chip" type="button" data-n="14">14 days</button>
       <button class="chip" type="button" data-n="30">30 days</button>
+      <button class="chip" type="button" data-n="all">Till date</button>
+      <button class="chip" type="button" data-n="custom">Custom</button>
       <button class="btn ghost" id="refresh" type="button">Refresh</button>
       <span id="updated" role="status"></span>
+    </div>
+    <div class="custom" id="custom-range" hidden>
+      <label>From <input type="date" id="d-from"></label>
+      <label>To <input type="date" id="d-to"></label>
     </div>
     <div class="note info" id="dash-msg" role="status" hidden></div>
     <div class="stack" id="dash-body" hidden>
@@ -784,11 +793,6 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
           label: courier + " PDF", count: sorted.length
         });
       }
-      outputs.push({
-        name: "orders_" + dateStr + ".csv",
-        blob: new Blob([core.buildCsv(rows)], { type: "text/csv" }),
-        label: "Orders file (CSV)", count: rows.length, csv: true
-      });
       current = { rows: rows, dups: d.dups, dateStr: dateStr, outputs: outputs, skippedPages: S.skipped, groups: groups };
       render();
       var msg = rows.length + " labels from " + S.sources.length + (S.sources.length === 1 ? " file." : " files.");
@@ -887,12 +891,32 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     var list = $("files-list");
     list.textContent = "";
     if (!current) return;
-    $("save-note").textContent = "Tap a button and the share sheet opens. Choose WhatsApp to send the PDF, or Save to Files to keep it.";
+    $("save-note").textContent = "Share all opens the share sheet with the PDFs. The pick list is copied too, so paste it in the group if it does not come along.";
+    var all = el("button", "btn primary");
+    all.type = "button";
+    all.appendChild(document.createTextNode("Share all PDFs + pick list "));
+    all.appendChild(el("small", "", "(WhatsApp)"));
+    all.addEventListener("click", function () {
+      var text = $("summary").textContent;
+      try { navigator.clipboard.writeText(text).catch(function () {}); } catch (e) {}
+      var files = current.outputs.map(function (o) { return new File([o.blob], o.name, { type: o.blob.type }); });
+      if (navigator.canShare && navigator.canShare({ files: files })) {
+        navigator.share({ files: files, text: text, title: "Vavi labels " + current.dateStr }).catch(function (e) {
+          if (!e || e.name !== "AbortError") $("save-note").textContent = "Could not open the share sheet. Use the buttons below.";
+        });
+      } else if (navigator.share) {
+        navigator.share({ text: text }).catch(function () {});
+        $("save-note").textContent = "This phone cannot share PDFs together. Share the pick list now, then save each PDF with the buttons below.";
+      } else {
+        $("save-note").textContent = "Sharing is not available here. The pick list is copied; save each PDF below.";
+      }
+    });
+    list.appendChild(all);
     current.outputs.forEach(function (o) {
-      var b = el("button", "btn" + (o.csv ? " ghost" : ""));
+      var b = el("button", "btn ghost");
       b.type = "button";
       b.appendChild(document.createTextNode("Save " + o.label + " "));
-      b.appendChild(el("small", "", "(" + o.count + (o.csv ? " rows)" : " labels)")));
+      b.appendChild(el("small", "", "(" + o.count + " labels)"));
       b.addEventListener("click", function () {
         saveFile(o).catch(function () { $("save-note").textContent = "Could not save " + o.name + ". Try again."; });
       });
@@ -1022,8 +1046,9 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   });
 
   /* --------------------------------------------------------------- dashboard */
-  var state = { days: [], range: +lsGet(LS_RANGE) || 7, updated: null, fromCache: false };
-  if ([7, 14, 30].indexOf(state.range) < 0) state.range = 7;
+  var rg0 = lsGet(LS_RANGE) || "7";
+  var state = { days: [], range: rg0, from: lsGet(LS_RANGE + "_from") || "", to: lsGet(LS_RANGE + "_to") || "", updated: null, fromCache: false };
+  if (["7", "14", "30", "all", "custom"].indexOf(state.range) < 0) state.range = "7";
   var tip = $("tip");
 
   function showTip(host, lines) {
@@ -1094,12 +1119,21 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     var days = state.days, body = $("dash-body"), msg = $("dash-msg");
     if (!days.length) { body.hidden = true; msg.hidden = false; msg.textContent = "No orders in the sheet yet. Send a day's orders from the Labels tab."; return; }
     msg.hidden = true; body.hidden = false;
-    var end = V.latestKey(days), n = state.range;
+    var end = V.latestKey(days), firstAll = days.reduce(function (a, x) { return !a || x.d < a ? x.d : a; }, null);
+    function span(a, b) { return Math.round((V.toDate(b) - V.toDate(a)) / 86400000) + 1; }
+    var n, label;
+    if (state.range === "all") { n = span(firstAll, end); label = "orders till date"; }
+    else if (state.range === "custom") {
+      var cf = state.from || V.addDays(end, -6), ct = state.to || end;
+      if (cf > ct) { var sw = cf; cf = ct; ct = sw; }
+      end = ct; n = Math.min(span(cf, ct), 1500); label = "orders in the selected dates";
+    } else { n = +state.range; label = "orders in the last " + n + " days"; }
     var entries = V.lastDays(days, end, n), s = V.summarize(entries);
     var first = entries[0].d;
+    var rangeText = state.range === "all" || state.range === "custom" ? V.shortDate(first) + " " + first.slice(0, 4) + " to " + V.shortDate(end) + " " + end.slice(0, 4) : "Last " + n + " days";
 
     $("hero-n").textContent = s.total.toLocaleString("en-IN");
-    $("hero-l").textContent = "orders in the last " + n + " days (" + V.shortDate(first) + " to " + V.shortDate(end) + ")";
+    $("hero-l").textContent = label + " (" + V.shortDate(first) + " to " + V.shortDate(end) + ")";
     var st = $("dash-stats"); st.textContent = "";
     function tile(n_, l, wide) { var t = el("div", "stat" + (wide ? " wide" : "")); t.appendChild(el("div", "n", n_)); t.appendChild(el("div", "l", l)); st.appendChild(t); }
     tile(String(s.avg), "Avg per day");
@@ -1107,11 +1141,12 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     tile(rs(s.sales), "Order value", true);
 
     // per day
-    $("sub-day").textContent = V.shortDate(first) + " to " + V.shortDate(end);
-    columnChart($("chart-day"), entries.map(function (e) {
-      return { label: n <= 7 ? V.dowName(e.d) + "\n" + e.d.slice(8).replace(/^0/, "") : e.d.slice(8).replace(/^0/, ""), value: e.total,
+    var shown = entries.length > 31 ? entries.slice(-31) : entries, ns = shown.length;
+    $("sub-day").textContent = V.shortDate(shown[0].d) + " to " + V.shortDate(end) + (entries.length > 31 ? " (last 31 days of the range)" : "");
+    columnChart($("chart-day"), shown.map(function (e) {
+      return { label: ns <= 7 ? V.dowName(e.d) + "\n" + e.d.slice(8).replace(/^0/, "") : e.d.slice(8).replace(/^0/, ""), value: e.total,
                tip: [e.total + " orders", V.dowName(e.d) + " " + V.shortDate(e.d) + (e.total ? " · " + rs(e.sales) : " · no orders recorded")] };
-    }), { aria: "Orders per day", labelW: n <= 7 ? 34 : 26, two: n <= 7 });
+    }), { aria: "Orders per day", labelW: ns <= 7 ? 34 : 26, two: ns <= 7 });
 
     // per week
     var weeks = V.lastWeeks(days, end, 8);
@@ -1134,7 +1169,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     $("note-month").hidden = false;
 
     // courier + payment + products (selected range)
-    $("sub-split").textContent = "Last " + n + " days";
+    $("sub-split").textContent = rangeText;
     var names = Object.keys(s.couriers).sort(function (a, b) { return s.couriers[b] - s.couriers[a]; });
     var bar = $("split-bar"), leg = $("split-legend"); bar.textContent = ""; leg.textContent = "";
     names.forEach(function (c) {
@@ -1171,8 +1206,10 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     ["Date", "Orders"].concat(tcols, ["COD", "Prepaid", "Order value"]).forEach(function (h) { hr.appendChild(el("th", "", h)); });
     thead.appendChild(hr); tb.appendChild(thead);
     var tbody = el("tbody");
-    V.lastDays(days, end, 30).reverse().forEach(function (e) {
-      if (!e.total) return;
+    var shownRows = 0;
+    entries.slice().reverse().forEach(function (e) {
+      if (!e.total || shownRows >= 90) return;
+      shownRows++;
       var tr = el("tr");
       [V.shortDate(e.d) + " " + V.dowName(e.d), e.total].concat(tcols.map(function (c) { return e.couriers[c] || 0; }), [e.cod, e.prepaid, rs(e.sales)])
         .forEach(function (v) { tr.appendChild(el("td", "", String(v))); });
@@ -1211,14 +1248,31 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     loadStats();
   }
 
-  Array.prototype.forEach.call(document.querySelectorAll("#ranges .chip"), function (b) {
-    b.classList.toggle("on", +b.getAttribute("data-n") === state.range);
+  var chips = Array.prototype.slice.call(document.querySelectorAll("#ranges .chip"));
+  var dFrom = $("d-from"), dTo = $("d-to"), customBox = $("custom-range");
+  function syncChips() {
+    chips.forEach(function (x) { x.classList.toggle("on", x.getAttribute("data-n") === state.range); });
+    customBox.hidden = state.range !== "custom";
+  }
+  chips.forEach(function (b) {
     b.addEventListener("click", function () {
-      state.range = +b.getAttribute("data-n"); lsSet(LS_RANGE, String(state.range));
-      Array.prototype.forEach.call(document.querySelectorAll("#ranges .chip"), function (x) { x.classList.toggle("on", x === b); });
+      state.range = b.getAttribute("data-n"); lsSet(LS_RANGE, state.range);
+      if (state.range === "custom" && !state.from && state.days.length) {
+        var e = V.latestKey(state.days); state.to = e; state.from = V.addDays(e, -6);
+        lsSet(LS_RANGE + "_from", state.from); lsSet(LS_RANGE + "_to", state.to);
+      }
+      dFrom.value = state.from; dTo.value = state.to;
+      syncChips();
       if (state.days.length) renderDash();
     });
   });
+  [[dFrom, "from"], [dTo, "to"]].forEach(function (p) {
+    p[0].addEventListener("change", function () {
+      state[p[1]] = p[0].value; lsSet(LS_RANGE + "_" + p[1], state[p[1]]);
+      if (state.days.length) renderDash();
+    });
+  });
+  dFrom.value = state.from; dTo.value = state.to; syncChips();
   $("refresh").addEventListener("click", loadStats);
   var rt = null;
   window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(function () { if (!views.dash.hidden && state.days.length) renderDash(); }, 150); });

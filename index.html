@@ -148,7 +148,13 @@ pre#summary {
 .tabs { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 .tab, .chip { appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 500 0.95rem var(--font-body); min-height: 44px; padding: 0 16px; border-radius: 8px; cursor: pointer; }
 .tab.on, .chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); font-weight: 600; }
-.tab.gear { margin-left: auto; color: var(--muted); }
+.titlebar { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.icon-btn { appearance: none; flex: none; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 8px; cursor: pointer; }
+.icon-btn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+.icon-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.btn.sm { min-height: 36px; padding: 0 12px; font-size: 0.9rem; }
+.hb.st { grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr) 5.2rem; }
+.hb-v small { font-weight: 400; color: var(--muted); }
 .custom { display: flex; flex-wrap: wrap; gap: 12px; }
 .custom label { display: flex; flex-direction: column; gap: 4px; font: 500 0.85rem var(--font-body); color: var(--muted); }
 .custom input { min-height: 44px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: 500 1rem var(--font-body); }
@@ -199,12 +205,16 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
 <main>
   <header>
-    <h1>Vavi Meesho Labels</h1>
+    <div class="titlebar">
+      <h1>Vavi Meesho Labels</h1>
+      <button class="icon-btn" id="tab-set" type="button" aria-label="Settings" hidden>
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </div>
     <p class="lede">Choose the day's label PDFs. You get the courier-wise PDFs, the WhatsApp summary and an orders file. Everything runs on this device and your PDFs are not uploaded.</p>
     <div class="tabs" id="tabs" role="tablist" hidden>
       <button class="tab on" id="tab-labels" type="button" role="tab" aria-selected="true">Labels</button>
       <button class="tab" id="tab-dash" type="button" role="tab" aria-selected="false">Dashboard</button>
-      <button class="tab gear" id="tab-set" type="button" role="tab" aria-selected="false">Sheet settings</button>
     </div>
   </header>
 
@@ -226,6 +236,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
   <div id="results" hidden>
     <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="row"><span class="muted">Results for these PDFs</span><button class="btn ghost sm" id="again-top" type="button">Start over</button></div>
       <section class="card" aria-labelledby="h-totals">
         <div class="row"><h2 id="h-totals">Totals for <span id="date"></span></h2></div>
         <div class="stats" id="stats"></div>
@@ -262,9 +273,9 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
   <div id="view-dash" class="stack" hidden>
     <div class="filters" id="ranges" role="group" aria-label="Date range">
+      <button class="chip" type="button" data-n="yesterday">Yesterday</button>
       <button class="chip" type="button" data-n="7">Last 7 days</button>
-      <button class="chip" type="button" data-n="14">14 days</button>
-      <button class="chip" type="button" data-n="30">30 days</button>
+      <button class="chip" type="button" data-n="30">Last 30 days</button>
       <button class="chip" type="button" data-n="all">Till date</button>
       <button class="chip" type="button" data-n="custom">Custom</button>
       <button class="btn ghost" id="refresh" type="button">Refresh</button>
@@ -310,6 +321,12 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
         <h2 id="h-cats">Products</h2>
         <div class="stack" id="cats" style="gap:10px"></div>
       </section>
+      <section class="card" aria-labelledby="h-states">
+        <h2 id="h-states">Orders by state</h2>
+        <p class="sub" id="sub-states"></p>
+        <div class="stack" id="states" style="gap:10px"></div>
+        <p class="muted" id="note-states">State is worked out from the delivery pincode, so a few border areas may land in a neighbouring state.</p>
+      </section>
       <section class="card">
         <details>
           <summary>Show daily table</summary>
@@ -319,7 +336,9 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     </div>
   </div>
 
-  <section class="card" id="sheet-settings" hidden aria-labelledby="h-set">
+  <div id="sheet-settings" class="stack" hidden>
+    <div class="row"><h2 id="h-settings">Settings</h2><button class="btn ghost sm" id="set-back" type="button">Back</button></div>
+  <section class="card" aria-labelledby="h-set">
     <h2 id="h-set">Sheet settings</h2>
     <p class="help">Connect this phone to your Meesho_Master Google Sheet. You enter these once. They stay on this phone only.</p>
     <div class="field"><label for="set-url">Sheet link</label><input id="set-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec"></div>
@@ -328,6 +347,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     <button class="btn ghost" id="set-clear" type="button">Disconnect this phone</button>
     <p class="msg" id="set-msg" role="status" aria-live="polite"></p>
   </section>
+  </div>
   <div id="tip" role="status" hidden></div>
 </main>
 
@@ -580,12 +600,22 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   function dowName(k) { return DOW[dow(k)]; }
   function monthLabel(k) { var p = k.split("-"); return MONTHS[+p[1] - 1] + " " + p[0].slice(2); }
 
-  function emptyDay(k) { return { d: k, total: 0, couriers: {}, cod: 0, prepaid: 0, cats: {}, sales: 0 }; }
+  function emptyDay(k) { return { d: k, total: 0, couriers: {}, cod: 0, prepaid: 0, cats: {}, states: {}, sales: 0 }; }
 
   function latestKey(days) {
     var best = null;
     days.forEach(function (x) { if (!best || x.d > best) best = x.d; });
     return best;
+  }
+
+  // top N states + one "Other states" row; rows = [{name, n}]
+  function topStates(states, limit) {
+    var rows = Object.keys(states).map(function (k) { return { name: k, n: states[k] }; })
+      .sort(function (a, b) { return b.n - a.n || (a.name < b.name ? -1 : 1); });
+    if (rows.length <= limit) return rows;
+    var head = rows.slice(0, limit - 1), rest = rows.slice(limit - 1);
+    head.push({ name: "Other states (" + rest.length + ")", n: rest.reduce(function (a, r) { return a + r.n; }, 0) });
+    return head;
   }
 
   function lastDays(days, endKey, n) {
@@ -605,6 +635,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       t.total += e.total; t.cod += e.cod; t.prepaid += e.prepaid; t.sales += e.sales;
       Object.keys(e.couriers).forEach(function (c) { t.couriers[c] = (t.couriers[c] || 0) + e.couriers[c]; });
       Object.keys(e.cats).forEach(function (c) { t.cats[c] = (t.cats[c] || 0) + e.cats[c]; });
+      Object.keys(e.states || {}).forEach(function (c) { t.states[c] = (t.states[c] || 0) + e.states[c]; });
     });
     return t;
   }
@@ -661,7 +692,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     var best = null;
     entries.forEach(function (e) { if (e.total > 0 && (!best || e.total > best.total)) best = e; });
     return {
-      total: t.total, sales: t.sales, cod: t.cod, prepaid: t.prepaid, couriers: t.couriers, cats: t.cats,
+      total: t.total, sales: t.sales, cod: t.cod, prepaid: t.prepaid, couriers: t.couriers, cats: t.cats, states: t.states,
       activeDays: active.length,
       avg: active.length ? Math.round(t.total / active.length) : 0,
       best: best ? { d: best.d, total: best.total } : null
@@ -671,7 +702,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   var api = {
     toDate: toDate, toKey: toKey, addDays: addDays, weekStart: weekStart, shortDate: shortDate, dowName: dowName,
     monthLabel: monthLabel, latestKey: latestKey, lastDays: lastDays, lastWeeks: lastWeeks, lastMonths: lastMonths,
-    sum: sum, summarize: summarize, niceScale: niceScale, compact: compact, emptyDay: emptyDay
+    sum: sum, topStates: topStates, summarize: summarize, niceScale: niceScale, compact: compact, emptyDay: emptyDay
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.VaviDash = api;
@@ -714,7 +745,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     var files = Array.prototype.slice.call(input.files || []);
     if (files.length) run(files);
   });
-  $("again").addEventListener("click", function () {
+  [$("again"), $("again-top")].forEach(function (btn) { btn.addEventListener("click", function () {
     S = { sources: [], rows: [], skipped: 0, seen: {} };
     current = null;
     try { window.dispatchEvent(new CustomEvent("vavi:clear")); } catch (e) {}
@@ -725,7 +756,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     input.value = "";
     setStatus(START_MSG);
     window.scrollTo(0, 0);
-  });
+  }); });
 
   async function run(files) {
     input.disabled = true;
@@ -892,24 +923,50 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     var list = $("files-list");
     list.textContent = "";
     if (!current) return;
-    $("save-note").textContent = "Share all opens the share sheet with the PDFs. The pick list is copied too, so paste it in the group if it does not come along.";
     var all = el("button", "btn primary");
     all.type = "button";
-    all.appendChild(document.createTextNode("Share all PDFs + pick list "));
-    all.appendChild(el("small", "", "(WhatsApp)"));
+    // iPhone sends the PDFs and the pick list together. Android's share sheet drops the text when files are attached,
+    // so there it is two quick taps: pick list first, then the PDFs, into the same group.
+    var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    var step = 0;
+    $("save-note").textContent = (ios ? "Share all opens the share sheet with the PDFs and the pick list. The pick list is copied too, in case it does not come along." : "Share the pick list first, then the PDFs, both into the same WhatsApp group.");
+    function label() {
+      all.textContent = "";
+      all.appendChild(document.createTextNode(ios ? "Share all PDFs + pick list " : step === 0 ? "1. Share pick list " : "2. Share PDFs "));
+      all.appendChild(el("small", "", "(WhatsApp)"));
+    }
+    label();
+    function pdfFiles() { return current.outputs.map(function (o) { return new File([o.blob], o.name, { type: o.blob.type }); }); }
+    function failed(e) { if (!e || e.name !== "AbortError") $("save-note").textContent = "Could not open the share sheet. Use the buttons below."; }
     all.addEventListener("click", function () {
       var text = $("summary").textContent;
-      try { navigator.clipboard.writeText(text).catch(function () {}); } catch (e) {}
-      var files = current.outputs.map(function (o) { return new File([o.blob], o.name, { type: o.blob.type }); });
-      if (navigator.canShare && navigator.canShare({ files: files })) {
-        navigator.share({ files: files, text: text, title: "Vavi labels " + current.dateStr }).catch(function (e) {
-          if (!e || e.name !== "AbortError") $("save-note").textContent = "Could not open the share sheet. Use the buttons below.";
-        });
-      } else if (navigator.share) {
-        navigator.share({ text: text }).catch(function () {});
-        $("save-note").textContent = "This phone cannot share PDFs together. Share the pick list now, then save each PDF with the buttons below.";
+      if (ios) {
+        try { navigator.clipboard.writeText(text).catch(function () {}); } catch (e) {}
+        var files = pdfFiles();
+        if (navigator.canShare && navigator.canShare({ files: files })) {
+          navigator.share({ files: files, text: text, title: "Vavi labels " + current.dateStr }).catch(failed);
+        } else if (navigator.share) {
+          navigator.share({ text: text }).catch(function () {});
+          $("save-note").textContent = "This phone cannot share PDFs together. Share the pick list now, then save each PDF with the buttons below.";
+        } else {
+          $("save-note").textContent = "Sharing is not available here. The pick list is copied; save each PDF below.";
+        }
+        return;
+      }
+      if (step === 0) {
+        if (navigator.share) {
+          navigator.share({ text: text }).then(function () { step = 1; label(); $("save-note").textContent = "Pick list shared. Now tap 2. Share PDFs and choose the same group."; }).catch(failed);
+        } else {
+          try { navigator.clipboard.writeText(text).catch(function () {}); } catch (e) {}
+          step = 1; label(); $("save-note").textContent = "The pick list is copied. Paste it in the group, then tap 2. Share PDFs.";
+        }
       } else {
-        $("save-note").textContent = "Sharing is not available here. The pick list is copied; save each PDF below.";
+        var f2 = pdfFiles();
+        if (navigator.canShare && navigator.canShare({ files: f2 })) {
+          navigator.share({ files: f2, title: "Vavi labels " + current.dateStr }).then(function () { step = 0; label(); $("save-note").textContent = "Done. Tap again to share once more."; }).catch(failed);
+        } else {
+          $("save-note").textContent = "This phone cannot share PDFs together. Save each PDF with the buttons below.";
+        }
       }
     });
     list.appendChild(all);
@@ -989,8 +1046,10 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   /* -------------------------------------------------------------- tabs/views */
   var views = { labels: $("view-labels"), dash: $("view-dash"), set: $("sheet-settings") };
   var tabs = { labels: $("tab-labels"), dash: $("tab-dash"), set: $("tab-set") };
-  $("tabs").hidden = false;
+  $("tabs").hidden = false; tabs.set.hidden = false;
+  var lastView = "labels";
   function show(name) {
+    if (name !== "set") lastView = name;
     Object.keys(views).forEach(function (k) {
       views[k].hidden = k !== name;
       tabs[k].setAttribute("aria-selected", k === name ? "true" : "false");
@@ -1000,7 +1059,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     if (name === "set") { $("set-url").value = lsGet(LS_URL); $("set-key").value = lsGet(LS_KEY); }
     window.scrollTo(0, 0);
   }
-  Object.keys(tabs).forEach(function (k) { tabs[k].addEventListener("click", function () { show(k); }); });
+  Object.keys(tabs).forEach(function (k) { tabs[k].addEventListener("click", function () { show(k === "set" && !views.set.hidden ? lastView : k); }); });
+  $("set-back").addEventListener("click", function () { show(lastView); });
 
   /* ---------------------------------------------------------------- settings */
   function setMsg(id, text, bad) { var n = $(id); n.textContent = text; n.className = "msg" + (bad ? " bad" : ""); }
@@ -1050,7 +1110,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   /* --------------------------------------------------------------- dashboard */
   var rg0 = lsGet(LS_RANGE) || "7";
   var state = { days: [], range: rg0, from: lsGet(LS_RANGE + "_from") || "", to: lsGet(LS_RANGE + "_to") || "", updated: null, fromCache: false };
-  if (["7", "14", "30", "all", "custom"].indexOf(state.range) < 0) state.range = "7";
+  if (["yesterday", "7", "30", "all", "custom"].indexOf(state.range) < 0) state.range = "7";
   var tip = $("tip");
 
   function showTip(host, lines) {
@@ -1124,7 +1184,10 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     var end = V.latestKey(days), firstAll = days.reduce(function (a, x) { return !a || x.d < a ? x.d : a; }, null);
     function span(a, b) { return Math.round((V.toDate(b) - V.toDate(a)) / 86400000) + 1; }
     var n, label;
-    if (state.range === "all") { n = span(firstAll, end); label = "orders till date"; }
+    if (state.range === "yesterday") {
+      var yd = new Date(Date.now() - 86400000), pz = function (x) { return (x < 10 ? "0" : "") + x; };
+      end = yd.getFullYear() + "-" + pz(yd.getMonth() + 1) + "-" + pz(yd.getDate()); n = 1; label = "orders yesterday";
+    } else if (state.range === "all") { n = span(firstAll, end); label = "orders till date"; }
     else if (state.range === "custom") {
       var cf = state.from || V.addDays(end, -6), ct = state.to || end;
       if (cf > ct) { var sw = cf; cf = ct; ct = sw; }
@@ -1132,10 +1195,10 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     } else { n = +state.range; label = "orders in the last " + n + " days"; }
     var entries = V.lastDays(days, end, n), s = V.summarize(entries);
     var first = entries[0].d;
-    var rangeText = state.range === "all" || state.range === "custom" ? V.shortDate(first) + " " + first.slice(0, 4) + " to " + V.shortDate(end) + " " + end.slice(0, 4) : "Last " + n + " days";
+    var rangeText = state.range === "yesterday" ? "Yesterday, " + V.shortDate(end) : state.range === "all" || state.range === "custom" ? V.shortDate(first) + " " + first.slice(0, 4) + " to " + V.shortDate(end) + " " + end.slice(0, 4) : "Last " + n + " days";
 
     $("hero-n").textContent = s.total.toLocaleString("en-IN");
-    $("hero-l").textContent = label + " (" + V.shortDate(first) + " to " + V.shortDate(end) + ")";
+    $("hero-l").textContent = label + (n === 1 ? " (" + V.shortDate(end) + ")" : " (" + V.shortDate(first) + " to " + V.shortDate(end) + ")") + (s.total ? "" : " - none recorded in the sheet yet");
     var st = $("dash-stats"); st.textContent = "";
     function tile(n_, l, wide) { var t = el("div", "stat" + (wide ? " wide" : "")); t.appendChild(el("div", "n", n_)); t.appendChild(el("div", "l", l)); st.appendChild(t); }
     tile(String(s.avg), "Avg per day");
@@ -1199,6 +1262,19 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       var row = el("div", "hb"); row.appendChild(el("span", "hb-l", k));
       var tr = el("span", "hb-t"); var f = el("span", "hb-f"); f.style.width = (cmax ? 100 * s.cats[k] / cmax : 0) + "%"; tr.appendChild(f); row.appendChild(tr);
       row.appendChild(el("b", "hb-v", String(s.cats[k]))); cats.appendChild(row);
+    });
+
+    // states
+    var stEl = $("states"); stEl.textContent = ""; $("sub-states").textContent = rangeText;
+    var rowsSt = V.topStates(s.states || {}, 12), stTotal = rowsSt.reduce(function (a, r) { return a + r.n; }, 0), stMax = rowsSt.length ? rowsSt[0].n : 0;
+    if (!rowsSt.length) {
+      stEl.appendChild(el("p", "muted", s.total ? "State data is not coming from your sheet yet. Update the Google script, then tap Refresh." : "No orders in this range."));
+    }
+    rowsSt.forEach(function (r) {
+      var row = el("div", "hb st"); row.appendChild(el("span", "hb-l", r.name));
+      var tr = el("span", "hb-t"), f = el("span", "hb-f"); f.style.width = (stMax ? 100 * r.n / stMax : 0) + "%"; tr.appendChild(f); row.appendChild(tr);
+      var v = el("b", "hb-v", String(r.n)); v.appendChild(el("small", "", " " + Math.round(100 * r.n / stTotal) + "%")); row.appendChild(v);
+      stEl.appendChild(row);
     });
 
     // table

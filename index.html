@@ -28,6 +28,11 @@
   --warn-line: #e8c47a;
   --bad-bg: #fde5e3;
   --bad-ink: #7a1b14;
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --grid: #dfe7e9;
+  --axis: #b7c4c8;
   --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
   --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -47,6 +52,11 @@
     --warn-line: #7a5a1c;
     --bad-bg: #44201d;
     --bad-ink: #ffb9b2;
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --grid: #223540;
+    --axis: #34484f;
     color-scheme: dark;
   }
 }
@@ -64,6 +74,11 @@
   --warn-line: #7a5a1c;
   --bad-bg: #44201d;
   --bad-ink: #ffb9b2;
+  --s1: #3987e5;
+  --s2: #d95926;
+  --s3: #199e70;
+  --grid: #223540;
+  --axis: #34484f;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -114,6 +129,7 @@ p { margin: 0; }
 .note.info { background: var(--accent-soft); color: var(--ink); }
 .note h3 { margin: 0 0 4px; font-size: 1rem; }
 .addr { margin: 8px 0 0; padding: 8px 10px; background: var(--surface); color: var(--ink); border-radius: 6px; font-family: var(--font-mono); font-size: 0.85rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.copyaddr { width: 100%; margin-top: 8px; }
 .addr small { display: block; color: var(--muted); margin-bottom: 4px; font-family: var(--font-body); font-size: 0.8rem; }
 pre#summary {
   margin: 0; padding: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
@@ -124,6 +140,53 @@ pre#summary {
 .files .btn small { font-weight: 400; opacity: 0.85; }
 .muted { color: var(--muted); font-size: 0.9rem; }
 @media (prefers-reduced-motion: no-preference) { .btn { transition: background-color 0.15s, color 0.15s; } }
+[hidden] { display: none !important; }
+.stack { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.tabs { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.tab, .chip { appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 500 0.95rem var(--font-body); min-height: 44px; padding: 0 16px; border-radius: 8px; cursor: pointer; }
+.tab.on, .chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); font-weight: 600; }
+.tab.gear { margin-left: auto; color: var(--muted); }
+.tab:focus-visible, .chip:focus-visible, svg rect:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.filters .btn { min-height: 44px; padding: 0 14px; }
+#updated { color: var(--muted); font-size: 0.85rem; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-weight: 600; font-size: 0.95rem; }
+.field input { font: 400 1rem var(--font-body); min-height: 48px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); width: 100%; }
+.msg { min-height: 1.4em; font-size: 0.95rem; color: var(--muted); }
+.msg.bad { color: var(--bad-ink); background: var(--bad-bg); padding: 8px 10px; border-radius: 6px; }
+.help { color: var(--muted); font-size: 0.9rem; }
+.hero-n { font-family: var(--font-display); font-weight: 700; font-size: 3.4rem; line-height: 1; letter-spacing: -0.02em; }
+.hero-l { color: var(--muted); }
+#dash-stats { grid-template-columns: 1fr 1fr; }
+#dash-stats .stat .n { font-family: var(--font-body); font-weight: 600; font-size: 1.35rem; }
+#dash-stats .stat.wide { grid-column: 1 / -1; }
+#dash-body.loading { opacity: 0.6; }
+.chart { width: 100%; min-width: 0; }
+.chart svg { display: block; max-width: 100%; height: auto; overflow: visible; }
+.chart text { font-family: var(--font-body); }
+.sub { color: var(--muted); font-size: 0.9rem; margin: 0; }
+.split { display: flex; height: 16px; gap: 2px; }
+.seg { min-width: 4px; border-radius: 3px; }
+.split-legend { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px 18px; flex-wrap: wrap; }
+.split-legend li { display: flex; align-items: center; gap: 6px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.meter { height: 10px; border-radius: 5px; background: var(--accent-soft); overflow: hidden; }
+#cod-fill { height: 100%; background: var(--accent); border-radius: 5px; display: block; }
+.hb { display: grid; grid-template-columns: minmax(0, 11rem) minmax(0, 1fr) 3rem; gap: 10px; align-items: center; }
+.hb-l { font-size: 0.9rem; overflow-wrap: anywhere; }
+.hb-t { height: 14px; display: block; }
+.hb-f { height: 100%; background: var(--s1); border-radius: 0 4px 4px 0; display: block; min-width: 2px; }
+.hb-v { text-align: right; font-variant-numeric: tabular-nums; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--muted); font-weight: 600; }
+summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+#tip { position: fixed; z-index: 50; pointer-events: none; background: var(--ink); color: var(--bg); padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; display: flex; flex-direction: column; max-width: 240px; }
+#tip strong { font-size: 1rem; }
+@media (max-width: 480px) { .hb { grid-template-columns: minmax(0, 8rem) minmax(0, 1fr) 2.5rem; } .hero-n { font-size: 3rem; } }
 </style>
 </head>
 <body>
@@ -132,8 +195,14 @@ pre#summary {
   <header>
     <h1>Vavi Meesho Labels</h1>
     <p class="lede">Choose the day's label PDFs. You get the courier-wise PDFs, the WhatsApp summary and an orders file. Everything runs on this device and your PDFs are not uploaded.</p>
+    <div class="tabs" id="tabs" role="tablist" hidden>
+      <button class="tab on" id="tab-labels" type="button" role="tab" aria-selected="true">Labels</button>
+      <button class="tab" id="tab-dash" type="button" role="tab" aria-selected="false">Dashboard</button>
+      <button class="tab gear" id="tab-set" type="button" role="tab" aria-selected="false">Sheet settings</button>
+    </div>
   </header>
 
+  <div id="view-labels" class="stack">
   <section class="card" aria-labelledby="h-pick">
     <h2 id="h-pick">Label PDFs</h2>
     <label class="btn wide" id="pick">
@@ -158,6 +227,13 @@ pre#summary {
 
       <div id="notes" style="display:flex;flex-direction:column;gap:12px"></div>
 
+      <section class="card" id="sheet-card" aria-labelledby="h-sheet" hidden>
+        <h2 id="h-sheet">Master sheet</h2>
+        <button class="btn" id="send" type="button">Send to Sheet</button>
+        <p class="msg" id="send-note" role="status" aria-live="polite"></p>
+        <p class="help">Orders already in the sheet are skipped, so sending twice is safe.</p>
+      </section>
+
       <section class="card" aria-labelledby="h-sum">
         <div class="row">
           <h2 id="h-sum">WhatsApp summary</h2>
@@ -176,6 +252,71 @@ pre#summary {
       <button class="btn ghost wide" id="again" type="button">Start over with new PDFs</button>
     </div>
   </div>
+  </div>
+
+  <div id="view-dash" class="stack" hidden>
+    <div class="filters" id="ranges" role="group" aria-label="Date range">
+      <button class="chip" type="button" data-n="7">Last 7 days</button>
+      <button class="chip" type="button" data-n="14">14 days</button>
+      <button class="chip" type="button" data-n="30">30 days</button>
+      <button class="btn ghost" id="refresh" type="button">Refresh</button>
+      <span id="updated" role="status"></span>
+    </div>
+    <div class="note info" id="dash-msg" role="status" hidden></div>
+    <div class="stack" id="dash-body" hidden>
+      <section class="card" aria-label="Summary">
+        <div class="hero-n" id="hero-n">0</div>
+        <div class="hero-l" id="hero-l"></div>
+        <div class="stats" id="dash-stats"></div>
+      </section>
+      <section class="card" aria-labelledby="h-day">
+        <h2 id="h-day">Orders per day</h2>
+        <p class="sub" id="sub-day"></p>
+        <div class="chart" id="chart-day"></div>
+      </section>
+      <section class="card" aria-labelledby="h-week">
+        <h2 id="h-week">Orders per week</h2>
+        <p class="sub">Weeks start on Monday. Last 8 weeks.</p>
+        <div class="chart" id="chart-week"></div>
+        <p class="sub" id="note-week">A lighter bar is a week still in progress.</p>
+      </section>
+      <section class="card" aria-labelledby="h-month">
+        <h2 id="h-month">Orders per month</h2>
+        <p class="sub" id="sub-month"></p>
+        <div class="chart" id="chart-month"></div>
+        <p class="sub" id="note-month">The lighter bar is the current month so far.</p>
+      </section>
+      <section class="card" aria-labelledby="h-split">
+        <h2 id="h-split">Couriers and payment</h2>
+        <p class="sub" id="sub-split"></p>
+        <div class="split" id="split-bar"></div>
+        <ul class="split-legend" id="split-legend"></ul>
+        <div class="meter" aria-hidden="true"><span id="cod-fill"></span></div>
+        <p id="cod-text"></p>
+      </section>
+      <section class="card" aria-labelledby="h-cats">
+        <h2 id="h-cats">Products</h2>
+        <div class="stack" id="cats" style="gap:10px"></div>
+      </section>
+      <section class="card">
+        <details>
+          <summary>Show daily table</summary>
+          <div class="tablewrap"><table id="dash-table"></table></div>
+        </details>
+      </section>
+    </div>
+  </div>
+
+  <section class="card" id="sheet-settings" hidden aria-labelledby="h-set">
+    <h2 id="h-set">Sheet settings</h2>
+    <p class="help">Connect this phone to your Meesho_Master Google Sheet. You enter these once. They stay on this phone only.</p>
+    <div class="field"><label for="set-url">Sheet link</label><input id="set-url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec"></div>
+    <div class="field"><label for="set-key">Key</label><input id="set-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+    <button class="btn" id="set-save" type="button">Save and test</button>
+    <button class="btn ghost" id="set-clear" type="button">Disconnect this phone</button>
+    <p class="msg" id="set-msg" role="status" aria-live="polite"></p>
+  </section>
+  <div id="tip" role="status" hidden></div>
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
@@ -410,6 +551,121 @@ pre#summary {
 
 </script>
 <script>
+// Dashboard maths for the Vavi Meesho Labels page: windows, weeks, months and totals.
+// Plain JS, no DOM, so the same file runs in the browser and in node tests.
+(function (root) {
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  var DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function toDate(k) { var p = k.split("-"); return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])); }
+  function toKey(d) { return d.getUTCFullYear() + "-" + pad(d.getUTCMonth() + 1) + "-" + pad(d.getUTCDate()); }
+  function addDays(k, n) { var d = toDate(k); d.setUTCDate(d.getUTCDate() + n); return toKey(d); }
+  function dow(k) { return toDate(k).getUTCDay(); }
+  function weekStart(k) { return addDays(k, -((dow(k) + 6) % 7)); }      // Monday
+  function shortDate(k) { var d = toDate(k); return d.getUTCDate() + " " + MONTHS[d.getUTCMonth()]; }
+  function dowName(k) { return DOW[dow(k)]; }
+  function monthLabel(k) { var p = k.split("-"); return MONTHS[+p[1] - 1] + " " + p[0].slice(2); }
+
+  function emptyDay(k) { return { d: k, total: 0, couriers: {}, cod: 0, prepaid: 0, cats: {}, sales: 0 }; }
+
+  function latestKey(days) {
+    var best = null;
+    days.forEach(function (x) { if (!best || x.d > best) best = x.d; });
+    return best;
+  }
+
+  function lastDays(days, endKey, n) {
+    var idx = {};
+    days.forEach(function (x) { idx[x.d] = x; });
+    var out = [];
+    for (var i = n - 1; i >= 0; i--) {
+      var k = addDays(endKey, -i);
+      out.push(idx[k] || emptyDay(k));
+    }
+    return out;
+  }
+
+  function sum(entries) {
+    var t = emptyDay("");
+    entries.forEach(function (e) {
+      t.total += e.total; t.cod += e.cod; t.prepaid += e.prepaid; t.sales += e.sales;
+      Object.keys(e.couriers).forEach(function (c) { t.couriers[c] = (t.couriers[c] || 0) + e.couriers[c]; });
+      Object.keys(e.cats).forEach(function (c) { t.cats[c] = (t.cats[c] || 0) + e.cats[c]; });
+    });
+    return t;
+  }
+
+  function lastWeeks(days, endKey, n) {
+    var endWs = weekStart(endKey), out = [];
+    for (var i = n - 1; i >= 0; i--) {
+      var ws = addDays(endWs, -7 * i), we = addDays(ws, 6);
+      var inWeek = days.filter(function (x) { return x.d >= ws && x.d <= we; });
+      var t = sum(inWeek);
+      t.d = ws;
+      t.label = shortDate(ws);
+      t.partial = i === 0 && endKey < we;
+      t.until = i === 0 ? endKey : we;
+      out.push(t);
+    }
+    return out;
+  }
+
+  function lastMonths(days, endKey, n) {
+    var y = +endKey.slice(0, 4), m = +endKey.slice(5, 7), out = [];
+    for (var i = n - 1; i >= 0; i--) {
+      var mm = m - i, yy = y;
+      while (mm < 1) { mm += 12; yy--; }
+      var mk = yy + "-" + pad(mm);
+      var t = sum(days.filter(function (x) { return x.d.slice(0, 7) === mk; }));
+      t.d = mk;
+      t.label = MONTHS[mm - 1];
+      t.long = monthLabel(mk + "-01");
+      t.partial = i === 0;
+      out.push(t);
+    }
+    return out;
+  }
+
+  // 0 / step / ... / max with about four steps
+  function niceScale(max) {
+    if (!(max > 0)) return { max: 4, step: 1 };
+    var rough = max / 4, pow = Math.pow(10, Math.floor(Math.log(rough) / Math.LN10)), f = rough / pow;
+    var nice = f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10;
+    var step = nice * pow;
+    return { max: Math.ceil(max / step) * step, step: step };
+  }
+
+  function compact(n) {
+    if (n >= 100000) return (n / 100000).toFixed(n % 100000 === 0 ? 0 : 1) + "L";
+    if (n >= 1000) return (n / 1000).toFixed(n % 1000 === 0 ? 0 : 1) + "K";
+    return String(n);
+  }
+
+  function summarize(entries) {
+    var t = sum(entries);
+    var active = entries.filter(function (e) { return e.total > 0; });
+    var best = null;
+    entries.forEach(function (e) { if (e.total > 0 && (!best || e.total > best.total)) best = e; });
+    return {
+      total: t.total, sales: t.sales, cod: t.cod, prepaid: t.prepaid, couriers: t.couriers, cats: t.cats,
+      activeDays: active.length,
+      avg: active.length ? Math.round(t.total / active.length) : 0,
+      best: best ? { d: best.d, total: best.total } : null
+    };
+  }
+
+  var api = {
+    toDate: toDate, toKey: toKey, addDays: addDays, weekStart: weekStart, shortDate: shortDate, dowName: dowName,
+    monthLabel: monthLabel, latestKey: latestKey, lastDays: lastDays, lastWeeks: lastWeeks, lastMonths: lastMonths,
+    sum: sum, summarize: summarize, niceScale: niceScale, compact: compact, emptyDay: emptyDay
+  };
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  else root.VaviDash = api;
+})(typeof window !== "undefined" ? window : this);
+
+</script>
+<script>
 (function () {
   var core = window.MeeshoCore;
   var $ = function (id) { return document.getElementById(id); };
@@ -448,6 +704,7 @@ pre#summary {
   $("again").addEventListener("click", function () {
     S = { sources: [], rows: [], skipped: 0, seen: {} };
     current = null;
+    try { window.dispatchEvent(new CustomEvent("vavi:clear")); } catch (e) {}
     results.hidden = true;
     $("gets").hidden = false;
     $("added").textContent = "";
@@ -542,6 +799,18 @@ pre#summary {
     input.value = "";
   }
 
+  function copyText(text, node, btn, idle) {
+    function done(msg) { btn.textContent = msg; setTimeout(function () { btn.textContent = idle; }, 2000); }
+    function fallback() {
+      try {
+        var rg = document.createRange(); rg.selectNodeContents(node);
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(rg);
+        done("Selected. Tap Copy");
+      } catch (e) { done("Select and copy"); }
+    }
+    try { navigator.clipboard.writeText(text).then(function () { done("Copied"); }, fallback); } catch (e) { fallback(); }
+  }
+
   function render() {
     var c = current, st = core.stats(c.rows);
     $("gets").hidden = true;
@@ -569,8 +838,13 @@ pre#summary {
       viz.forEach(function (r) {
         var a = el("div", "addr");
         a.appendChild(el("small", "", r.courier + " · " + r.sku + " · AWB " + r.awb));
-        a.appendChild(document.createTextNode(r.customer));
+        var body = el("span", "addr-text", r.customer);
+        a.appendChild(body);
         n.appendChild(a);
+        var cb = el("button", "btn ghost copyaddr", "Copy address");
+        cb.type = "button";
+        cb.addEventListener("click", function () { copyText(r.customer, body, cb, "Copy address"); });
+        n.appendChild(cb);
       });
       notes.appendChild(n);
     } else {
@@ -583,6 +857,7 @@ pre#summary {
     if (c.skippedPages) notes.appendChild(el("div", "note info", c.skippedPages + " page" + (c.skippedPages === 1 ? "" : "s") + " without a label were skipped."));
 
     $("summary").textContent = core.buildSummary(c.rows, c.dateStr);
+    try { window.dispatchEvent(new CustomEvent("vavi:results", { detail: { rows: c.rows, dateStr: c.dateStr } })); } catch (e) {}
     renderFiles();
     results.hidden = false;
     results.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -639,6 +914,314 @@ pre#summary {
     } catch (e) { fallback(); }
   });
 })();
+</script>
+<script>
+// Sheet connection, "Send to Sheet" and the Dashboard tab.
+// Runs only on the website version (not inside Claude, where the network is blocked).
+(function () {
+  var V = window.VaviDash;
+  var $ = function (id) { return document.getElementById(id); };
+  var IN_CLAUDE = !!(window.claude && window.claude.use);
+  if (IN_CLAUDE || !V) return;
+
+  var LS_URL = "vavi_sheet_url", LS_KEY = "vavi_sheet_key", LS_CACHE = "vavi_dash_cache", LS_RANGE = "vavi_dash_range";
+  function lsGet(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
+  var SVGNS = "http://www.w3.org/2000/svg";
+  function svg(tag, attrs, parent) {
+    var n = document.createElementNS(SVGNS, tag);
+    Object.keys(attrs || {}).forEach(function (k) { n.setAttribute(k, attrs[k]); });
+    if (parent) parent.appendChild(n);
+    return n;
+  }
+  function rs(n) { return "Rs " + Math.round(n).toLocaleString("en-IN"); }
+  function connected() { return !!(lsGet(LS_URL) && lsGet(LS_KEY)); }
+
+  /* ------------------------------------------------------------ sheet calls */
+  function call(action, extra) {
+    var url = lsGet(LS_URL), key = lsGet(LS_KEY);
+    if (!url || !key) return Promise.reject(new Error("NOT_SET"));
+    var ctl = new AbortController();
+    var timer = setTimeout(function () { ctl.abort(); }, 60000);
+    var body = { key: key, action: action };
+    Object.keys(extra || {}).forEach(function (k) { body[k] = extra[k]; });
+    return fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(body), signal: ctl.signal })
+      .then(function (r) { clearTimeout(timer); return r.json(); })
+      .catch(function (e) {
+        clearTimeout(timer);
+        throw new Error("Could not reach the sheet. Check your internet and the sheet link, then try again.");
+      })
+      .then(function (j) {
+        if (!j || !j.ok) throw new Error((j && j.error) || "The sheet did not accept that.");
+        return j;
+      });
+  }
+
+  /* -------------------------------------------------------------- tabs/views */
+  var views = { labels: $("view-labels"), dash: $("view-dash"), set: $("sheet-settings") };
+  var tabs = { labels: $("tab-labels"), dash: $("tab-dash"), set: $("tab-set") };
+  $("tabs").hidden = false;
+  function show(name) {
+    Object.keys(views).forEach(function (k) {
+      views[k].hidden = k !== name;
+      tabs[k].setAttribute("aria-selected", k === name ? "true" : "false");
+      tabs[k].classList.toggle("on", k === name);
+    });
+    if (name === "dash") openDash();
+    if (name === "set") { $("set-url").value = lsGet(LS_URL); $("set-key").value = lsGet(LS_KEY); }
+    window.scrollTo(0, 0);
+  }
+  Object.keys(tabs).forEach(function (k) { tabs[k].addEventListener("click", function () { show(k); }); });
+
+  /* ---------------------------------------------------------------- settings */
+  function setMsg(id, text, bad) { var n = $(id); n.textContent = text; n.className = "msg" + (bad ? " bad" : ""); }
+  $("set-save").addEventListener("click", function () {
+    var url = $("set-url").value.trim(), key = $("set-key").value.trim();
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec/.test(url)) { setMsg("set-msg", "The sheet link should start with https://script.google.com/macros/ and end with /exec.", true); return; }
+    if (!key) { setMsg("set-msg", "Enter the key you set in the script.", true); return; }
+    lsSet(LS_URL, url); lsSet(LS_KEY, key);
+    setMsg("set-msg", "Testing the connection …");
+    call("ping").then(function () { setMsg("set-msg", "Connected. You can now send orders and open the Dashboard."); })
+      .catch(function (e) { setMsg("set-msg", e.message, true); });
+  });
+  $("set-clear").addEventListener("click", function () {
+    lsSet(LS_URL, ""); lsSet(LS_KEY, ""); lsSet(LS_CACHE, "");
+    $("set-url").value = ""; $("set-key").value = "";
+    setMsg("set-msg", "Disconnected. The link and key were removed from this phone.");
+  });
+
+  /* ------------------------------------------------------------ send to sheet */
+  var current = null;
+  window.addEventListener("vavi:results", function (e) { current = e.detail; $("sheet-card").hidden = false; setMsg("send-note", "", false); $("send").disabled = false; });
+  window.addEventListener("vavi:clear", function () { current = null; $("sheet-card").hidden = true; });
+  $("send").addEventListener("click", function () {
+    if (!current) return;
+    if (!connected()) { show("set"); setMsg("set-msg", "Connect your sheet first, then go back and tap Send to Sheet."); return; }
+    var rows = current.rows.map(function (r) {
+      return {
+        date: (r.invoiceDate ? r.invoiceDate.replace(/\./g, "-") : current.dateStr),
+        courier: r.courier, awb: r.awb, orderNo: r.orderNo, sku: r.sku, category: r.category || "",
+        qty: r.qty, payment: r.payment, amount: r.amount, pincode: r.pincode
+      };
+    });
+    var btn = $("send");
+    btn.disabled = true;
+    setMsg("send-note", "Sending " + rows.length + " orders …");
+    call("add", { rows: rows }).then(function (res) {
+      var t = "Added " + res.added + " new order" + (res.added === 1 ? "" : "s") + " to the sheet.";
+      if (res.skipped) t += " " + res.skipped + " already in the sheet, so not added again.";
+      if (res.invalid) t += " " + res.invalid + " could not be read and were left out.";
+      setMsg("send-note", t, res.invalid > 0);
+      lsSet(LS_CACHE, "");
+    }).catch(function (e) { setMsg("send-note", e.message + " Nothing was lost: tap Send to Sheet again.", true); })
+      .then(function () { btn.disabled = false; });
+  });
+
+  /* --------------------------------------------------------------- dashboard */
+  var state = { days: [], range: +lsGet(LS_RANGE) || 7, updated: null, fromCache: false };
+  if ([7, 14, 30].indexOf(state.range) < 0) state.range = 7;
+  var tip = $("tip");
+
+  function showTip(host, lines) {
+    tip.textContent = "";
+    tip.appendChild(el("strong", "", lines[0]));
+    if (lines[1]) tip.appendChild(el("span", "", lines[1]));
+    tip.hidden = false;
+    var r = host.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+    var x = Math.min(Math.max(8, r.left + r.width / 2 - tw / 2), window.innerWidth - tw - 8);
+    var y = r.top - th - 8; if (y < 8) y = r.bottom + 8;
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  }
+  function hideTip() { tip.hidden = true; }
+
+  function colorFor(name) { return name === "Delhivery" ? "var(--s1)" : name === "Xpress Bees" ? "var(--s2)" : "var(--s3)"; }
+
+  // one column chart; bars = [{label, value, tip:[strong, text], partial}]
+  function columnChart(host, bars, o) {
+    host.textContent = "";
+    var W = Math.max(host.clientWidth || 320, 260), m = { l: 36, r: 8, t: 18, b: o.two ? 38 : 26 }, H = 174 + m.b;
+    var max = 0; bars.forEach(function (b) { if (b.value > max) max = b.value; });
+    var sc = V.niceScale(max), iw = W - m.l - m.r, ih = H - m.t - m.b;
+    var slot = iw / bars.length, bw = Math.min(24, slot * 0.72);
+    var s = svg("svg", { viewBox: "0 0 " + W + " " + H, width: W, height: H, role: "group", "aria-label": o.aria }, host);
+    for (var t = 0; t <= sc.max + 0.001; t += sc.step) {
+      var y = m.t + ih * (1 - t / sc.max);
+      svg("line", { x1: m.l, x2: W - m.r, y1: y, y2: y, stroke: t === 0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }, s);
+      var tx = svg("text", { x: m.l - 6, y: y + 4, "text-anchor": "end", "font-size": 11, fill: "var(--muted)" }, s);
+      tx.textContent = V.compact(Math.round(t));
+    }
+    var perLabel = Math.max(1, Math.ceil(bars.length / Math.max(1, Math.floor(iw / (o.labelW || 40)))));
+    var maxIdx = -1; bars.forEach(function (b, i) { if (b.value === max && max > 0) maxIdx = i; });
+    bars.forEach(function (b, i) {
+      var x0 = m.l + slot * i, x = x0 + (slot - bw) / 2;
+      var h = ih * (b.value / sc.max), yy = m.t + ih - h, r = Math.min(4, bw / 2, h);
+      var path = null;
+      if (b.value > 0) {
+        path = svg("path", {
+          d: "M" + x + "," + (yy + h) + " L" + x + "," + (yy + r) + " Q" + x + "," + yy + " " + (x + r) + "," + yy +
+             " L" + (x + bw - r) + "," + yy + " Q" + (x + bw) + "," + yy + " " + (x + bw) + "," + (yy + r) + " L" + (x + bw) + "," + (yy + h) + " Z",
+          fill: "var(--s1)", "fill-opacity": b.partial ? 0.55 : 1
+        }, s);
+      }
+      if ((n1(bars, i) % perLabel) === 0) {
+        var parts = String(b.label).split("\n");
+        var lx = svg("text", { x: x0 + slot / 2, y: H - m.b + 15, "text-anchor": "middle", "font-size": 11, fill: "var(--muted)" }, s);
+        parts.forEach(function (p, pi) {
+          var ts = svg("tspan", { x: x0 + slot / 2, dy: pi ? 13 : 0 }, lx);
+          ts.textContent = p;
+        });
+      }
+      if (b.value > 0 && (i === bars.length - 1 || i === maxIdx)) {
+        var vt = svg("text", { x: x0 + slot / 2, y: yy - 5, "text-anchor": "middle", "font-size": 12, "font-weight": 600, fill: "var(--ink)" }, s);
+        vt.textContent = b.value;
+      }
+      var hit = svg("rect", { x: x0, y: m.t, width: slot, height: ih + 4, fill: "transparent", tabindex: 0, role: "img", "aria-label": b.tip[0] + ", " + (b.tip[1] || "") }, s);
+      hit.style.outline = "none";
+      var on = function () { if (path) path.setAttribute("fill-opacity", 0.8); showTip(hit, b.tip); hit.setAttribute("stroke", "var(--ink)"); hit.setAttribute("stroke-opacity", 0.0); };
+      var off = function () { if (path) path.setAttribute("fill-opacity", b.partial ? 0.55 : 1); hideTip(); };
+      hit.addEventListener("pointerenter", on); hit.addEventListener("pointerleave", off);
+      hit.addEventListener("focus", function () { on(); hit.style.outline = "2px solid var(--accent)"; });
+      hit.addEventListener("blur", function () { off(); hit.style.outline = "none"; });
+    });
+  }
+  function n1(bars, i) { return bars.length - 1 - i; }   // count from the right so the latest bar is always labelled
+
+  function renderDash() {
+    var days = state.days, body = $("dash-body"), msg = $("dash-msg");
+    if (!days.length) { body.hidden = true; msg.hidden = false; msg.textContent = "No orders in the sheet yet. Send a day's orders from the Labels tab."; return; }
+    msg.hidden = true; body.hidden = false;
+    var end = V.latestKey(days), n = state.range;
+    var entries = V.lastDays(days, end, n), s = V.summarize(entries);
+    var first = entries[0].d;
+
+    $("hero-n").textContent = s.total.toLocaleString("en-IN");
+    $("hero-l").textContent = "orders in the last " + n + " days (" + V.shortDate(first) + " to " + V.shortDate(end) + ")";
+    var st = $("dash-stats"); st.textContent = "";
+    function tile(n_, l, wide) { var t = el("div", "stat" + (wide ? " wide" : "")); t.appendChild(el("div", "n", n_)); t.appendChild(el("div", "l", l)); st.appendChild(t); }
+    tile(String(s.avg), "Avg per day");
+    tile(s.best ? String(s.best.total) : "–", s.best ? "Best day, " + V.shortDate(s.best.d) : "Best day");
+    tile(rs(s.sales), "Order value", true);
+
+    // per day
+    $("sub-day").textContent = V.shortDate(first) + " to " + V.shortDate(end);
+    columnChart($("chart-day"), entries.map(function (e) {
+      return { label: n <= 7 ? V.dowName(e.d) + "\n" + e.d.slice(8).replace(/^0/, "") : e.d.slice(8).replace(/^0/, ""), value: e.total,
+               tip: [e.total + " orders", V.dowName(e.d) + " " + V.shortDate(e.d) + (e.total ? " · " + rs(e.sales) : " · no orders recorded")] };
+    }), { aria: "Orders per day", labelW: n <= 7 ? 34 : 26, two: n <= 7 });
+
+    // per week
+    var weeks = V.lastWeeks(days, end, 8);
+    columnChart($("chart-week"), weeks.map(function (w) {
+      return { label: w.label, value: w.total, partial: w.partial,
+               tip: [w.total + " orders", "Week of " + V.shortDate(w.d) + (w.partial ? " (so far)" : "") + " · " + rs(w.sales)] };
+    }), { aria: "Orders per week", labelW: 40 });
+    $("note-week").hidden = !weeks.some(function (w) { return w.partial; });
+
+    // per month
+    var firstKey = days.reduce(function (a, d) { return !a || d.d < a ? d.d : a; }, null);
+    var span = (+end.slice(0, 4) - +firstKey.slice(0, 4)) * 12 + (+end.slice(5, 7) - +firstKey.slice(5, 7)) + 1;
+    var mcount = Math.max(3, Math.min(12, span));
+    $("sub-month").textContent = "Last " + mcount + " months.";
+    var months = V.lastMonths(days, end, mcount);
+    columnChart($("chart-month"), months.map(function (mo) {
+      return { label: mo.label, value: mo.total, partial: mo.partial,
+               tip: [mo.total + " orders", mo.long + (mo.partial ? " (so far)" : "") + " · " + rs(mo.sales)] };
+    }), { aria: "Orders per month", labelW: 28 });
+    $("note-month").hidden = false;
+
+    // courier + payment + products (selected range)
+    $("sub-split").textContent = "Last " + n + " days";
+    var names = Object.keys(s.couriers).sort(function (a, b) { return s.couriers[b] - s.couriers[a]; });
+    var bar = $("split-bar"), leg = $("split-legend"); bar.textContent = ""; leg.textContent = "";
+    names.forEach(function (c) {
+      var seg = el("div", "seg"); seg.style.flexGrow = s.couriers[c]; seg.style.background = colorFor(c); seg.tabIndex = 0;
+      var tp = [c + ": " + s.couriers[c], Math.round(100 * s.couriers[c] / s.total) + "% of orders"];
+      seg.addEventListener("pointerenter", function () { showTip(seg, tp); }); seg.addEventListener("pointerleave", hideTip);
+      seg.addEventListener("focus", function () { showTip(seg, tp); }); seg.addEventListener("blur", hideTip);
+      bar.appendChild(seg);
+      var li = el("li"); var sw = el("i", "sw"); sw.style.background = colorFor(c); li.appendChild(sw);
+      li.appendChild(el("span", "", c + " "));
+      li.appendChild(el("b", "", s.couriers[c] + " (" + Math.round(100 * s.couriers[c] / s.total) + "%)"));
+      leg.appendChild(li);
+    });
+    var codPct = s.total ? Math.round(100 * s.cod / s.total) : 0;
+    $("cod-fill").style.width = codPct + "%";
+    $("cod-text").textContent = "COD " + s.cod + " (" + codPct + "%) · Prepaid " + s.prepaid + " (" + (s.total ? 100 - codPct : 0) + "%)";
+
+    var cats = $("cats"); cats.textContent = "";
+    var order = (window.MeeshoCore && window.MeeshoCore.CATEGORY_ORDER) || [];
+    var keys = Object.keys(s.cats).sort(function (a, b) {
+      var ia = order.indexOf(a), ib = order.indexOf(b); if (ia < 0) ia = 99; if (ib < 0) ib = 99; return ia - ib || (a < b ? -1 : 1);
+    });
+    var cmax = 0; keys.forEach(function (k) { if (s.cats[k] > cmax) cmax = s.cats[k]; });
+    keys.forEach(function (k) {
+      var row = el("div", "hb"); row.appendChild(el("span", "hb-l", k));
+      var tr = el("span", "hb-t"); var f = el("span", "hb-f"); f.style.width = (cmax ? 100 * s.cats[k] / cmax : 0) + "%"; tr.appendChild(f); row.appendChild(tr);
+      row.appendChild(el("b", "hb-v", String(s.cats[k]))); cats.appendChild(row);
+    });
+
+    // table
+    var tcols = names.length ? names : [];
+    var tb = $("dash-table"); tb.textContent = "";
+    var thead = el("thead"), hr = el("tr");
+    ["Date", "Orders"].concat(tcols, ["COD", "Prepaid", "Order value"]).forEach(function (h) { hr.appendChild(el("th", "", h)); });
+    thead.appendChild(hr); tb.appendChild(thead);
+    var tbody = el("tbody");
+    V.lastDays(days, end, 30).reverse().forEach(function (e) {
+      if (!e.total) return;
+      var tr = el("tr");
+      [V.shortDate(e.d) + " " + V.dowName(e.d), e.total].concat(tcols.map(function (c) { return e.couriers[c] || 0; }), [e.cod, e.prepaid, rs(e.sales)])
+        .forEach(function (v) { tr.appendChild(el("td", "", String(v))); });
+      tbody.appendChild(tr);
+    });
+    tb.appendChild(tbody);
+  }
+
+  function setUpdated() {
+    if (!state.updated) { $("updated").textContent = ""; return; }
+    var d = new Date(state.updated), t = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+    $("updated").textContent = (state.fromCache ? "Saved copy from " : "Updated ") + t + " · " + d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  }
+
+  function loadStats() {
+    var body = $("dash-body"); body.classList.add("loading"); $("refresh").disabled = true;
+    $("dash-msg").hidden = true;
+    return call("stats").then(function (res) {
+      state.days = res.days || []; state.updated = Date.now(); state.fromCache = false;
+      lsSet(LS_CACHE, JSON.stringify({ days: state.days, updated: state.updated }));
+    }).catch(function (e) {
+      if (state.days.length) { state.fromCache = true; }
+      var m = $("dash-msg"); m.hidden = false; m.textContent = e.message + (state.days.length ? " Showing the last saved copy." : "");
+    }).then(function () { body.classList.remove("loading"); $("refresh").disabled = false; renderDash(); setUpdated(); });
+  }
+
+  function openDash() {
+    if (!connected()) {
+      $("dash-body").hidden = true; $("dash-msg").hidden = false;
+      $("dash-msg").textContent = "Connect your Google Sheet in Sheet settings to see your orders here.";
+      return;
+    }
+    if (!state.days.length) {
+      try { var c = JSON.parse(lsGet(LS_CACHE) || "null"); if (c && c.days) { state.days = c.days; state.updated = c.updated; state.fromCache = true; renderDash(); setUpdated(); } } catch (e) {}
+    }
+    loadStats();
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll("#ranges .chip"), function (b) {
+    b.classList.toggle("on", +b.getAttribute("data-n") === state.range);
+    b.addEventListener("click", function () {
+      state.range = +b.getAttribute("data-n"); lsSet(LS_RANGE, String(state.range));
+      Array.prototype.forEach.call(document.querySelectorAll("#ranges .chip"), function (x) { x.classList.toggle("on", x === b); });
+      if (state.days.length) renderDash();
+    });
+  });
+  $("refresh").addEventListener("click", loadStats);
+  var rt = null;
+  window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(function () { if (!views.dash.hidden && state.days.length) renderDash(); }, 150); });
+  window.addEventListener("scroll", hideTip, { passive: true });
+})();
+
 </script>
 
 </body>

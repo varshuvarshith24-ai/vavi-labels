@@ -433,11 +433,12 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
     var dates = full.match(/\d{2}\.\d{2}\.\d{4}/g) || [];
     var invoiceDate = dates.length >= 2 ? dates[1] : (dates[0] || "");
+    var orderDate = dates[0] || "";
 
     return {
       source: source, page: pageIndex, courier: courier, payment: payment, awb: awb,
       sku: sku, size: size, qty: qty, color: color, orderNo: orderNo, amount: amount,
-      customer: customer, pincode: pincode, invoiceDate: invoiceDate,
+      customer: customer, pincode: pincode, invoiceDate: invoiceDate, orderDate: orderDate,
       category: getCategory(sku, size, desc)
     };
   }
@@ -1029,7 +1030,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       return {
         date: (r.invoiceDate ? r.invoiceDate.replace(/\./g, "-") : current.dateStr),
         courier: r.courier, awb: r.awb, orderNo: r.orderNo, sku: r.sku, category: r.category || "",
-        qty: r.qty, payment: r.payment, amount: r.amount, pincode: r.pincode
+        qty: r.qty, payment: r.payment, amount: r.amount, pincode: r.pincode,
+        orderDate: r.orderDate ? r.orderDate.replace(/\./g, "-") : ""
       };
     });
     var btn = $("send");

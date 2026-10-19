@@ -1070,7 +1070,10 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     if (!key) { setMsg("set-msg", "Enter the key you set in the script.", true); return; }
     lsSet(LS_URL, url); lsSet(LS_KEY, key);
     setMsg("set-msg", "Testing the connection …");
-    call("ping").then(function () { setMsg("set-msg", "Connected. You can now send orders and open the Dashboard."); })
+    call("ping").then(function (r) {
+      var lb = r && r.lastBackup && r.lastBackup.at ? new Date(r.lastBackup.at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "";
+      setMsg("set-msg", "Connected. You can now send orders and open the Dashboard." + (lb ? " Last sheet backup: " + lb + "." : " No sheet backup yet (see the backup steps)."));
+    })
       .catch(function (e) { setMsg("set-msg", e.message, true); });
   });
   $("set-clear").addEventListener("click", function () {

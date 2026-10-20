@@ -158,12 +158,23 @@ pre#summary {
 .custom { display: flex; flex-wrap: wrap; gap: 12px; }
 .custom label { display: flex; flex-direction: column; gap: 4px; font: 500 0.85rem var(--font-body); color: var(--muted); }
 .custom input { min-height: 44px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: 500 1rem var(--font-body); }
+.fm { border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.fm-head { display: flex; gap: 10px; align-items: center; font-size: 0.9rem; }
+.fm-head input { width: 22px; height: 22px; flex: none; }
+.fm-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.fm-col { border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-size: 0.8rem; line-height: 1.35; overflow-wrap: anywhere; display: flex; flex-direction: column; gap: 4px; }
+.fm-col h4 { margin: 0; font: 600 0.7rem var(--font-body); text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.fm-left { background: rgba(214, 69, 65, 0.13); border-color: rgba(214, 69, 65, 0.55); }
+.fm-col mark { background: rgba(240, 170, 20, 0.4); color: inherit; border-radius: 2px; padding: 0 1px; }
+.fm-name { font-weight: 600; }
+.fm-reason { font-weight: 600; }
 .tab:focus-visible, .chip:focus-visible, svg rect:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .filters .btn { min-height: 44px; padding: 0 14px; }
 #updated { color: var(--muted); font-size: 0.85rem; }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field label { font-weight: 600; font-size: 0.95rem; }
+.field textarea { font: 400 1rem var(--font-body); min-height: 80px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); width: 100%; resize: vertical; }
 .field input { font: 400 1rem var(--font-body); min-height: 48px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); width: 100%; }
 .msg { min-height: 1.4em; font-size: 0.95rem; color: var(--muted); }
 .msg.bad { color: var(--bad-ink); background: var(--bad-bg); padding: 8px 10px; border-radius: 6px; }
@@ -211,7 +222,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
       </button>
     </div>
-    <p class="lede">Choose the day's label PDFs. You get the courier-wise PDFs, the WhatsApp summary and an orders file. Everything runs on this device and your PDFs are not uploaded.</p>
+    <p class="lede">Choose the day's label PDFs. You get the courier-wise PDFs and the WhatsApp summary. Everything runs on this device and your PDFs are not uploaded.</p>
     <div class="tabs" id="tabs" role="tablist" hidden>
       <button class="tab on" id="tab-labels" type="button" role="tab" aria-selected="true">Labels</button>
       <button class="tab" id="tab-dash" type="button" role="tab" aria-selected="false">Dashboard</button>
@@ -243,6 +254,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       </section>
 
       <div id="notes" style="display:flex;flex-direction:column;gap:12px"></div>
+      <div id="fraud-card" style="display:flex;flex-direction:column;gap:12px" hidden></div>
 
       <section class="card" id="sheet-card" aria-labelledby="h-sheet" hidden>
         <h2 id="h-sheet">Master sheet</h2>
@@ -338,6 +350,18 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
   <div id="sheet-settings" class="stack" hidden>
     <div class="row"><h2 id="h-settings">Settings</h2><button class="btn ghost sm" id="set-back" type="button">Back</button></div>
+  <section class="card" id="fraud-report" aria-labelledby="h-fr">
+    <h2 id="h-fr">Report fraud</h2>
+    <p class="help">Type or paste an order ID. The tool finds the customer in your master sheet. Add it to the fraud list with a reason, and every new label is checked against the list.</p>
+    <div class="field"><label for="fr-id">Order ID</label><input id="fr-id" type="text" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="e.g. 342287345390486784_1"></div>
+    <button class="btn" id="fr-fetch" type="button">Fetch details</button>
+    <p class="msg" id="fr-msg" role="status" aria-live="polite"></p>
+    <div id="fr-details" class="stack" hidden>
+      <div class="fm-col fm-left" id="fr-card" style="font-size:0.95rem"></div>
+      <div class="field"><label for="fr-reason">Reason (required)</label><textarea id="fr-reason" placeholder="Why is this a fraud? For example: refused delivery, fake return, wrong product returned"></textarea></div>
+      <button class="btn" id="fr-add" type="button" disabled>Add to fraud list</button>
+    </div>
+  </section>
   <section class="card" aria-labelledby="h-set">
     <h2 id="h-set">Sheet settings</h2>
     <p class="help">Connect this phone to your Meesho_Master Google Sheet. You enter these once. They stay on this phone only.</p>
@@ -448,6 +472,9 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     var customer = "";
     var cu = /Customer Address\s*\n([\s\S]*?)\nIf undelivered/.exec(full);
     if (cu) customer = cu[1];
+    var custLines = customer.split("\n").map(function (x) { return x.trim(); }).filter(Boolean);
+    var customerName = custLines.length ? custLines[0] : "";
+    var customerAddress = custLines.slice(1).join(", ");
     var pins = customer.match(/\b\d{6}\b/g);
     var pincode = pins ? pins[pins.length - 1] : "";
 
@@ -458,7 +485,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     return {
       source: source, page: pageIndex, courier: courier, payment: payment, awb: awb,
       sku: sku, size: size, qty: qty, color: color, orderNo: orderNo, amount: amount,
-      customer: customer, pincode: pincode, invoiceDate: invoiceDate, orderDate: orderDate,
+      customer: customer, customerName: customerName, customerAddress: customerAddress, pincode: pincode, invoiceDate: invoiceDate, orderDate: orderDate,
       category: getCategory(sku, size, desc)
     };
   }
@@ -738,7 +765,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   }
   try { pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; } catch (e) {}
 
-  var S = { sources: [], rows: [], skipped: 0, seen: {} };
+  var S = { sources: [], rows: [], skipped: 0, seen: {}, removed: {} };
   var START_MSG = "Pick one or more PDFs. Delhivery and Xpress Bees labels can be mixed in any order.";
 
   input.addEventListener("change", function () {
@@ -746,7 +773,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     if (files.length) run(files);
   });
   [$("again"), $("again-top")].forEach(function (btn) { btn.addEventListener("click", function () {
-    S = { sources: [], rows: [], skipped: 0, seen: {} };
+    S = { sources: [], rows: [], skipped: 0, seen: {}, removed: {} };
     current = null;
     try { window.dispatchEvent(new CustomEvent("vavi:clear")); } catch (e) {}
     results.hidden = true;
@@ -757,6 +784,46 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     setStatus(START_MSG);
     window.scrollTo(0, 0);
   }); });
+
+  async function rebuild() {
+    var d = core.dedupe(S.rows);
+    var allRows = d.rows;
+    var rows = allRows.filter(function (r) { return !S.removed[r.awb]; });
+    var dateStr = core.manifestDate(rows.length ? rows : allRows);
+    var groups = core.courierGroups(rows);
+    var outputs = [];
+    for (var g = 0; g < groups.order.length; g++) {
+      var courier = groups.order[g];
+      setStatus("Building " + courier + " PDF …");
+      await tick();
+      var out = await PDFLib.PDFDocument.create();
+      var sorted = core.sortForPdf(groups.map[courier]);
+      for (var i = 0; i < sorted.length; i++) {
+        var s = S.sources[sorted[i].fileIdx];
+        if (!s.doc) s.doc = await PDFLib.PDFDocument.load(s.bytes, { ignoreEncryption: true });
+        var copied = await out.copyPages(s.doc, [sorted[i].page]);
+        out.addPage(copied[0]);
+      }
+      var bytes = await out.save();
+      outputs.push({
+        name: courier.replace(/[^A-Za-z0-9]+/g, "_") + "_" + dateStr + ".pdf",
+        blob: new Blob([bytes], { type: "application/pdf" }),
+        label: courier + " PDF", count: sorted.length
+      });
+    }
+    current = { rows: rows, allRows: allRows, removedCount: allRows.length - rows.length, dups: d.dups, dateStr: dateStr, outputs: outputs, skippedPages: S.skipped, groups: groups };
+    render();
+  }
+
+  // the fraud review asks for labels to be left out (or put back)
+  window.addEventListener("vavi:remove", async function (e) {
+    var awbs = (e.detail && e.detail.awbs) || [];
+    S.removed = {};
+    awbs.forEach(function (a) { S.removed[a] = true; });
+    setStatus("Updating the PDFs and summary …");
+    try { await rebuild(); setStatus(current.rows.length + " labels in the PDFs. " + current.removedCount + " left out as possible fraud."); }
+    catch (err) { setStatus("Could not update the PDFs. " + (err && err.message ? err.message : ""), true); }
+  });
 
   async function run(files) {
     input.disabled = true;
@@ -801,33 +868,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
         input.value = "";
         return;
       }
-      var d = core.dedupe(S.rows);
-      var rows = d.rows;
-      var dateStr = core.manifestDate(rows);
-      var groups = core.courierGroups(rows);
-      var outputs = [];
-      for (var g = 0; g < groups.order.length; g++) {
-        var courier = groups.order[g];
-        setStatus("Building " + courier + " PDF …");
-        await tick();
-        var out = await PDFLib.PDFDocument.create();
-        var sorted = core.sortForPdf(groups.map[courier]);
-        for (var i = 0; i < sorted.length; i++) {
-          var s = S.sources[sorted[i].fileIdx];
-          if (!s.doc) s.doc = await PDFLib.PDFDocument.load(s.bytes, { ignoreEncryption: true });
-          var copied = await out.copyPages(s.doc, [sorted[i].page]);
-          out.addPage(copied[0]);
-        }
-        var bytes = await out.save();
-        outputs.push({
-          name: courier.replace(/[^A-Za-z0-9]+/g, "_") + "_" + dateStr + ".pdf",
-          blob: new Blob([bytes], { type: "application/pdf" }),
-          label: courier + " PDF", count: sorted.length
-        });
-      }
-      current = { rows: rows, dups: d.dups, dateStr: dateStr, outputs: outputs, skippedPages: S.skipped, groups: groups };
-      render();
-      var msg = rows.length + " labels from " + S.sources.length + (S.sources.length === 1 ? " file." : " files.");
+      await rebuild();
+      var msg = current.rows.length + " labels from " + S.sources.length + (S.sources.length === 1 ? " file." : " files.");
       if (repeated.length) msg += " Already added, skipped: " + repeated.join(", ") + ".";
       if (failed.length) msg += " No labels found in: " + failed.join(", ") + ".";
       setStatus(msg, failed.length > 0);
@@ -889,6 +931,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     } else {
       notes.appendChild(el("div", "note info", "No customer from Vizianagaram."));
     }
+    if (c.removedCount) notes.appendChild(el("div", "note warn", c.removedCount + " label" + (c.removedCount === 1 ? " was" : "s were") + " left out as possible fraud. They are not in the PDFs, the summary or the sheet."));
     if (c.dups.length) notes.appendChild(el("div", "note warn", c.dups.length + " repeated label" + (c.dups.length === 1 ? " was" : "s were") + " ignored because the same AWB appeared twice in these PDFs."));
     var uncat = {};
     c.rows.forEach(function (r) { if (!r.category) uncat[r.sku || "(no SKU)"] = 1; });
@@ -896,7 +939,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     if (c.skippedPages) notes.appendChild(el("div", "note info", c.skippedPages + " page" + (c.skippedPages === 1 ? "" : "s") + " without a label were skipped."));
 
     $("summary").textContent = core.buildSummary(c.rows, c.dateStr);
-    try { window.dispatchEvent(new CustomEvent("vavi:results", { detail: { rows: c.rows, dateStr: c.dateStr } })); } catch (e) {}
+    try { window.dispatchEvent(new CustomEvent("vavi:results", { detail: { rows: c.rows, allRows: c.allRows, removed: S.removed, removedCount: c.removedCount, dateStr: c.dateStr } })); } catch (e) {}
     renderFiles();
     results.hidden = false;
     results.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1001,6 +1044,84 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 })();
 </script>
 <script>
+// Fraud matching for the Vavi Meesho Labels page: compares a customer's name + address with saved fraud records.
+// Plain JS, no DOM, so the same file runs in the browser and in node tests.
+(function (root) {
+  var STOP = {};
+  ("district dist mandal mdl po post village vill via near opp opposite road rd street st no door house hno flat plot " +
+   "main cross lane behind beside next to the of and at in india nagar colony").split(" ").forEach(function (w) { STOP[w] = 1; });
+
+  function norm(s) { return String(s || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim(); }
+
+  // tokens with weights: name words count 3, a 6-digit pincode counts 4, other address words 1
+  function tokens(name, address) {
+    var out = [];
+    norm(name).split(" ").forEach(function (t) { if (t.length >= 2 && !STOP[t]) out.push({ t: t, w: 3, src: "n" }); });
+    norm(address).split(" ").forEach(function (t) {
+      if (!t || (t.length < 2 && !/\d/.test(t)) || STOP[t]) return;
+      out.push({ t: t, w: /^\d{6}$/.test(t) ? 4 : 1, src: "a" });
+    });
+    return out;
+  }
+
+  function lev(a, b) {
+    var m = a.length, n = b.length, prev = [], i, j;
+    for (j = 0; j <= n; j++) prev[j] = j;
+    for (i = 1; i <= m; i++) {
+      var cur = [i];
+      for (j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = cur;
+    }
+    return prev[n];
+  }
+  // equal, or a close spelling of a longer word (never for numbers)
+  function same(a, b) {
+    if (a === b) return true;
+    if (/\d/.test(a) || /\d/.test(b)) return false;
+    if (a.length < 5 || b.length < 5) return false;
+    return 1 - lev(a, b) / Math.max(a.length, b.length) >= 0.8;
+  }
+
+  // weighted Dice score 0-100, plus the words that matched on each side (for highlighting)
+  function score(fraud, label) {
+    var A = tokens(fraud.name, fraud.address), B = tokens(label.name, label.address);
+    var wa = 0, wb = 0, ov = 0, usedB = {}, matchA = {}, matchB = {};
+    A.forEach(function (x) { wa += x.w; });
+    B.forEach(function (x) { wb += x.w; });
+    A.forEach(function (x) {
+      var best = -1, bi = -1;
+      for (var i = 0; i < B.length; i++) {
+        if (usedB[i]) continue;
+        if (same(x.t, B[i].t)) { var w = Math.min(x.w, B[i].w); if (x.t === B[i].t) { best = w + 0.001; bi = i; break; } if (w > best) { best = w; bi = i; } }
+      }
+      if (bi >= 0) { usedB[bi] = 1; ov += Math.min(x.w, B[bi].w); matchA[x.t] = 1; matchB[B[bi].t] = 1; }
+    });
+    var pct = wa + wb ? Math.round(200 * ov / (wa + wb)) : 0;
+    return { pct: pct, matchA: matchA, matchB: matchB };
+  }
+
+  // rows = [{awb, orderNo, customerName, customerAddress, ...}], frauds = [{orderNo, name, address, ...}]
+  // -> one entry per label: the best fraud record at or above the threshold
+  function findMatches(rows, frauds, threshold) {
+    var th = threshold == null ? 70 : threshold, out = [];
+    rows.forEach(function (r) {
+      var best = null;
+      frauds.forEach(function (f) {
+        var sc = score(f, { name: r.customerName, address: r.customerAddress });
+        if (sc.pct >= th && (!best || sc.pct > best.pct)) best = { pct: sc.pct, fraud: f, row: r, matchA: sc.matchA, matchB: sc.matchB };
+      });
+      if (best) out.push(best);
+    });
+    return out.sort(function (a, b) { return b.pct - a.pct; });
+  }
+
+  var api = { norm: norm, tokens: tokens, score: score, findMatches: findMatches };
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  else root.VaviFraud = api;
+})(typeof window !== "undefined" ? window : this);
+
+</script>
+<script>
 // Sheet connection, "Send to Sheet" and the Dashboard tab.
 // Runs only on the website version (not inside Claude, where the network is blocked).
 (function () {
@@ -1042,6 +1163,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
         return j;
       });
   }
+
+  window.VaviSheet = { call: call, connected: connected };
 
   /* -------------------------------------------------------------- tabs/views */
   var views = { labels: $("view-labels"), dash: $("view-dash"), set: $("sheet-settings") };
@@ -1093,7 +1216,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       return {
         date: (r.invoiceDate ? r.invoiceDate.replace(/\./g, "-") : current.dateStr),
         courier: r.courier, awb: r.awb, orderNo: r.orderNo, sku: r.sku, category: r.category || "",
-        qty: r.qty, payment: r.payment, amount: r.amount, pincode: r.pincode,
+        qty: r.qty, payment: r.payment, amount: r.amount, pincode: r.pincode, customerName: r.customerName || "", address: r.customerAddress || "",
         orderDate: r.orderDate ? r.orderDate.replace(/\./g, "-") : ""
       };
     });
@@ -1358,6 +1481,145 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   var rt = null;
   window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(function () { if (!views.dash.hidden && state.days.length) renderDash(); }, 150); });
   window.addEventListener("scroll", hideTip, { passive: true });
+})();
+
+</script>
+<script>
+// Fraud features for the standalone page: Report fraud (in Settings) and Fraud review (on the Labels page).
+(function () {
+  if (window.claude && window.claude.use) return;
+  var F = window.VaviFraud, SH = window.VaviSheet;
+  if (!F || !SH) return;
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
+  function setMsg(id, text, bad) { var n = $(id); n.textContent = text; n.className = "msg" + (bad ? " bad" : ""); }
+  function rs(n) { return "Rs " + Math.round(n).toLocaleString("en-IN"); }
+
+  /* ------------------------------------------------------------ report fraud */
+  var found = null;
+  function resetDetails() { found = null; $("fr-details").hidden = true; $("fr-reason").value = ""; $("fr-add").disabled = true; }
+  function line(card, k, v) { if (!v) return; card.appendChild(el("div", "", k + ": " + v)); }
+
+  $("fr-id").addEventListener("input", function () { resetDetails(); setMsg("fr-msg", ""); });
+  $("fr-fetch").addEventListener("click", function () {
+    var q = $("fr-id").value.replace(/\s+/g, "");
+    resetDetails();
+    if (!q) { setMsg("fr-msg", "Enter an order ID first.", true); return; }
+    if (!SH.connected()) { setMsg("fr-msg", "Connect your sheet first (Sheet settings below).", true); return; }
+    var btn = $("fr-fetch"); btn.disabled = true; setMsg("fr-msg", "Looking it up …");
+    SH.call("fraud_lookup", { orderNo: q }).then(function (r) {
+      if (!r.found) { setMsg("fr-msg", "This order ID is not in our database.", true); return; }
+      if (!r.hasDetails) { setMsg("fr-msg", "Order found, but its customer details were not saved. Orders sent before this feature do not have them, so it cannot be added.", true); return; }
+      if (r.alreadyReported) { setMsg("fr-msg", "This order is already in the fraud list."); return; }
+      found = r.order;
+      var card = $("fr-card"); card.textContent = "";
+      card.appendChild(el("div", "fm-name", r.order.name));
+      card.appendChild(el("div", "", r.order.address));
+      line(card, "Pincode", r.order.pincode);
+      line(card, "Order", r.order.orderNo + (r.matches > 1 ? " (" + r.matches + " items in this order)" : ""));
+      line(card, "Courier", r.order.courier); line(card, "Product", r.order.sku);
+      line(card, "Payment", r.order.payment + " · " + rs(r.order.amount));
+      $("fr-details").hidden = false;
+      setMsg("fr-msg", "Details found. Write the reason, then add it to the fraud list.");
+      $("fr-reason").focus();
+    }).catch(function (e) { setMsg("fr-msg", e.message, true); })
+      .then(function () { btn.disabled = false; });
+  });
+  $("fr-reason").addEventListener("input", function () { $("fr-add").disabled = !found || !$("fr-reason").value.trim(); });
+  $("fr-add").addEventListener("click", function () {
+    var reason = $("fr-reason").value.trim();
+    if (!found || !reason) { setMsg("fr-msg", "A reason is required.", true); return; }
+    var btn = $("fr-add"); btn.disabled = true; setMsg("fr-msg", "Adding …");
+    var rec = { orderNo: found.orderNo, name: found.name, address: found.address, pincode: found.pincode, courier: found.courier, sku: found.sku, payment: found.payment, amount: found.amount, reason: reason };
+    SH.call("fraud_add", { record: rec }).then(function (r) {
+      cache = null;
+      resetDetails(); $("fr-id").value = "";
+      setMsg("fr-msg", r.duplicate ? "This order was already in the fraud list." : "Added to the fraud list. Future labels will be checked against it.");
+    }).catch(function (e) { setMsg("fr-msg", e.message, true); btn.disabled = false; });
+  });
+
+  /* ------------------------------------------------------------ fraud review */
+  var THRESHOLD = 70, cache = null, token = 0;
+  var card = $("fraud-card");
+
+  function note(cls, text) { card.hidden = false; card.textContent = ""; card.appendChild(el("div", "note " + cls, text)); }
+
+  function words(host, text, set) {
+    String(text || "").split(/\s+/).filter(Boolean).forEach(function (w, i) {
+      if (i) host.appendChild(document.createTextNode(" "));
+      var hit = F.norm(w).split(" ").some(function (t) { return t && set[t]; });
+      if (hit) host.appendChild(el("mark", "", w)); else host.appendChild(document.createTextNode(w));
+    });
+  }
+
+  function col(cls, title, name, address, set, extra) {
+    var c = el("div", "fm-col " + cls);
+    c.appendChild(el("h4", "", title));
+    var n = el("div", "fm-name"); words(n, name, set); c.appendChild(n);
+    var a = el("div"); words(a, address, set); c.appendChild(a);
+    if (extra) c.appendChild(extra);
+    return c;
+  }
+
+  function show(d, frauds) {
+    var matches = F.findMatches(d.allRows, frauds, THRESHOLD);
+    if (!frauds.length) { card.hidden = true; card.textContent = ""; return; }
+    if (!matches.length) { note("info", "Fraud check: no label matches the fraud list (" + frauds.length + " saved " + (frauds.length === 1 ? "record" : "records") + " checked)."); return; }
+    card.hidden = false; card.textContent = "";
+    var box = el("section", "card"); box.style.borderColor = "rgba(214, 69, 65, 0.6)";
+    box.appendChild(el("h2", "", "Fraud review: " + matches.length + (matches.length === 1 ? " possible match" : " possible matches")));
+    box.appendChild(el("p", "help", "Left: saved in your fraud list (red). Right: the label in this PDF. Tick the orders you will NOT send, then tap the button. Highlighted words are the ones that matched."));
+    var checks = [];
+    matches.forEach(function (m) {
+      var item = el("div", "fm");
+      var head = el("label", "fm-head");
+      var cb = el("input"); cb.type = "checkbox"; cb.checked = !!d.removed[m.row.awb]; cb.setAttribute("data-awb", m.row.awb);
+      checks.push(cb); head.appendChild(cb);
+      var t = el("span"); t.appendChild(el("b", "", m.pct + "% match")); t.appendChild(document.createTextNode(" · " + m.row.courier + " · " + (m.row.sku || "") + " · AWB " + m.row.awb));
+      head.appendChild(t); item.appendChild(head);
+      var cols = el("div", "fm-cols");
+      var reason = el("div", "fm-reason", "Reason: " + (m.fraud.reason || "–"));
+      cols.appendChild(col("fm-left", "In fraud list", m.fraud.name, m.fraud.address, m.matchA, reason));
+      cols.appendChild(col("fm-right", "In this PDF", m.row.customerName, m.row.customerAddress, m.matchB, null));
+      item.appendChild(cols);
+      box.appendChild(item);
+    });
+    var apply = el("button", "btn"); apply.type = "button";
+    function label() {
+      var n = checks.filter(function (c) { return c.checked; }).length;
+      apply.textContent = n ? "Leave out " + n + " selected from the PDFs" : (d.removedCount ? "Put all back" : "Nothing selected");
+      apply.disabled = !n && !d.removedCount;
+    }
+    checks.forEach(function (c) { c.addEventListener("change", label); });
+    apply.addEventListener("click", function () {
+      var picked = checks.filter(function (c) { return c.checked; }).map(function (c) { return c.getAttribute("data-awb"); });
+      // keep earlier removals that are not part of this list
+      var listed = {}; checks.forEach(function (c) { listed[c.getAttribute("data-awb")] = 1; });
+      Object.keys(d.removed || {}).forEach(function (a) { if (!listed[a]) picked.push(a); });
+      window.dispatchEvent(new CustomEvent("vavi:remove", { detail: { awbs: picked } }));
+    });
+    label();
+    box.appendChild(apply);
+    card.appendChild(box);
+  }
+
+  function onResults(d) {
+    if (!d || !d.allRows) return;
+    var my = ++token;
+    if (!SH.connected()) { note("info", "Fraud check is off. Connect your sheet in Settings (gear icon) to check labels against your fraud list."); return; }
+    function go(frauds) { if (my === token) show(d, frauds); }
+    if (cache) { go(cache); return; }
+    note("info", "Checking labels against the fraud list …");
+    SH.call("fraud_list").then(function (r) { cache = r.frauds || []; go(cache); })
+      .catch(function (e) { if (my === token) note("warn", "Fraud check could not run, so these labels were NOT checked. " + e.message); });
+  }
+  window.addEventListener("vavi:results", function (e) {
+    // a new set of PDFs may follow new fraud reports: refresh the list once per upload, not on every removal
+    if (e.detail && e.detail.allRows && lastCount !== e.detail.allRows.length) { cache = null; lastCount = e.detail.allRows.length; }
+    onResults(e.detail);
+  });
+  var lastCount = -1;
+  window.addEventListener("vavi:clear", function () { token++; lastCount = -1; card.hidden = true; card.textContent = ""; });
 })();
 
 </script>

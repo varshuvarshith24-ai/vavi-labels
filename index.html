@@ -158,6 +158,9 @@ pre#summary {
 .custom { display: flex; flex-wrap: wrap; gap: 12px; }
 .custom label { display: flex; flex-direction: column; gap: 4px; font: 500 0.85rem var(--font-body); color: var(--muted); }
 .custom input { min-height: 44px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: 500 1rem var(--font-body); }
+.rc { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.rc .top { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; }
+.rc small { color: var(--muted, #5b6b70); overflow-wrap: anywhere; }
 .sku-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .sku-row .muted { font-size: 0.85rem; white-space: nowrap; }
 .sku-open { appearance: none; background: none; border: 0; color: var(--ink); font: 600 1rem var(--font-body); text-align: left; flex: 1; min-height: 44px; padding: 0; cursor: pointer; overflow-wrap: anywhere; }
@@ -344,6 +347,18 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
         <p class="sub" id="sub-states"></p>
         <div class="stack" id="states" style="gap:10px"></div>
         <p class="muted" id="note-states">State is worked out from the delivery pincode, so a few border areas may land in a neighbouring state.</p>
+      </section>
+      <section class="card" aria-labelledby="h-pins">
+        <h2 id="h-pins">Top pincodes</h2>
+        <p class="sub" id="sub-pins"></p>
+        <div class="stack" id="pins" style="gap:10px"></div>
+        <p class="muted" id="note-pins"></p>
+      </section>
+      <section class="card" aria-labelledby="h-rep">
+        <h2 id="h-rep">Repeat customers</h2>
+        <p class="sub" id="sub-rep"></p>
+        <div class="stack" id="rep" style="gap:10px"></div>
+        <p class="muted" id="note-rep"></p>
       </section>
       <section class="card">
         <details>
@@ -1450,6 +1465,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       stEl.appendChild(row);
     });
 
+    loadInsights(first, end);
+
     // table
     var tcols = names.length ? names : [];
     var tb = $("dash-table"); tb.textContent = "";
@@ -1469,6 +1486,51 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     tb.appendChild(tbody);
   }
 
+  /* ---- top pincodes (selected range) and repeat customers (all orders with saved customer details) ---- */
+  var insKey = "", insBusy = false;
+  function loadInsights(from, to) {
+    if (!connected()) return;
+    var k = from + "|" + to;
+    if (k === insKey || insBusy) return;
+    insBusy = true; insKey = k;
+    $("sub-pins").textContent = "Loading …"; $("sub-rep").textContent = "";
+    call("insights", { from: from, to: to }).then(function (r) { renderInsights(r, from, to); })
+      .catch(function (e) { insKey = ""; $("pins").textContent = ""; $("rep").textContent = ""; $("sub-pins").textContent = ""; $("note-pins").textContent = e.message + " Update the Google script and tap Refresh if this keeps showing."; })
+      .then(function () { insBusy = false; });
+  }
+  function renderInsights(r, from, to) {
+    var P = r.pincodes || { top: [], orders: 0 }, host = $("pins"); host.textContent = "";
+    $("sub-pins").textContent = V.shortDate(from) + " to " + V.shortDate(to);
+    var max = P.top.length ? P.top[0].orders : 0;
+    P.top.forEach(function (p) {
+      var row = el("div", "hb st");
+      var wrap = el("span", ""); wrap.style.cssText = "display:flex;flex-direction:column;min-width:0;flex:1";
+      wrap.appendChild(el("span", "hb-l", p.pincode));
+      var sm = el("small", "", (p.place ? p.place + ", " : "") + p.state); sm.style.cssText = "color:var(--muted,#5b6b70);overflow-wrap:anywhere"; wrap.appendChild(sm);
+      var tr = el("span", "hb-t"), f = el("span", "hb-f"); f.style.width = (max ? 100 * p.orders / max : 0) + "%"; tr.appendChild(f);
+      var v = el("b", "hb-v", String(p.orders)); v.appendChild(el("small", "", " " + Math.round(100 * p.orders / P.orders) + "%"));
+      row.appendChild(wrap); row.appendChild(tr); row.appendChild(v); host.appendChild(row);
+    });
+    if (!P.top.length) host.appendChild(el("p", "muted", "No orders with a pincode in this range."));
+    $("note-pins").textContent = P.top.length ? "Top " + P.top.length + " of " + P.distinct + " pincodes. The town shown comes from the saved delivery address, so older orders may show only the state." : "";
+
+    var R = r.repeat || { top: [] }, rh = $("rep"); rh.textContent = "";
+    if (!R.customers) {
+      $("sub-rep").textContent = ""; rh.appendChild(el("p", "muted", "Customer names are saved from the day you updated the script, so there is nothing to compare yet. This fills up as you send orders."));
+      $("note-rep").textContent = ""; return;
+    }
+    var pct = R.ordersWithDetails ? Math.round(100 * R.ordersFromRepeat / R.ordersWithDetails) : 0;
+    $("sub-rep").textContent = R.repeatCustomers + " of " + R.customers + " customers ordered more than once (" + pct + "% of orders)";
+    R.top.forEach(function (c) {
+      var it = el("div", "rc"), top = el("div", "top"); top.appendChild(el("span", "", c.name)); top.appendChild(el("span", "", c.orders + " orders · " + rs(c.value)));
+      it.appendChild(top);
+      it.appendChild(el("small", "", "First " + V.shortDate(c.first) + ", last " + V.shortDate(c.last) + (c.topSku ? " · mostly " + c.topSku : "")));
+      it.appendChild(el("small", "", c.address || c.pincode)); rh.appendChild(it);
+    });
+    if (!R.top.length) rh.appendChild(el("p", "muted", "No customer has ordered twice yet."));
+    $("note-rep").textContent = "All dates. Same name and same pincode count as one customer. Based on " + R.ordersWithDetails + " of your " + R.totalOrders + " orders, because names are saved only for orders sent after the update, so it gets better every day.";
+  }
+
   function setUpdated() {
     if (!state.updated) { $("updated").textContent = ""; return; }
     var d = new Date(state.updated), t = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
@@ -1478,6 +1540,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   function loadStats() {
     var body = $("dash-body"); body.classList.add("loading"); $("refresh").disabled = true;
     $("dash-msg").hidden = true;
+    insKey = "";
     return call("stats").then(function (res) {
       state.days = res.days || []; state.updated = Date.now(); state.fromCache = false;
       lsSet(LS_CACHE, JSON.stringify({ days: state.days, updated: state.updated }));

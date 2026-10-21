@@ -160,6 +160,13 @@ pre#summary {
 .custom input { min-height: 44px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: 500 1rem var(--font-body); }
 .rc { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
 .rc .top { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; }
+.rc > summary { cursor: pointer; list-style: none; display: flex; flex-direction: column; gap: 2px; min-height: 44px; justify-content: center; }
+.rc > summary::-webkit-details-marker { display: none; }
+.rc-profile { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; margin-top: 6px; border-top: 1px solid var(--line); font-size: 0.9rem; }
+.rc-line { font-family: var(--font-mono, monospace); font-size: 0.8rem; overflow-wrap: anywhere; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+.loyal { border: 1px solid #d9a21b; background: rgba(217, 162, 27, 0.12); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.loyal h2 { margin: 0; }
+.loyal .lc { border-top: 1px solid rgba(217, 162, 27, 0.5); padding-top: 8px; display: flex; flex-direction: column; gap: 2px; }
 .rc small { color: var(--muted, #5b6b70); overflow-wrap: anywhere; }
 .sku-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .sku-row .muted { font-size: 0.85rem; white-space: nowrap; }
@@ -264,6 +271,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
       <div id="notes" style="display:flex;flex-direction:column;gap:12px"></div>
       <div id="fraud-card" style="display:flex;flex-direction:column;gap:12px" hidden></div>
+      <div id="loyal-card" hidden></div>
 
       <section class="card" id="sheet-card" aria-labelledby="h-sheet" hidden>
         <h2 id="h-sheet">Master sheet</h2>
@@ -375,6 +383,17 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     <h2 id="h-sku">SKU list</h2>
     <p class="help">Add or edit your categories and SKUs, and choose the order used in the pick list and the PDFs.</p>
     <button class="btn" id="open-skus" type="button">Manage SKUs</button>
+  </section>
+  <section class="card" aria-labelledby="h-pref">
+    <h2 id="h-pref">Checks</h2>
+    <p class="help">Change these yourself whenever your order volume changes. They are saved on this phone.</p>
+    <div class="stack" style="gap:10px">
+      <div class="field"><label for="pref-loyal">Loyal customer: highlight after this many earlier orders</label><input id="pref-loyal" type="text" inputmode="numeric" autocomplete="off"></div>
+      <div class="field"><label for="pref-fraud">Fraud check: show a label when it matches a fraud record by at least this percent</label><input id="pref-fraud" type="text" inputmode="numeric" autocomplete="off"></div>
+      <p class="help">Standard values are 10 orders and 70%. A higher percentage means fewer, surer fraud matches. A lower one shows more possible matches.</p>
+      <div class="row" style="justify-content:flex-start;gap:8px"><button class="btn" id="pref-save" type="button">Save</button><button class="btn ghost" id="pref-reset" type="button">Reset to standard</button></div>
+      <p class="msg" id="pref-msg" role="status"></p>
+    </div>
   </section>
   <section class="card" id="fraud-report" aria-labelledby="h-fr">
     <h2 id="h-fr">Report fraud</h2>
@@ -1522,10 +1541,23 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     var pct = R.ordersWithDetails ? Math.round(100 * R.ordersFromRepeat / R.ordersWithDetails) : 0;
     $("sub-rep").textContent = R.repeatCustomers + " of " + R.customers + " customers ordered more than once (" + pct + "% of orders)";
     R.top.forEach(function (c) {
-      var it = el("div", "rc"), top = el("div", "top"); top.appendChild(el("span", "", c.name)); top.appendChild(el("span", "", c.orders + " orders · " + rs(c.value)));
-      it.appendChild(top);
-      it.appendChild(el("small", "", "First " + V.shortDate(c.first) + ", last " + V.shortDate(c.last) + (c.topSku ? " · mostly " + c.topSku : "")));
-      it.appendChild(el("small", "", c.address || c.pincode)); rh.appendChild(it);
+      var it = el("details", "rc"), sm = el("summary", "");
+      var top = el("div", "top"); top.appendChild(el("span", "", c.name)); top.appendChild(el("span", "", c.orders + " orders · " + rs(c.value)));
+      sm.appendChild(top);
+      sm.appendChild(el("small", "", "First " + V.shortDate(c.first) + ", last " + V.shortDate(c.last) + (c.topSku ? " · mostly " + c.topSku : "")));
+      it.appendChild(sm);
+      var pr = el("div", "rc-profile"), list = c.list || [];
+      pr.appendChild(el("small", "", c.address || c.pincode));
+      var cod = 0, pre = 0, skus = {}, qty = 0;
+      list.forEach(function (o) { if (/cod/i.test(o.payment)) cod++; else pre++; skus[o.sku] = (skus[o.sku] || 0) + (o.qty || 1); qty += o.qty || 1; });
+      pr.appendChild(el("div", "", "Ordered " + c.orders + " times from " + V.shortDate(c.first) + " " + c.first.slice(0, 4) + " to " + V.shortDate(c.last) + " " + c.last.slice(0, 4) + ". Total " + rs(c.value) + ", about " + rs(c.value / c.orders) + " per order. COD " + cod + ", Prepaid " + pre + "."));
+      var sk = Object.keys(skus).sort(function (x, y) { return skus[y] - skus[x]; });
+      pr.appendChild(el("div", "", "Bought: " + sk.map(function (k) { return (k || "(no SKU)") + " × " + skus[k]; }).join(", ")));
+      list.forEach(function (o) {
+        pr.appendChild(el("div", "rc-line", V.shortDate(o.date) + " " + o.date.slice(0, 4) + " · " + o.sku + (o.qty > 1 ? " × " + o.qty : "") + " · " + rs(o.value) + " · " + o.payment + " · " + o.orderNo));
+      });
+      if (list.length < c.orders) pr.appendChild(el("small", "", "Showing the latest " + list.length + " orders."));
+      it.appendChild(pr); rh.appendChild(it);
     });
     if (!R.top.length) rh.appendChild(el("p", "muted", "No customer has ordered twice yet."));
     $("note-rep").textContent = "All dates. Same name and same pincode count as one customer. Based on " + R.ordersWithDetails + " of your " + R.totalOrders + " orders, because names are saved only for orders sent after the update, so it gets better every day.";
@@ -1649,7 +1681,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   });
 
   /* ------------------------------------------------------------ fraud review */
-  var THRESHOLD = 70, cache = null, token = 0;
+  var cache = null, token = 0, lastD = null;
+  function threshold() { var n = parseInt(localStorage.getItem("vavi_fraud_pct"), 10); return n >= 50 && n <= 100 ? n : 70; }
   var card = $("fraud-card");
 
   function note(cls, text) { card.hidden = false; card.textContent = ""; card.appendChild(el("div", "note " + cls, text)); }
@@ -1672,7 +1705,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   }
 
   function show(d, frauds) {
-    var matches = F.findMatches(d.allRows, frauds, THRESHOLD);
+    var matches = F.findMatches(d.allRows, frauds, threshold());
     if (!frauds.length) { card.hidden = true; card.textContent = ""; return; }
     if (!matches.length) { note("info", "Fraud check: no label matches the fraud list (" + frauds.length + " saved " + (frauds.length === 1 ? "record" : "records") + " checked)."); return; }
     card.hidden = false; card.textContent = "";
@@ -1715,6 +1748,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
   function onResults(d) {
     if (!d || !d.allRows) return;
+    lastD = d;
     var my = ++token;
     if (!SH.connected()) { note("info", "Fraud check is off. Connect your sheet in Settings (gear icon) to check labels against your fraud list."); return; }
     function go(frauds) { if (my === token) show(d, frauds); }
@@ -1729,7 +1763,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     onResults(e.detail);
   });
   var lastCount = -1;
-  window.addEventListener("vavi:clear", function () { token++; lastCount = -1; card.hidden = true; card.textContent = ""; });
+  window.addEventListener("vavi:prefs", function () { if (lastD) onResults(lastD); });
+  window.addEventListener("vavi:clear", function () { lastD = null; token++; lastCount = -1; card.hidden = true; card.textContent = ""; });
 })();
 
 </script>
@@ -1928,6 +1963,93 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   }
 
   $("open-skus").addEventListener("click", function () { window.VaviShow("skus"); load(); });
+})();
+
+</script>
+<script>
+// Labels page: highlights customers who already ordered many times, so a gift can be sent. Standalone page only.
+(function () {
+  if (window.claude && window.claude.use) return;
+  var SH = window.VaviSheet;
+  if (!SH) return;
+  var DEF_MIN = 10, DEF_PCT = 70, lastD = null, cachedMin = 0;
+  function lsGet(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+  function lsSet(k, v) { try { if (v === "") localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
+  function getMin() { var n = parseInt(lsGet("vavi_loyal_min"), 10); return n >= 2 && n <= 1000 ? n : DEF_MIN; }
+  function getPct() { var n = parseInt(lsGet("vavi_fraud_pct"), 10); return n >= 50 && n <= 100 ? n : DEF_PCT; }
+  var card = document.getElementById("loyal-card"), cache = null, token = 0, lastCount = -1;
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
+  function nameKey(s) { return String(s || "").toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/).filter(Boolean).sort().join(" "); }
+  function rs(n) { return "Rs " + Math.round(n).toLocaleString("en-IN"); }
+  function hide() { card.hidden = true; card.textContent = ""; }
+
+  function show(d, list) {
+    var MIN = getMin();
+    var mine = {}, upload = {};
+    d.allRows.forEach(function (r) {
+      upload[r.orderNo] = 1;
+      var nk = nameKey(r.customerName), pin = String(r.pincode || "").replace(/\D/g, "");
+      if (!nk || pin.length !== 6) return;
+      (mine[nk + "|" + pin] = mine[nk + "|" + pin] || []).push(r);
+    });
+    var hits = [];
+    list.forEach(function (c) {
+      var rows = mine[c.key]; if (!rows) return;
+      var prev = c.orderNos.filter(function (o) { return !upload[o]; }).length;   // orders from before these labels
+      if (prev >= MIN) hits.push({ c: c, prev: prev, rows: rows });
+    });
+    if (!hits.length) { hide(); return; }
+    card.hidden = false; card.textContent = "";
+    var box = el("section", "loyal");
+    box.appendChild(el("h2", "", "Loyal customers: " + hits.length + (hits.length === 1 ? " order" : " customers") + " in these labels"));
+    box.appendChild(el("p", "help", "These customers already ordered " + MIN + " or more times before. A gift could go in their parcel."));
+    hits.sort(function (a, b) { return b.prev - a.prev; }).forEach(function (h) {
+      var it = el("div", "lc"), top = el("div", "top"); top.style.cssText = "display:flex;justify-content:space-between;gap:8px;font-weight:600";
+      top.appendChild(el("span", "", h.c.name)); top.appendChild(el("span", "", h.prev + " earlier orders"));
+      it.appendChild(top);
+      it.appendChild(el("small", "", "Earlier total " + rs(h.c.value) + " · first order " + h.c.first.split("-").reverse().join("-") + " · pincode " + h.c.pincode));
+      h.rows.forEach(function (r) { it.appendChild(el("small", "", "In these labels: " + r.courier + " · " + (r.sku || "") + " · AWB " + r.awb)); });
+      box.appendChild(it);
+    });
+    card.appendChild(box);
+  }
+
+  function onResults(d) {
+    if (!d || !d.allRows) return;
+    lastD = d;
+    var my = ++token, MIN = getMin();
+    if (!SH.connected()) { hide(); return; }
+    if (cache && cachedMin === MIN) { show(d, cache); return; }
+    SH.call("loyal", { min: MIN }).then(function (r) { cache = r.customers || []; cachedMin = MIN; if (my === token) show(d, cache); })
+      .catch(function () { if (my === token) hide(); });   // a quiet failure: the labels themselves are not affected
+  }
+  window.addEventListener("vavi:results", function (e) {
+    if (e.detail && e.detail.allRows && lastCount !== e.detail.allRows.length) { cache = null; lastCount = e.detail.allRows.length; }
+    onResults(e.detail);
+  });
+  window.addEventListener("vavi:prefs", function () { if (lastD) onResults(lastD); });
+  window.addEventListener("vavi:clear", function () { lastD = null; token++; lastCount = -1; hide(); });
+
+  /* ---- Settings: loyal customer count and fraud match percentage (saved on this phone) ---- */
+  var inL = document.getElementById("pref-loyal"), inF = document.getElementById("pref-fraud"), msg = document.getElementById("pref-msg");
+  if (!inL || !inF) return;
+  function say(t, bad) { msg.textContent = t; msg.className = "msg" + (bad ? " bad" : ""); }
+  function fill() { inL.value = getMin(); inF.value = getPct(); }
+  document.getElementById("pref-save").addEventListener("click", function () {
+    var l = String(inL.value).trim(), f = String(inF.value).trim();
+    var okL = /^\d+$/.test(l) && +l >= 2 && +l <= 1000, okF = /^\d+$/.test(f) && +f >= 50 && +f <= 100;
+    if (!okL) { say("Loyal customer orders must be a whole number from 2 to 1000. Nothing was changed.", true); return; }
+    if (!okF) { say("Fraud match percentage must be a whole number from 50 to 100. Nothing was changed.", true); return; }
+    lsSet("vavi_loyal_min", +l === DEF_MIN ? "" : l); lsSet("vavi_fraud_pct", +f === DEF_PCT ? "" : f);
+    say("Saved. Loyal customers: " + l + " or more earlier orders. Fraud match: " + f + "% or more.");
+    window.dispatchEvent(new CustomEvent("vavi:prefs"));
+  });
+  document.getElementById("pref-reset").addEventListener("click", function () {
+    lsSet("vavi_loyal_min", ""); lsSet("vavi_fraud_pct", ""); fill(); say("Back to the standard values (10 orders, 70%).");
+    window.dispatchEvent(new CustomEvent("vavi:prefs"));
+  });
+  document.getElementById("tab-set").addEventListener("click", fill);
+  fill();
 })();
 
 </script>

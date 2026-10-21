@@ -160,7 +160,14 @@ pre#summary {
 .custom input { min-height: 44px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: 500 1rem var(--font-body); }
 .rc { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
 .rc .top { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; }
-.rc > summary { cursor: pointer; list-style: none; display: flex; flex-direction: column; gap: 2px; min-height: 44px; justify-content: center; }
+.fold { gap: 0; }
+.fold > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; cursor: pointer; list-style: none; font-weight: 600; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary h2 { margin: 0; }
+.fold > summary::after { content: "▾"; font-size: 1.1rem; color: var(--muted); transition: transform 0.15s; }
+.fold:not([open]) > summary::after { transform: rotate(-90deg); }
+.fold-body { display: flex; flex-direction: column; gap: 12px; padding-top: 10px; min-width: 0; }
+.rc > summary { cursor: pointer; list-style: none; display: flex; flex-direction: column; align-items: stretch; gap: 2px; min-height: 44px; justify-content: center; font-weight: 400; }
 .rc > summary::-webkit-details-marker { display: none; }
 .rc-profile { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; margin-top: 6px; border-top: 1px solid var(--line); font-size: 0.9rem; }
 .rc-line { font-family: var(--font-mono, monospace); font-size: 0.8rem; overflow-wrap: anywhere; padding: 4px 0; border-bottom: 1px dashed var(--line); }
@@ -321,68 +328,64 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
         <div class="hero-l" id="hero-l"></div>
         <div class="stats" id="dash-stats"></div>
       </section>
-      <section class="card" aria-labelledby="h-day">
-        <h2 id="h-day">Orders per day</h2>
+      <details class="card fold" id="f-day" open><summary><h2 id="h-day">Orders per day</h2></summary><div class="fold-body">
         <p class="sub" id="sub-day"></p>
         <div class="chart" id="chart-day"></div>
-      </section>
-      <section class="card" aria-labelledby="h-week">
-        <h2 id="h-week">Orders per week</h2>
+      </div></details>
+      <details class="card fold" id="f-week" open><summary><h2 id="h-week">Orders per week</h2></summary><div class="fold-body">
         <p class="sub">Weeks start on Monday. Last 8 weeks.</p>
         <div class="chart" id="chart-week"></div>
         <p class="sub" id="note-week">A lighter bar is a week still in progress.</p>
-      </section>
-      <section class="card" aria-labelledby="h-month">
-        <h2 id="h-month">Orders per month</h2>
+      </div></details>
+      <details class="card fold" id="f-month" open><summary><h2 id="h-month">Orders per month</h2></summary><div class="fold-body">
         <p class="sub" id="sub-month"></p>
         <div class="chart" id="chart-month"></div>
         <p class="sub" id="note-month">The lighter bar is the current month so far.</p>
-      </section>
-      <section class="card" aria-labelledby="h-split">
-        <h2 id="h-split">Couriers and payment</h2>
+      </div></details>
+      <details class="card fold" id="f-split" open><summary><h2 id="h-split">Couriers and payment</h2></summary><div class="fold-body">
         <p class="sub" id="sub-split"></p>
         <div class="split" id="split-bar"></div>
         <ul class="split-legend" id="split-legend"></ul>
         <div class="meter" aria-hidden="true"><span id="cod-fill"></span></div>
         <p id="cod-text"></p>
-      </section>
-      <section class="card" aria-labelledby="h-cats">
-        <h2 id="h-cats">Products</h2>
+      </div></details>
+      <details class="card fold" id="f-cats" open><summary><h2 id="h-cats">Products</h2></summary><div class="fold-body">
         <div class="stack" id="cats" style="gap:10px"></div>
-      </section>
-      <section class="card" aria-labelledby="h-states">
-        <h2 id="h-states">Orders by state</h2>
+      </div></details>
+      <details class="card fold" id="f-states" open><summary><h2 id="h-states">Orders by state</h2></summary><div class="fold-body">
         <p class="sub" id="sub-states"></p>
         <div class="stack" id="states" style="gap:10px"></div>
         <p class="muted" id="note-states">State is worked out from the delivery pincode, so a few border areas may land in a neighbouring state.</p>
-      </section>
-      <section class="card" aria-labelledby="h-pins">
-        <h2 id="h-pins">Top pincodes</h2>
+      </div></details>
+      <details class="card fold" id="f-pins" open><summary><h2 id="h-pins">Top pincodes</h2></summary><div class="fold-body">
         <p class="sub" id="sub-pins"></p>
         <div class="stack" id="pins" style="gap:10px"></div>
         <p class="muted" id="note-pins"></p>
-      </section>
-      <section class="card" aria-labelledby="h-rep">
-        <h2 id="h-rep">Repeat customers</h2>
+      </div></details>
+      <details class="card fold" id="f-rep" open><summary><h2 id="h-rep">Repeat customers</h2></summary><div class="fold-body">
         <p class="sub" id="sub-rep"></p>
         <div class="stack" id="rep" style="gap:10px"></div>
         <p class="muted" id="note-rep"></p>
-      </section>
-      <section class="card">
-        <details>
-          <summary>Show daily table</summary>
+      </div></details>
+      <details class="card fold" id="f-table"><summary><h2>Daily table</h2></summary><div class="fold-body">
           <div class="tablewrap"><table id="dash-table"></table></div>
-        </details>
-      </section>
+        </div></details>
     </div>
   </div>
 
   <div id="sheet-settings" class="stack" hidden>
     <div class="row"><h2 id="h-settings">Settings</h2><button class="btn ghost sm" id="set-back" type="button">Back</button></div>
-  <section class="card" aria-labelledby="h-sku">
-    <h2 id="h-sku">SKU list</h2>
-    <p class="help">Add or edit your categories and SKUs, and choose the order used in the pick list and the PDFs.</p>
-    <button class="btn" id="open-skus" type="button">Manage SKUs</button>
+  <section class="card" id="fraud-report" aria-labelledby="h-fr">
+    <h2 id="h-fr">Report fraud</h2>
+    <p class="help">Type or paste an order ID. The tool finds the customer in your master sheet. Add it to the fraud list with a reason, and every new label is checked against the list.</p>
+    <div class="field"><label for="fr-id">Order ID</label><input id="fr-id" type="text" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="e.g. 342287345390486784_1"></div>
+    <button class="btn" id="fr-fetch" type="button">Fetch details</button>
+    <p class="msg" id="fr-msg" role="status" aria-live="polite"></p>
+    <div id="fr-details" class="stack" hidden>
+      <div class="fm-col fm-left" id="fr-card" style="font-size:0.95rem"></div>
+      <div class="field"><label for="fr-reason">Reason (required)</label><textarea id="fr-reason" placeholder="Why is this a fraud? For example: refused delivery, fake return, wrong product returned"></textarea></div>
+      <button class="btn" id="fr-add" type="button" disabled>Add to fraud list</button>
+    </div>
   </section>
   <section class="card" aria-labelledby="h-pref">
     <h2 id="h-pref">Checks</h2>
@@ -395,17 +398,10 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       <p class="msg" id="pref-msg" role="status"></p>
     </div>
   </section>
-  <section class="card" id="fraud-report" aria-labelledby="h-fr">
-    <h2 id="h-fr">Report fraud</h2>
-    <p class="help">Type or paste an order ID. The tool finds the customer in your master sheet. Add it to the fraud list with a reason, and every new label is checked against the list.</p>
-    <div class="field"><label for="fr-id">Order ID</label><input id="fr-id" type="text" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="e.g. 342287345390486784_1"></div>
-    <button class="btn" id="fr-fetch" type="button">Fetch details</button>
-    <p class="msg" id="fr-msg" role="status" aria-live="polite"></p>
-    <div id="fr-details" class="stack" hidden>
-      <div class="fm-col fm-left" id="fr-card" style="font-size:0.95rem"></div>
-      <div class="field"><label for="fr-reason">Reason (required)</label><textarea id="fr-reason" placeholder="Why is this a fraud? For example: refused delivery, fake return, wrong product returned"></textarea></div>
-      <button class="btn" id="fr-add" type="button" disabled>Add to fraud list</button>
-    </div>
+  <section class="card" aria-labelledby="h-sku">
+    <h2 id="h-sku">SKU list</h2>
+    <p class="help">Add or edit your categories and SKUs, and choose the order used in the pick list and the PDFs.</p>
+    <button class="btn" id="open-skus" type="button">Manage SKUs</button>
   </section>
   <section class="card" aria-labelledby="h-set">
     <h2 id="h-set">Sheet settings</h2>
@@ -1308,7 +1304,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       var t = "Added " + res.added + " new order" + (res.added === 1 ? "" : "s") + " to the sheet.";
       if (res.skipped) t += " " + res.skipped + " already in the sheet, so not added again.";
       if (res.invalid) t += " " + res.invalid + " could not be read and were left out.";
-      setMsg("send-note", t, res.invalid > 0);
+      if (res.summaryError) t = "Orders are saved. " + t.replace(/^Added[^.]*\./, function (m) { return m; }) + " " + res.summaryError;
+      setMsg("send-note", t, res.invalid > 0 || !!res.summaryError);
       lsSet(LS_CACHE, "");
     }).catch(function (e) { setMsg("send-note", e.message + " Nothing was lost: tap Send to Sheet again.", true); })
       .then(function () { btn.disabled = false; });
@@ -1505,21 +1502,55 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     tb.appendChild(tbody);
   }
 
-  /* ---- top pincodes (selected range) and repeat customers (all orders with saved customer details) ---- */
-  var insKey = "", insBusy = false;
+  /* ---- top pincodes (selected range) and repeat customers (all orders with saved customer details) ----
+     Loaded only when their card is open, shown at once from the last saved copy, then refreshed in the background. */
+  var LS_PINS = "vavi_ins_pins", LS_REP = "vavi_ins_rep";
+  var pinKey = "", repDone = false, pinBusy = false, repBusy = false, curRange = null;
+  function jget(k) { try { return JSON.parse(lsGet(k) || "null"); } catch (e) { return null; } }
+  function isOpen(id) { var n = $(id); return !!(n && n.open); }
+
   function loadInsights(from, to) {
+    curRange = { from: from, to: to };
     if (!connected()) return;
-    var k = from + "|" + to;
-    if (k === insKey || insBusy) return;
-    insBusy = true; insKey = k;
-    $("sub-pins").textContent = "Loading …"; $("sub-rep").textContent = "";
-    call("insights", { from: from, to: to }).then(function (r) { renderInsights(r, from, to); })
-      .catch(function (e) { insKey = ""; $("pins").textContent = ""; $("rep").textContent = ""; $("sub-pins").textContent = ""; $("note-pins").textContent = e.message + " Update the Google script and tap Refresh if this keeps showing."; })
-      .then(function () { insBusy = false; });
+    if (isOpen("f-pins")) loadPins();
+    if (isOpen("f-rep")) loadRep();
   }
-  function renderInsights(r, from, to) {
-    var P = r.pincodes || { top: [], orders: 0 }, host = $("pins"); host.textContent = "";
-    $("sub-pins").textContent = V.shortDate(from) + " to " + V.shortDate(to);
+
+  function loadPins() {
+    if (!curRange || pinBusy) return;
+    var k = curRange.from + "|" + curRange.to;
+    if (k === pinKey) return;
+    var saved = jget(LS_PINS);
+    if (saved && saved.key === k) { renderPins(saved.data, curRange.from, curRange.to, ""); pinKey = k; return; }
+    if (saved && saved.data) renderPins(saved.data, saved.from, saved.to, " (older dates, updating …)");
+    else { $("sub-pins").textContent = "Loading …"; $("pins").textContent = ""; $("note-pins").textContent = ""; }
+    pinBusy = true; var asked = curRange;
+    call("pincodes", { from: asked.from, to: asked.to }).then(function (r) {
+      lsSet(LS_PINS, JSON.stringify({ key: asked.from + "|" + asked.to, from: asked.from, to: asked.to, data: r.pincodes }));
+      pinKey = asked.from + "|" + asked.to;
+      if (curRange && curRange.from === asked.from && curRange.to === asked.to) renderPins(r.pincodes, asked.from, asked.to, "");
+    }).catch(function (e) {
+      $("note-pins").textContent = e.message + " Update the Google script and tap Refresh if this keeps showing.";
+    }).then(function () { pinBusy = false; if (curRange && (curRange.from !== asked.from || curRange.to !== asked.to) && isOpen("f-pins")) loadPins(); });
+  }
+
+  function loadRep() {
+    if (repDone || repBusy) return;
+    var saved = jget(LS_REP);
+    if (saved && saved.data) renderRep(saved.data, " (updating …)");
+    else { $("sub-rep").textContent = "Loading …"; $("rep").textContent = ""; $("note-rep").textContent = ""; }
+    repBusy = true;
+    call("repeat").then(function (r) {
+      lsSet(LS_REP, JSON.stringify({ data: r.repeat })); repDone = true;
+      renderRep(r.repeat, "");
+    }).catch(function (e) {
+      $("note-rep").textContent = e.message + (saved ? " Showing the last saved copy." : " Update the Google script and tap Refresh if this keeps showing.");
+    }).then(function () { repBusy = false; });
+  }
+
+  function renderPins(P, from, to, suffix) {
+    var host = $("pins"); host.textContent = "";
+    $("sub-pins").textContent = V.shortDate(from) + " to " + V.shortDate(to) + (suffix || "");
     var max = P.top.length ? P.top[0].orders : 0;
     P.top.forEach(function (p) {
       var row = el("div", "hb st");
@@ -1532,14 +1563,16 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     });
     if (!P.top.length) host.appendChild(el("p", "muted", "No orders with a pincode in this range."));
     $("note-pins").textContent = P.top.length ? "Top " + P.top.length + " of " + P.distinct + " pincodes. The town shown comes from the saved delivery address, so older orders may show only the state." : "";
+  }
 
-    var R = r.repeat || { top: [] }, rh = $("rep"); rh.textContent = "";
+  function renderRep(R, suffix) {
+    var rh = $("rep"); rh.textContent = ""; $("note-rep").textContent = "";
     if (!R.customers) {
       $("sub-rep").textContent = ""; rh.appendChild(el("p", "muted", "Customer names are saved from the day you updated the script, so there is nothing to compare yet. This fills up as you send orders."));
-      $("note-rep").textContent = ""; return;
+      return;
     }
     var pct = R.ordersWithDetails ? Math.round(100 * R.ordersFromRepeat / R.ordersWithDetails) : 0;
-    $("sub-rep").textContent = R.repeatCustomers + " of " + R.customers + " customers ordered more than once (" + pct + "% of orders)";
+    $("sub-rep").textContent = R.repeatCustomers + " of " + R.customers + " customers ordered more than once (" + pct + "% of orders)" + (suffix || "");
     R.top.forEach(function (c) {
       var it = el("details", "rc"), sm = el("summary", "");
       var top = el("div", "top"); top.appendChild(el("span", "", c.name)); top.appendChild(el("span", "", c.orders + " orders · " + rs(c.value)));
@@ -1548,8 +1581,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       it.appendChild(sm);
       var pr = el("div", "rc-profile"), list = c.list || [];
       pr.appendChild(el("small", "", c.address || c.pincode));
-      var cod = 0, pre = 0, skus = {}, qty = 0;
-      list.forEach(function (o) { if (/cod/i.test(o.payment)) cod++; else pre++; skus[o.sku] = (skus[o.sku] || 0) + (o.qty || 1); qty += o.qty || 1; });
+      var cod = 0, pre = 0, skus = {};
+      list.forEach(function (o) { if (/cod/i.test(o.payment)) cod++; else pre++; skus[o.sku] = (skus[o.sku] || 0) + (o.qty || 1); });
       pr.appendChild(el("div", "", "Ordered " + c.orders + " times from " + V.shortDate(c.first) + " " + c.first.slice(0, 4) + " to " + V.shortDate(c.last) + " " + c.last.slice(0, 4) + ". Total " + rs(c.value) + ", about " + rs(c.value / c.orders) + " per order. COD " + cod + ", Prepaid " + pre + "."));
       var sk = Object.keys(skus).sort(function (x, y) { return skus[y] - skus[x]; });
       pr.appendChild(el("div", "", "Bought: " + sk.map(function (k) { return (k || "(no SKU)") + " × " + skus[k]; }).join(", ")));
@@ -1563,6 +1596,18 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     $("note-rep").textContent = "All dates. Same name and same pincode count as one customer. Based on " + R.ordersWithDetails + " of your " + R.totalOrders + " orders, because names are saved only for orders sent after the update, so it gets better every day.";
   }
 
+  /* ---- every Dashboard card opens and closes with one tap; the choice is remembered ---- */
+  var LS_FOLD = "vavi_dash_folds", folds = jget(LS_FOLD) || {};
+  var CLOSED_BY_DEFAULT = { "f-pins": 1, "f-rep": 1, "f-table": 1 };
+  Array.prototype.slice.call(document.querySelectorAll("#dash-body details.fold")).forEach(function (n) {
+    var saved = folds[n.id];
+    n.open = saved === undefined ? !CLOSED_BY_DEFAULT[n.id] : !!saved;
+    n.addEventListener("toggle", function () {
+      folds[n.id] = n.open ? 1 : 0; lsSet(LS_FOLD, JSON.stringify(folds));
+      if (n.open) { if (state.days.length) renderDash(); }   // charts measure their width, so draw them once they are visible
+    });
+  });
+
   function setUpdated() {
     if (!state.updated) { $("updated").textContent = ""; return; }
     var d = new Date(state.updated), t = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
@@ -1572,7 +1617,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   function loadStats() {
     var body = $("dash-body"); body.classList.add("loading"); $("refresh").disabled = true;
     $("dash-msg").hidden = true;
-    insKey = "";
+    pinKey = ""; repDone = false;
     return call("stats").then(function (res) {
       state.days = res.days || []; state.updated = Date.now(); state.fromCache = false;
       lsSet(LS_CACHE, JSON.stringify({ days: state.days, updated: state.updated }));
@@ -1811,8 +1856,9 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   function save() {
     dirty = true;
     setStatus("Saving to your sheet …");
-    return SH.call("sku_save", { categories: model }).then(function () {
-      dirty = false; exists = true; apply(model); setStatus("Saved to your sheet.");
+    return SH.call("sku_save", { categories: model }).then(function (r) {
+      dirty = false; exists = true; apply(model);
+      if (r && r.summaryError) setStatus("Saved to your sheet, but " + r.summaryError.charAt(0).toLowerCase() + r.summaryError.slice(1), true); else setStatus("Saved to your sheet.");
     }).catch(function (e) { setStatus(e.message + " The change is on this screen only. Tap Retry.", true); var r = $("sku-retry"); if (r) r.hidden = false; });
   }
 
@@ -1901,7 +1947,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       model.push({ name: v, skus: [] }); open = model.length - 1; render(); save();
     }));
     body.appendChild(card);
-    body.appendChild(el("p", "muted", "Your Daily Summary and Monthly Summary tabs in the sheet still count the original five category names. A renamed or new category shows in the Dashboard here, and only affects orders sent from now on."));
+    body.appendChild(el("p", "muted", "Your Daily Summary, Monthly Summary and Dashboard tabs in the sheet follow this list by themselves: a new category gets its own column after you save. Renaming a category does not change old orders, so the old name stays as its own column for the older days."));
   }
 
   function renderCategory(i) {
@@ -1982,6 +2028,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   function nameKey(s) { return String(s || "").toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/).filter(Boolean).sort().join(" "); }
   function rs(n) { return "Rs " + Math.round(n).toLocaleString("en-IN"); }
   function hide() { card.hidden = true; card.textContent = ""; }
+  function note(cls, text) { card.hidden = false; card.textContent = ""; card.appendChild(el("div", "note " + cls, text)); }
 
   function show(d, list) {
     var MIN = getMin();
@@ -1998,7 +2045,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       var prev = c.orderNos.filter(function (o) { return !upload[o]; }).length;   // orders from before these labels
       if (prev >= MIN) hits.push({ c: c, prev: prev, rows: rows });
     });
-    if (!hits.length) { hide(); return; }
+    if (!hits.length) { note("info", "Loyal customer check done: no customer in these labels has ordered " + MIN + " or more times before."); return; }
     card.hidden = false; card.textContent = "";
     var box = el("section", "loyal");
     box.appendChild(el("h2", "", "Loyal customers: " + hits.length + (hits.length === 1 ? " order" : " customers") + " in these labels"));
@@ -2018,10 +2065,11 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     if (!d || !d.allRows) return;
     lastD = d;
     var my = ++token, MIN = getMin();
-    if (!SH.connected()) { hide(); return; }
+    if (!SH.connected()) { note("info", "Loyal customer check is off. Connect your sheet in Settings (gear icon) to use it."); return; }
     if (cache && cachedMin === MIN) { show(d, cache); return; }
+    note("info", "Checking for loyal customers …");
     SH.call("loyal", { min: MIN }).then(function (r) { cache = r.customers || []; cachedMin = MIN; if (my === token) show(d, cache); })
-      .catch(function () { if (my === token) hide(); });   // a quiet failure: the labels themselves are not affected
+      .catch(function (e) { if (my === token) note("warn", "Loyal customer check could not run, so these labels were NOT checked. " + e.message); });   // the labels themselves are not affected
   }
   window.addEventListener("vavi:results", function (e) {
     if (e.detail && e.detail.allRows && lastCount !== e.detail.allRows.length) { cache = null; lastCount = e.detail.allRows.length; }

@@ -2991,12 +2991,12 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   function bioCreate() {
     grace(60);
     return navigator.credentials.create({ publicKey: { challenge: rnd(32), rp: { name: "Vavi Labels" }, user: { id: rnd(16), name: "vavi-labels", displayName: "Vavi Labels" },
-      pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }], authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required", residentKey: "preferred" }, timeout: 60000 } })
+      pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }], authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required", residentKey: "discouraged", requireResidentKey: false }, hints: ["client-device"], attestation: "none", timeout: 60000 } })
       .then(function (c) { lsSet("vavi_lock_cred", b64(c.rawId)); }).then(ungrace, ungraceErr);
   }
   function bioVerify() {
     grace(60);
-    return navigator.credentials.get({ publicKey: { challenge: rnd(32), allowCredentials: [{ type: "public-key", id: unb64(lsGet("vavi_lock_cred")), transports: ["internal"] }], userVerification: "required", timeout: 60000 } }).then(ungrace, ungraceErr);
+    return navigator.credentials.get({ publicKey: { challenge: rnd(32), allowCredentials: [{ type: "public-key", id: unb64(lsGet("vavi_lock_cred")), transports: ["internal"] }], userVerification: "required", hints: ["client-device"], timeout: 60000 } }).then(ungrace, ungraceErr);
   }
 
   /* ---- PIN (stored only as a salted hash) ---- */
@@ -3019,7 +3019,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   function pinOk(p) { return /^\d{4,6}$/.test(p); }
 
   /* ---- lock screen ---- */
-  var lmsg = document.getElementById("lock-msg"), lpin = document.getElementById("lock-pin"), lbtn = document.getElementById("lock-btn"), lbio = document.getElementById("lock-bio"), lforgot = document.getElementById("lock-forgot");
+  var lockScreen = document.getElementById("lock"), lmsg = document.getElementById("lock-msg"), lpin = document.getElementById("lock-pin"), lbtn = document.getElementById("lock-btn"), lbio = document.getElementById("lock-bio"), lforgot = document.getElementById("lock-forgot");
   function setLocked(on) { if (on) html.classList.add("locked"); else html.classList.remove("locked"); if (on) showMode(); }
   function done() { lsSet("vavi_pick_until", ""); if (lpin) lpin.value = ""; if (lmsg) lmsg.textContent = ""; html.classList.remove("locked"); }
   function showMode() {
@@ -3041,6 +3041,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   function promptUnlock() { showMode(); if (hasPin()) { if (hasBio()) tryBio(); } else tryBio(); }
   if (lbtn) lbtn.addEventListener("click", submit);
   if (lbio) lbio.addEventListener("click", tryBio);
+  // no PIN: tapping anywhere on the lock screen starts the Face ID / fingerprint check
+  if (lockScreen) lockScreen.addEventListener("click", function (e) { if (!hasPin() && hasBio() && e.target === lockScreen) tryBio(); });
   if (lpin) lpin.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); submit(); } });
   if (lforgot) lforgot.addEventListener("click", function () { lmsg.textContent = "Forgot the PIN? Clear this website's data in your browser settings. That removes the lock and the saved sheet key on this phone, so enter the key again afterwards."; });
   window.VaviLock = { enabled: enabled, lockNow: function () { if (enabled()) setLocked(true); }, unlock: submit };

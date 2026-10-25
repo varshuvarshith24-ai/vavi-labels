@@ -20,7 +20,7 @@
 try{var _r=document.documentElement,_s=localStorage.getItem("vavi_skin"),_m=localStorage.getItem("vavi_mode"),_c=localStorage.getItem("vavi_custom_css");if(_c){var _e=document.createElement("style");_e.id="vavi-custom";_e.textContent=_c;document.head.appendChild(_e);}var _sp=localStorage.getItem("vavi_splash")||"day",_td=new Date().toDateString(),_rm=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
 window.VaviSplash={play:function(force){var h=function(){_r.classList.remove("splash-on");};if(_rm&&!force)return;_r.classList.remove("splash-on");void _r.offsetWidth;_r.classList.add("splash-on");clearTimeout(window.__spT);window.__spT=setTimeout(h,3000);var s=document.getElementById("splash");if(s)s.onclick=h;else document.addEventListener("DOMContentLoaded",function(){var e=document.getElementById("splash");if(e)e.onclick=h;});}};
 if(_sp==="always"||(_sp==="day"&&localStorage.getItem("vavi_splash_day")!==_td)){try{localStorage.setItem("vavi_splash_day",_td);}catch(e){}window.VaviSplash.play(false);}
-try{if(localStorage.getItem("vavi_lock_cred")||localStorage.getItem("vavi_lock_pin")){var _la=parseInt(localStorage.getItem("vavi_lock_after"),10);_la=(_la===5||_la===30)?_la:1;if(Date.now()-(parseInt(localStorage.getItem("vavi_seen"),10)||0)>_la*60000)_r.classList.add("locked");}}catch(e){}
+try{if((localStorage.getItem("vavi_lock_cred")||localStorage.getItem("vavi_lock_pin"))&&Date.now()>=(parseInt(localStorage.getItem("vavi_pick_until"),10)||0))_r.classList.add("locked");}catch(e){}
 if(_s&&/^[a-z]+$/.test(_s))_r.setAttribute("data-skin",_s);if(_m==="light"||_m==="dark")_r.setAttribute("data-theme",_m);}catch(e){}
 </script>
 <style>
@@ -2979,16 +2979,24 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   function hasBio() { return !!lsGet("vavi_lock_cred"); }
   function hasPin() { return !!lsGet("vavi_lock_pin"); }
   function enabled() { return hasBio() || hasPin(); }
-  function awayMin() { var n = parseInt(lsGet("vavi_lock_after"), 10); return n === 5 || n === 30 ? n : 1; }
+  // while the phone's own pickers (file chooser, share sheet, Face ID) are open the app can leave the screen for a moment; do not lock for that
+  function grace(sec) { lsSet("vavi_pick_until", String(Date.now() + sec * 1000)); }
+  function ungrace(r) { lsSet("vavi_pick_until", ""); return r; }
+  function ungraceErr(e) { lsSet("vavi_pick_until", ""); throw e; }
+  function inGrace() { return Date.now() < (parseInt(lsGet("vavi_pick_until"), 10) || 0); }
+  document.addEventListener("click", function (e) { var t = e.target; if (t && t.closest && t.closest("label, input[type=file]") && (t.closest("input[type=file]") || (t.closest("label") && t.closest("label").querySelector("input[type=file]")))) grace(180); }, true);
+  if (navigator.share) { var _sh = navigator.share.bind(navigator); navigator.share = function () { grace(180); return _sh.apply(null, arguments); }; }
 
   /* ---- biometric ---- */
   function bioCreate() {
+    grace(60);
     return navigator.credentials.create({ publicKey: { challenge: rnd(32), rp: { name: "Vavi Labels" }, user: { id: rnd(16), name: "vavi-labels", displayName: "Vavi Labels" },
       pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }], authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required", residentKey: "preferred" }, timeout: 60000 } })
-      .then(function (c) { lsSet("vavi_lock_cred", b64(c.rawId)); });
+      .then(function (c) { lsSet("vavi_lock_cred", b64(c.rawId)); }).then(ungrace, ungraceErr);
   }
   function bioVerify() {
-    return navigator.credentials.get({ publicKey: { challenge: rnd(32), allowCredentials: [{ type: "public-key", id: unb64(lsGet("vavi_lock_cred")), transports: ["internal"] }], userVerification: "required", timeout: 60000 } });
+    grace(60);
+    return navigator.credentials.get({ publicKey: { challenge: rnd(32), allowCredentials: [{ type: "public-key", id: unb64(lsGet("vavi_lock_cred")), transports: ["internal"] }], userVerification: "required", timeout: 60000 } }).then(ungrace, ungraceErr);
   }
 
   /* ---- PIN (stored only as a salted hash) ---- */
@@ -3013,7 +3021,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   /* ---- lock screen ---- */
   var lmsg = document.getElementById("lock-msg"), lpin = document.getElementById("lock-pin"), lbtn = document.getElementById("lock-btn"), lbio = document.getElementById("lock-bio"), lforgot = document.getElementById("lock-forgot");
   function setLocked(on) { if (on) html.classList.add("locked"); else html.classList.remove("locked"); if (on) showMode(); }
-  function done() { lsSet("vavi_seen", String(Date.now())); if (lpin) lpin.value = ""; if (lmsg) lmsg.textContent = ""; html.classList.remove("locked"); }
+  function done() { lsSet("vavi_pick_until", ""); if (lpin) lpin.value = ""; if (lmsg) lmsg.textContent = ""; html.classList.remove("locked"); }
   function showMode() {
     if (!lpin) return;
     var pin = hasPin(); lpin.hidden = !pin; if (lbio) lbio.hidden = !(pin && hasBio()); if (lforgot) lforgot.hidden = !pin;
@@ -3037,15 +3045,14 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   if (lforgot) lforgot.addEventListener("click", function () { lmsg.textContent = "Forgot the PIN? Clear this website's data in your browser settings. That removes the lock and the saved sheet key on this phone, so enter the key again afterwards."; });
   window.VaviLock = { enabled: enabled, lockNow: function () { if (enabled()) setLocked(true); }, unlock: submit };
 
-  function seen() { if (!html.classList.contains("locked")) lsSet("vavi_seen", String(Date.now())); }
+  // every time the app is left and opened again, it asks again
+  function lockIfLeft() { if (enabled() && !inGrace()) setLocked(true); }
   document.addEventListener("visibilitychange", function () {
-    if (document.hidden) { seen(); return; }
-    if (!enabled()) return;
-    var last = parseInt(lsGet("vavi_seen"), 10) || 0;
-    if (Date.now() - last > awayMin() * 60000) { setLocked(true); promptUnlock(); }
+    if (document.hidden) { lockIfLeft(); return; }
+    if (enabled() && html.classList.contains("locked")) promptUnlock();
   });
-  window.addEventListener("pagehide", seen);
-  setInterval(function () { if (!document.hidden) seen(); }, 15000);
+  window.addEventListener("pagehide", lockIfLeft);
+  window.addEventListener("pageshow", function (e) { if (e.persisted) { lockIfLeft(); if (html.classList.contains("locked")) promptUnlock(); } });
   if (enabled() && html.classList.contains("locked")) promptUnlock();
 
   /* ---- Settings card ---- */
@@ -3075,7 +3082,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     if (!enabled() && view === "home") {
       if (bioOk) {
         var a = el("button", "btn wide", "Use my phone's lock (Face ID / fingerprint)"); a.type = "button";
-        a.addEventListener("click", function () { info("Follow the Face ID / fingerprint prompt…"); bioCreate().then(function () { lsSet("vavi_seen", String(Date.now())); render(); }).catch(function (e) { bad(e && e.name === "NotAllowedError" ? "Cancelled. The lock was not turned on." : "Could not turn on the lock: " + (e && e.message ? e.message : e)); }); });
+        a.addEventListener("click", function () { info("Follow the Face ID / fingerprint prompt…"); bioCreate().then(function () { render(); }).catch(function (e) { bad(e && e.name === "NotAllowedError" ? "Cancelled. The lock was not turned on." : "Could not turn on the lock: " + (e && e.message ? e.message : e)); }); });
         host.appendChild(a); host.appendChild(el("p", "help", "Uses the same Face ID, fingerprint or screen passcode that unlocks this phone."));
       }
       var p = el("button", "btn wide" + (bioOk ? " ghost" : ""), "Set my own PIN for this tool"); p.type = "button"; p.addEventListener("click", function () { view = "newpin"; render(); });
@@ -3092,14 +3099,13 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
         var a = val("lk-new"), b = val("lk-new2");
         if (!pinOk(a)) return bad("The PIN must be 4 to 6 digits."); if (a !== b) return bad("The two PINs are not the same.");
         savePin(a).then(function () { return cb && cb.checked ? bioCreate().catch(function () { /* PIN still works */ }) : null; })
-          .then(function () { lsSet("vavi_seen", String(Date.now())); view = "home"; render(); }).catch(function (e) { bad("Could not save the PIN: " + (e && e.message ? e.message : e)); });
+          .then(function () { view = "home"; render(); }).catch(function (e) { bad("Could not save the PIN: " + (e && e.message ? e.message : e)); });
       });
       row.appendChild(ok); row.appendChild(no); host.appendChild(row); host.appendChild(msg); return;
     }
     // enabled
     host.appendChild(el("div", "note info", hasPin() ? "App lock is on with your own PIN" + (hasBio() ? " and Face ID / fingerprint." : ".") : "App lock is on with your phone's lock."));
-    host.appendChild(el("p", "ed-lab", "Lock again after being away for"));
-    host.appendChild(seg([[1, "1 minute"], [5, "5 minutes"], [30, "30 minutes"]], awayMin(), function (n) { lsSet("vavi_lock_after", String(n)); render(); }));
+    host.appendChild(el("p", "help", "It asks every time you open the app, and every time you leave it and come back."));
     var row2 = el("div", "row"); row2.style.justifyContent = "flex-start"; row2.style.gap = "8px"; row2.style.flexWrap = "wrap";
     var now = el("button", "btn ghost", "Lock now"); now.type = "button"; now.addEventListener("click", function () { setLocked(true); promptUnlock(); });
     row2.appendChild(now);
@@ -3126,7 +3132,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     host.appendChild(msg);
     host.appendChild(el("p", "help", "If you clear this website's data in the browser, the lock is removed. It is a screen lock for this phone, not encryption."));
   }
-  function clearAll() { lsSet("vavi_lock_cred", ""); lsSet("vavi_lock_pin", ""); lsSet("vavi_seen", ""); lsSet("vavi_lock_fail", ""); lsSet("vavi_lock_until", ""); }
+  function clearAll() { lsSet("vavi_lock_cred", ""); lsSet("vavi_lock_pin", ""); lsSet("vavi_lock_fail", ""); lsSet("vavi_lock_until", ""); }
   render();
 })();
 

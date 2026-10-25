@@ -20,6 +20,7 @@
 try{var _r=document.documentElement,_s=localStorage.getItem("vavi_skin"),_m=localStorage.getItem("vavi_mode"),_c=localStorage.getItem("vavi_custom_css");if(_c){var _e=document.createElement("style");_e.id="vavi-custom";_e.textContent=_c;document.head.appendChild(_e);}var _sp=localStorage.getItem("vavi_splash")||"day",_td=new Date().toDateString(),_rm=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
 window.VaviSplash={play:function(force){var h=function(){_r.classList.remove("splash-on");};if(_rm&&!force)return;_r.classList.remove("splash-on");void _r.offsetWidth;_r.classList.add("splash-on");clearTimeout(window.__spT);window.__spT=setTimeout(h,3000);var s=document.getElementById("splash");if(s)s.onclick=h;else document.addEventListener("DOMContentLoaded",function(){var e=document.getElementById("splash");if(e)e.onclick=h;});}};
 if(_sp==="always"||(_sp==="day"&&localStorage.getItem("vavi_splash_day")!==_td)){try{localStorage.setItem("vavi_splash_day",_td);}catch(e){}window.VaviSplash.play(false);}
+try{if(localStorage.getItem("vavi_lock_cred")||localStorage.getItem("vavi_lock_pin")){var _la=parseInt(localStorage.getItem("vavi_lock_after"),10);_la=(_la===5||_la===30)?_la:1;if(Date.now()-(parseInt(localStorage.getItem("vavi_seen"),10)||0)>_la*60000)_r.classList.add("locked");}}catch(e){}
 if(_s&&/^[a-z]+$/.test(_s))_r.setAttribute("data-skin",_s);if(_m==="light"||_m==="dark")_r.setAttribute("data-theme",_m);}catch(e){}
 </script>
 <style>
@@ -181,6 +182,16 @@ pre#summary {
 .pf-cost { display: flex; align-items: center; gap: 4px; }
 .pf-cost input { width: 6.5rem; text-align: right; }
 .pf-sku .pf-chip { grid-column: 1 / -1; justify-self: start; }
+.pf-row { cursor: pointer; } .pf-row:focus-visible { outline: 3px solid var(--accent); outline-offset: -2px; }
+.pf-chev { display: inline-block; width: 1em; color: var(--accent); }
+.pf-detail > td { background: var(--accent-soft); padding: 12px; }
+.pf-det { white-space: normal; position: sticky; left: 0; display: flex; flex-direction: column; gap: 10px; }
+.pf-kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 0; }
+.pf-kv dt { color: var(--muted); } .pf-kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.pf-det table { font-size: 0.82rem; } .pf-det th, .pf-det td { padding: 6px 5px; }
+.pf-h3 { margin: 4px 0 0; font-size: 0.95rem; }
+.pf-prices { display: flex; flex-direction: column; gap: 2px; font-size: 0.9rem; }
+.pf-pr { display: flex; justify-content: space-between; gap: 12px; } .pf-pr span { overflow-wrap: anywhere; font-family: var(--font-mono); }
 .pf-meta { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .pf-prev { font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .pf-chip { display: inline-block; font-size: 0.8rem; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--muted); }
@@ -793,6 +804,12 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 .th-segb { appearance: none; flex: 1; min-height: 44px; border-radius: 8px; border: 2px solid var(--line); background: var(--surface); color: var(--ink); font: 600 0.95rem var(--font-body); cursor: pointer; }
 .th-segb.on { border-color: var(--accent); background: var(--accent-soft); }
 
+/* app lock */
+#lock { display: none; position: fixed; inset: 0; z-index: 1000; background: var(--bg); color: var(--ink); flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; }
+#lock input { font: 600 1.6rem var(--font-body); text-align: center; letter-spacing: .4em; width: 11rem; min-height: 56px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); color: var(--ink); }
+#lock .btn { min-width: 14rem; } #lock [hidden] { display: none !important; }
+#lock .sp-mark { width: 72px; height: 72px; color: var(--accent); }
+.locked #lock { display: flex; } .locked main { visibility: hidden; } .locked #splash { display: none !important; }
 /* opening animation: colours and font follow the chosen theme */
 #splash { display: none; position: fixed; inset: 0; z-index: 999; background: var(--accent); color: var(--accent-ink); flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
 .splash-on #splash { display: flex; animation: sp-out .6s ease 2.4s forwards; }
@@ -825,6 +842,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 <body>
 
 <div id="splash" aria-hidden="true"><svg class="sp-mark" viewBox="0 0 100 100"><path class="sp-line" d="M14 22 L50 84 L86 22 L66 22 L50 52 L34 22 Z"/><path class="sp-fill" d="M14 22 L50 84 L86 22 L66 22 L50 52 L34 22 Z"/></svg><div class="sp-name">VAVI COLLECTIONS</div><div class="sp-bar"><i></i></div></div>
+<div id="lock" role="dialog" aria-label="Locked"><svg class="sp-mark" viewBox="0 0 100 100" aria-hidden="true"><path d="M14 22 L50 84 L86 22 L66 22 L50 52 L34 22 Z" fill="currentColor"/></svg><h2>Vavi Labels is locked</h2><input id="lock-pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="PIN" aria-label="PIN" hidden><p class="help" id="lock-msg" role="status"></p><button class="btn" id="lock-btn" type="button">Unlock</button><button class="btn ghost" id="lock-bio" type="button" hidden>Use Face ID / fingerprint</button><button class="btn ghost sm" id="lock-forgot" type="button" hidden>Forgot PIN?</button></div>
 <main>
   <header>
     <div class="titlebar">
@@ -1004,7 +1022,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       <h3>By type of line</h3>
       <div class="tablewrap"><table id="pf-types"><thead><tr><th>Type</th><th class="n">Lines</th><th class="n">Settlement</th><th class="n">Profit</th></tr></thead><tbody></tbody></table></div>
       <h3>Profit by category</h3>
-      <div class="tablewrap"><table id="pf-cats"><thead><tr><th>Category</th><th class="n">Units</th><th class="n">Settlement</th><th class="n">Profit</th><th class="n">Per unit</th></tr></thead><tbody></tbody></table></div>
+      <div class="tablewrap"><table id="pf-cats"><thead><tr><th>Category</th><th class="n">Units</th><th class="n">Settlement</th><th class="n">Profit</th><th class="n">Profit %</th><th class="n">Per unit</th></tr></thead><tbody></tbody></table></div>
       <p class="help" id="pf-cats-note"></p>
       <details><summary>By SKU</summary>
         <div class="tablewrap"><table id="pf-bysku"><thead><tr><th>SKU</th><th class="n">Units</th><th class="n">Settlement</th><th class="n">Profit</th></tr></thead><tbody></tbody></table></div>
@@ -1052,6 +1070,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       <p class="msg" id="pref-msg" role="status"></p>
     </div>
   </section>
+  <section class="card" id="lock-card"></section>
   <section class="card" aria-labelledby="h-sku">
     <h2 id="h-sku">SKU list</h2>
     <p class="help">Add or edit your categories and SKUs, and choose the order used in the pick list and the PDFs.</p>
@@ -2945,6 +2964,174 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
 </script>
 <script>
+// App lock: the phone's own lock (Face ID / fingerprint / passcode via WebAuthn) and/or a separate PIN for this tool. Saved on this phone only.
+(function () {
+  if (window.claude && window.claude.use) return;
+  var html = document.documentElement;
+  function lsGet(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+  function lsSet(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) {} }
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
+  function b64(buf) { var s = "", a = new Uint8Array(buf); for (var i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+  function unb64(t) { t = t.replace(/-/g, "+").replace(/_/g, "/"); while (t.length % 4) t += "="; var s = atob(t), a = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; }
+  function rnd(n) { var a = new Uint8Array(n); crypto.getRandomValues(a); return a; }
+  var secure = !!(window.isSecureContext && window.crypto && crypto.subtle);
+  var bioOk = !!(secure && window.PublicKeyCredential && navigator.credentials && navigator.credentials.create);
+  function hasBio() { return !!lsGet("vavi_lock_cred"); }
+  function hasPin() { return !!lsGet("vavi_lock_pin"); }
+  function enabled() { return hasBio() || hasPin(); }
+  function awayMin() { var n = parseInt(lsGet("vavi_lock_after"), 10); return n === 5 || n === 30 ? n : 1; }
+
+  /* ---- biometric ---- */
+  function bioCreate() {
+    return navigator.credentials.create({ publicKey: { challenge: rnd(32), rp: { name: "Vavi Labels" }, user: { id: rnd(16), name: "vavi-labels", displayName: "Vavi Labels" },
+      pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }], authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required", residentKey: "preferred" }, timeout: 60000 } })
+      .then(function (c) { lsSet("vavi_lock_cred", b64(c.rawId)); });
+  }
+  function bioVerify() {
+    return navigator.credentials.get({ publicKey: { challenge: rnd(32), allowCredentials: [{ type: "public-key", id: unb64(lsGet("vavi_lock_cred")), transports: ["internal"] }], userVerification: "required", timeout: 60000 } });
+  }
+
+  /* ---- PIN (stored only as a salted hash) ---- */
+  function hashPin(pin, salt) {
+    return crypto.subtle.importKey("raw", new TextEncoder().encode(pin), "PBKDF2", false, ["deriveBits"])
+      .then(function (k) { return crypto.subtle.deriveBits({ name: "PBKDF2", salt: salt, iterations: 150000, hash: "SHA-256" }, k, 256); }).then(b64);
+  }
+  function savePin(pin) { var salt = rnd(16); return hashPin(pin, salt).then(function (h) { lsSet("vavi_lock_pin", b64(salt) + "." + h); lsSet("vavi_lock_fail", ""); lsSet("vavi_lock_until", ""); }); }
+  function waitLeft() { var u = parseInt(lsGet("vavi_lock_until"), 10) || 0; return Math.max(0, Math.ceil((u - Date.now()) / 1000)); }
+  function checkPin(pin) {
+    var w = waitLeft(); if (w) return Promise.reject(new Error("Too many wrong tries. Wait " + w + " seconds."));
+    var parts = lsGet("vavi_lock_pin").split(".");
+    return hashPin(pin, unb64(parts[0])).then(function (h) {
+      if (h === parts[1]) { lsSet("vavi_lock_fail", ""); lsSet("vavi_lock_until", ""); return true; }
+      var n = (parseInt(lsGet("vavi_lock_fail"), 10) || 0) + 1; lsSet("vavi_lock_fail", String(n));
+      if (n >= 5) lsSet("vavi_lock_until", String(Date.now() + Math.min(900, 30 * Math.pow(2, n - 5)) * 1000));
+      throw new Error(n >= 5 ? "Too many wrong tries. Wait " + waitLeft() + " seconds." : "Wrong PIN. " + (5 - n) + " tries left before a wait.");
+    });
+  }
+  function pinOk(p) { return /^\d{4,6}$/.test(p); }
+
+  /* ---- lock screen ---- */
+  var lmsg = document.getElementById("lock-msg"), lpin = document.getElementById("lock-pin"), lbtn = document.getElementById("lock-btn"), lbio = document.getElementById("lock-bio"), lforgot = document.getElementById("lock-forgot");
+  function setLocked(on) { if (on) html.classList.add("locked"); else html.classList.remove("locked"); if (on) showMode(); }
+  function done() { lsSet("vavi_seen", String(Date.now())); if (lpin) lpin.value = ""; if (lmsg) lmsg.textContent = ""; html.classList.remove("locked"); }
+  function showMode() {
+    if (!lpin) return;
+    var pin = hasPin(); lpin.hidden = !pin; if (lbio) lbio.hidden = !(pin && hasBio()); if (lforgot) lforgot.hidden = !pin;
+    lbtn.textContent = pin ? "Unlock" : "Unlock with Face ID / fingerprint";
+  }
+  var busy = false;
+  function tryBio() {
+    if (busy || !hasBio()) return Promise.resolve(); busy = true;
+    return bioVerify().then(function () { busy = false; done(); }).catch(function (e) { busy = false; if (lmsg) lmsg.textContent = e && e.name === "NotAllowedError" ? "Not unlocked. Try again." : "Could not unlock: " + (e && e.message ? e.message : e); });
+  }
+  function submit() {
+    if (!enabled()) { done(); return; }
+    if (!hasPin()) { tryBio(); return; }
+    var v = lpin.value.trim(); if (!pinOk(v)) { lmsg.textContent = "Enter your 4 to 6 digit PIN."; return; }
+    checkPin(v).then(done).catch(function (e) { lmsg.textContent = e.message; lpin.value = ""; });
+  }
+  function promptUnlock() { showMode(); if (hasPin()) { if (hasBio()) tryBio(); } else tryBio(); }
+  if (lbtn) lbtn.addEventListener("click", submit);
+  if (lbio) lbio.addEventListener("click", tryBio);
+  if (lpin) lpin.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); submit(); } });
+  if (lforgot) lforgot.addEventListener("click", function () { lmsg.textContent = "Forgot the PIN? Clear this website's data in your browser settings. That removes the lock and the saved sheet key on this phone, so enter the key again afterwards."; });
+  window.VaviLock = { enabled: enabled, lockNow: function () { if (enabled()) setLocked(true); }, unlock: submit };
+
+  function seen() { if (!html.classList.contains("locked")) lsSet("vavi_seen", String(Date.now())); }
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) { seen(); return; }
+    if (!enabled()) return;
+    var last = parseInt(lsGet("vavi_seen"), 10) || 0;
+    if (Date.now() - last > awayMin() * 60000) { setLocked(true); promptUnlock(); }
+  });
+  window.addEventListener("pagehide", seen);
+  setInterval(function () { if (!document.hidden) seen(); }, 15000);
+  if (enabled() && html.classList.contains("locked")) promptUnlock();
+
+  /* ---- Settings card ---- */
+  var host = document.getElementById("lock-card");
+  if (!host) return;
+  function seg(opts, cur, on) {
+    var s = el("div", "th-seg");
+    opts.forEach(function (o) { var isOn = cur === o[0], b = el("button", "th-segb" + (isOn ? " on" : ""), o[1]); b.type = "button"; b.setAttribute("aria-pressed", isOn ? "true" : "false"); b.addEventListener("click", function () { on(o[0]); }); s.appendChild(b); });
+    return s;
+  }
+  function pinField(label, id) {
+    var f = el("div", "field"), l = el("label", "", label); l.setAttribute("for", id);
+    var i = el("input"); i.id = id; i.type = "password"; i.inputMode = "numeric"; i.maxLength = 6; i.autocomplete = "off"; i.setAttribute("pattern", "[0-9]*");
+    f.appendChild(l); f.appendChild(i); return f;
+  }
+  function val(id) { return document.getElementById(id).value.trim(); }
+  var view = "home";
+  function render() {
+    host.textContent = "";
+    host.appendChild(el("h2", "", "App lock"));
+    host.appendChild(el("p", "help", "Ask for a lock before the tool opens, so nobody can use it when your phone is unlocked in someone else's hands. Each phone sets its own lock. It is saved on this phone only."));
+    var msg = el("p", "msg", ""); msg.setAttribute("role", "status");
+    function bad(t) { msg.className = "msg bad"; msg.textContent = t; }
+    function info(t) { msg.className = "msg"; msg.textContent = t; }
+    if (!secure) { host.appendChild(el("div", "note warn", "This page cannot set an app lock here. Open the tool from your Home Screen icon, over the https address.")); return; }
+
+    if (!enabled() && view === "home") {
+      if (bioOk) {
+        var a = el("button", "btn wide", "Use my phone's lock (Face ID / fingerprint)"); a.type = "button";
+        a.addEventListener("click", function () { info("Follow the Face ID / fingerprint prompt…"); bioCreate().then(function () { lsSet("vavi_seen", String(Date.now())); render(); }).catch(function (e) { bad(e && e.name === "NotAllowedError" ? "Cancelled. The lock was not turned on." : "Could not turn on the lock: " + (e && e.message ? e.message : e)); }); });
+        host.appendChild(a); host.appendChild(el("p", "help", "Uses the same Face ID, fingerprint or screen passcode that unlocks this phone."));
+      }
+      var p = el("button", "btn wide" + (bioOk ? " ghost" : ""), "Set my own PIN for this tool"); p.type = "button"; p.addEventListener("click", function () { view = "newpin"; render(); });
+      host.appendChild(p); host.appendChild(el("p", "help", "A 4 to 6 digit PIN that is different from your phone's screen lock.")); host.appendChild(msg); return;
+    }
+    if (!enabled() && view === "newpin") {
+      host.appendChild(pinField("New PIN (4 to 6 digits)", "lk-new")); host.appendChild(pinField("Type the PIN again", "lk-new2"));
+      var cb = null;
+      if (bioOk) { var lab = el("label", "ed-row"); lab.appendChild(el("span", "", "Also unlock with Face ID / fingerprint")); cb = el("input"); cb.type = "checkbox"; cb.id = "lk-bio"; cb.style.width = "24px"; cb.style.height = "24px"; lab.appendChild(cb); host.appendChild(lab); }
+      var row = el("div", "row"); row.style.justifyContent = "flex-start"; row.style.gap = "8px";
+      var ok = el("button", "btn", "Turn on"); ok.type = "button"; var no = el("button", "btn ghost", "Back"); no.type = "button";
+      no.addEventListener("click", function () { view = "home"; render(); });
+      ok.addEventListener("click", function () {
+        var a = val("lk-new"), b = val("lk-new2");
+        if (!pinOk(a)) return bad("The PIN must be 4 to 6 digits."); if (a !== b) return bad("The two PINs are not the same.");
+        savePin(a).then(function () { return cb && cb.checked ? bioCreate().catch(function () { /* PIN still works */ }) : null; })
+          .then(function () { lsSet("vavi_seen", String(Date.now())); view = "home"; render(); }).catch(function (e) { bad("Could not save the PIN: " + (e && e.message ? e.message : e)); });
+      });
+      row.appendChild(ok); row.appendChild(no); host.appendChild(row); host.appendChild(msg); return;
+    }
+    // enabled
+    host.appendChild(el("div", "note info", hasPin() ? "App lock is on with your own PIN" + (hasBio() ? " and Face ID / fingerprint." : ".") : "App lock is on with your phone's lock."));
+    host.appendChild(el("p", "ed-lab", "Lock again after being away for"));
+    host.appendChild(seg([[1, "1 minute"], [5, "5 minutes"], [30, "30 minutes"]], awayMin(), function (n) { lsSet("vavi_lock_after", String(n)); render(); }));
+    var row2 = el("div", "row"); row2.style.justifyContent = "flex-start"; row2.style.gap = "8px"; row2.style.flexWrap = "wrap";
+    var now = el("button", "btn ghost", "Lock now"); now.type = "button"; now.addEventListener("click", function () { setLocked(true); promptUnlock(); });
+    row2.appendChild(now);
+    if (hasPin()) {
+      var ch = el("button", "btn ghost", "Change PIN"); ch.type = "button"; ch.addEventListener("click", function () { view = view === "change" ? "home" : "change"; render(); }); row2.appendChild(ch);
+    }
+    var off = el("button", "btn ghost", "Turn off"); off.type = "button"; row2.appendChild(off); host.appendChild(row2);
+    if (hasPin() && view === "change") {
+      host.appendChild(pinField("Current PIN", "lk-cur")); host.appendChild(pinField("New PIN (4 to 6 digits)", "lk-new")); host.appendChild(pinField("Type the new PIN again", "lk-new2"));
+      var sv = el("button", "btn", "Save new PIN"); sv.type = "button";
+      sv.addEventListener("click", function () {
+        var n = val("lk-new"); if (!pinOk(n)) return bad("The new PIN must be 4 to 6 digits."); if (n !== val("lk-new2")) return bad("The two new PINs are not the same.");
+        checkPin(val("lk-cur")).then(function () { return savePin(n); }).then(function () { view = "home"; render(); host.appendChild(el("p", "msg", "PIN changed.")); }).catch(function (e) { bad(e.message); });
+      });
+      host.appendChild(sv);
+    }
+    if (hasPin() && view === "off") { host.appendChild(pinField("Type your PIN to turn the lock off", "lk-cur")); var go = el("button", "btn", "Confirm turn off"); go.type = "button";
+      go.addEventListener("click", function () { checkPin(val("lk-cur")).then(function () { clearAll(); view = "home"; render(); }).catch(function (e) { bad(e.message); }); }); host.appendChild(go); }
+    off.addEventListener("click", function () {
+      if (hasPin()) { view = view === "off" ? "home" : "off"; render(); return; }
+      info("Confirm with Face ID / fingerprint to turn it off…");
+      bioVerify().then(function () { clearAll(); render(); }).catch(function () { bad("Not confirmed. The lock stays on."); });
+    });
+    host.appendChild(msg);
+    host.appendChild(el("p", "help", "If you clear this website's data in the browser, the lock is removed. It is a screen lock for this phone, not encryption."));
+  }
+  function clearAll() { lsSet("vavi_lock_cred", ""); lsSet("vavi_lock_pin", ""); lsSet("vavi_seen", ""); lsSet("vavi_lock_fail", ""); lsSet("vavi_lock_until", ""); }
+  render();
+})();
+
+</script>
+<script>
 // Meesho profit logic (payment zip/xlsx reading + the agreed profit rules). Ported unchanged from the profit calculator.
 (function (root) {
 'use strict';
@@ -3131,6 +3318,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   function lsGet(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } }
   function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
   var inr = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), int = new Intl.NumberFormat("en-IN");
+  function catPct(g) { return g.settlement ? ((g.profit / g.settlement) * 100).toFixed(2) + "%" : "-"; }
   function pctText(v) { return (+v).toFixed(4) + "%"; }
   function money(v) { return (v < 0 ? "−" : "") + "₹" + inr.format(Math.abs(v)); }
   var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -3154,19 +3342,62 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     SH.call("profit_get").then(function (r) { history = { months: r.months || [], costs: r.costs || {}, categories: r.categories || {} }; renderHistory(); if (parsed) buildSkus(); })
       .catch(function (e) { $("pf-hist-msg").textContent = e.message + " Showing what is saved on this phone."; renderHistory(); });
   }
+  function monthDetail(m) {
+    var box = el("div", "pf-det");
+    var kv = el("dl", "pf-kv");
+    function add(k, v, neg) { kv.appendChild(el("dt", "", k)); kv.appendChild(el("dd", neg ? "neg" : "", v)); }
+    add("Lines paid in the month", int.format(m.lines));
+    add("Meesho settlement (total turnover)", money(m.settlement));
+    add("Profit before ads", money(m.lineProfit), m.lineProfit < 0);
+    add("Ads cost", money(-m.ads));
+    add("Monthly profit", money(m.profit), m.profit < 0);
+    add("Profit % of settlement", m.profitPct == null ? "-" : pctText(m.profitPct), m.profit < 0);
+    add("Packing per packet", "₹" + m.packing);
+    if (m.shippedLines) add("Shipped orders already paid", int.format(m.shippedLines) + " (" + money(m.shippedSettlement) + ")");
+    if (m.claimsCount) add("Return claims ignored", int.format(m.claimsCount) + " (" + money(m.claimsAmount) + ")");
+    if (m.savedOn) add("Saved on", m.savedOn);
+    box.appendChild(kv);
+    var cats = history.categories[m.month] || [];
+    if (cats.length) {
+      box.appendChild(el("h3", "pf-h3", "Profit by category (before ads)"));
+      var w = el("div", "tablewrap"), t = el("table"), th = el("thead"), hr = el("tr");
+      ["Category", "Settlement", "Profit", "Profit %"].forEach(function (h, i) { hr.appendChild(el("th", i ? "n" : "", h)); });
+      th.appendChild(hr); t.appendChild(th); var tb = el("tbody");
+      cats.forEach(function (g) {
+        var tr = el("tr"); tr.appendChild(el("td", "", g.category)); tr.appendChild(el("td", "n", money(g.settlement)));
+        tr.appendChild(el("td", "n" + (g.profit < 0 ? " neg" : ""), money(g.profit))); tr.appendChild(el("td", "n" + (g.profit < 0 ? " neg" : ""), catPct(g))); tb.appendChild(tr);
+      });
+      t.appendChild(tb); w.appendChild(t); box.appendChild(w);
+    }
+    var cost = history.costs[m.month] || {}, ks = Object.keys(cost);
+    if (ks.length) {
+      box.appendChild(el("h3", "pf-h3", "Prices used"));
+      var ul = el("div", "pf-prices"); ks.sort().forEach(function (k) { var d = el("div", "pf-pr"); d.appendChild(el("span", "", k)); d.appendChild(el("b", "", "₹" + cost[k])); ul.appendChild(d); }); box.appendChild(ul);
+    }
+    box.appendChild(el("p", "help", "Every line and the step-by-step working of this month are in your sheet, tab Profit Lines " + m.month + "."));
+    return box;
+  }
   function renderHistory() {
     var tb = $("pf-hist").tBodies[0]; tb.textContent = "";
     var rows = history.months.slice().reverse();
     $("pf-hist-wrap").hidden = !rows.length;
     $("pf-hist-empty").hidden = !!rows.length;
     rows.forEach(function (m) {
-      var tr = el("tr");
-      tr.appendChild(el("td", "", monthName(m.month)));
+      var tr = el("tr", "pf-row"); tr.tabIndex = 0; tr.setAttribute("role", "button"); tr.setAttribute("aria-expanded", "false");
+      var first = el("td", ""); first.appendChild(el("span", "pf-chev", "▸")); first.appendChild(document.createTextNode(" " + monthName(m.month))); tr.appendChild(first);
       var p = el("td", "n" + (m.profit < 0 ? " neg" : ""), money(m.profit)); tr.appendChild(p);
       tr.appendChild(el("td", "n", m.profitPct == null ? "-" : pctText(m.profitPct)));
       tr.appendChild(el("td", "n", money(m.settlement)));
       var cs = (history.categories[m.month] || []).filter(function (c) { return c.category !== "Other" || (history.categories[m.month] || []).length === 1; });
       tr.appendChild(el("td", "", cs.length ? cs[0].category : "-"));
+      var det = null;
+      function toggle() {
+        if (det) { det.remove(); det = null; tr.setAttribute("aria-expanded", "false"); tr.querySelector(".pf-chev").textContent = "▸"; return; }
+        det = el("tr", "pf-detail"); var td = el("td"); td.colSpan = 5; var dv = monthDetail(m); dv.style.width = Math.max(240, $("pf-hist-wrap").clientWidth - 24) + "px"; td.appendChild(dv); det.appendChild(td);
+        tr.parentNode.insertBefore(det, tr.nextSibling); tr.setAttribute("aria-expanded", "true"); tr.querySelector(".pf-chev").textContent = "▾";
+      }
+      tr.addEventListener("click", toggle);
+      tr.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
       tb.appendChild(tr);
     });
   }
@@ -3378,12 +3609,12 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     var tot = el("tr", "total"); tot.appendChild(el("td", "", "Total before ads")); tot.appendChild(el("td", "n", int.format(r.lines))); tot.appendChild(el("td", "n", money(r.settlement))); tot.appendChild(el("td", "n", money(r.lineProfit))); tt.appendChild(tot);
     var ct = $("pf-cats").tBodies[0]; ct.textContent = "";
     var cl = categoryRows(r);
-    $("pf-cats-note").textContent = skuList.length ? "Before ads. Share is each category's part of the profit made by the profitable categories. SKUs that are not in your SKU list are counted as Other." : "Make your SKU list in Settings, Manage SKUs to see profit by category. Until then everything shows as Other.";
+    $("pf-cats-note").textContent = skuList.length ? "Before ads. Profit % is the category's profit divided by its Meesho settlement. Share is each category's part of the profit made by the profitable categories. SKUs that are not in your SKU list are counted as Other." : "Make your SKU list in Settings, Manage SKUs to see profit by category. Until then everything shows as Other.";
     var bestIdx = -1; cl.forEach(function (g, i) { if (bestIdx < 0 && g.category !== "Other" && g.profit > 0) bestIdx = i; });
     cl.forEach(function (g, i) {
       var tr = el("tr"); var nm = el("td", "", g.category); if (i === bestIdx) nm.appendChild(el("small", "pf-best", " Best"));
       tr.appendChild(nm); tr.appendChild(el("td", "n", int.format(g.units))); tr.appendChild(el("td", "n", money(g.settlement)));
-      tr.appendChild(el("td", "n" + (g.profit < 0 ? " neg" : ""), money(g.profit))); tr.appendChild(el("td", "n", money(g.perUnit))); ct.appendChild(tr);
+      tr.appendChild(el("td", "n" + (g.profit < 0 ? " neg" : ""), money(g.profit))); tr.appendChild(el("td", "n" + (g.profit < 0 ? " neg" : ""), catPct(g))); tr.appendChild(el("td", "n", money(g.perUnit))); ct.appendChild(tr);
     });
     var st = $("pf-bysku").tBodies[0]; st.textContent = "";
     r.bySku.forEach(function (s) {

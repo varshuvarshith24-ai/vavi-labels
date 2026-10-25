@@ -131,7 +131,7 @@ p { margin: 0; }
 .gets b { color: var(--ink); font-weight: 600; }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
 .stat { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; min-width: 0; }
-.stat .n { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.stat .n { white-space: nowrap; font-family: var(--font-mono); font-size: 1.5rem; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.2; }
 .stat .l { color: var(--muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
 .stat.main { background: var(--accent-soft); border-color: transparent; }
 .note { border-radius: 8px; padding: 10px 12px; font-size: 0.95rem; }
@@ -181,6 +181,8 @@ pre#summary {
 .pf-cost { display: flex; align-items: center; gap: 4px; }
 .pf-cost input { width: 6.5rem; text-align: right; }
 .pf-sku .pf-chip { grid-column: 1 / -1; justify-self: start; }
+.pf-meta { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.pf-prev { font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .pf-chip { display: inline-block; font-size: 0.8rem; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--muted); }
 .pf-chip.new { background: var(--warn-bg); color: var(--warn-ink); }
 .pf-chip.miss { background: var(--bad-bg); color: var(--bad-ink); }
@@ -1007,7 +1009,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       <details><summary>By SKU</summary>
         <div class="tablewrap"><table id="pf-bysku"><thead><tr><th>SKU</th><th class="n">Units</th><th class="n">Settlement</th><th class="n">Profit</th></tr></thead><tbody></tbody></table></div>
       </details>
-      <div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="btn ghost sm" id="pf-csv" type="button">Download lines (CSV)</button><button class="btn ghost sm" id="pf-copy" type="button">Copy summary row</button></div>
+      <div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="btn ghost sm" id="pf-copy" type="button">Copy summary</button></div>
       <p class="msg" id="pf-copy-msg" aria-live="polite"></p>
     </section>
     <section class="card" aria-labelledby="h-pfh">
@@ -3108,7 +3110,7 @@ function calculate(o){
   const ship=rows.filter(r=>r.status==='Shipped'),claims=rows.filter(r=>r.kind==='Claim (ignored)');
   const otherMonths={};Object.keys(o.months||{}).forEach(k=>{if(k!==month)otherMonths[k]=o.months[k];});
   return {month,lines:rows.length,settlement:round2(settlement),lineProfit:round2(lineP),ads:round2(ads),adsRows:o.adsRows||0,profit:round2(lineP-ads),
-    profitPct:settlement?round2((lineP-ads)/settlement*100):null,packing,shippedLines:ship.length,shippedSettlement:round2(sum(ship,r=>r.settlement)),
+    profitPct:settlement?((lineP-ads)/settlement*100):null,packing,shippedLines:ship.length,shippedSettlement:round2(sum(ship,r=>r.settlement)),
     claimsCount:claims.length,claimsAmount:round2(sum(claims,r=>r.settlement)),otherMonths,byType,bySku,
     rows:rows.map(r=>({...r,settlement:round2(r.settlement),cost:round2(r.cost),profit:round2(r.profit)}))};
 }
@@ -3129,6 +3131,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   function lsGet(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } }
   function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
   var inr = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), int = new Intl.NumberFormat("en-IN");
+  function pctText(v) { return (+v).toFixed(4) + "%"; }
   function money(v) { return (v < 0 ? "−" : "") + "₹" + inr.format(Math.abs(v)); }
   var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   function monthName(m) { var p = m.split("-"); return MON[+p[1] - 1] + " " + p[0]; }
@@ -3160,7 +3163,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       var tr = el("tr");
       tr.appendChild(el("td", "", monthName(m.month)));
       var p = el("td", "n" + (m.profit < 0 ? " neg" : ""), money(m.profit)); tr.appendChild(p);
-      tr.appendChild(el("td", "n", m.profitPct == null ? "-" : m.profitPct.toFixed(1) + "%"));
+      tr.appendChild(el("td", "n", m.profitPct == null ? "-" : pctText(m.profitPct)));
       tr.appendChild(el("td", "n", money(m.settlement)));
       var cs = (history.categories[m.month] || []).filter(function (c) { return c.category !== "Other" || (history.categories[m.month] || []).length === 1; });
       tr.appendChild(el("td", "", cs.length ? cs[0].category : "-"));
@@ -3181,6 +3184,20 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     return null;
   }
 
+  // reference only: what the SKU / category cost in the nearest EARLIER month that has a price
+  function prevCost(sku, month) {
+    var k = key(sku), pick = null, val = null;
+    Object.keys(history.costs).sort().forEach(function (m) { if (m < month) { var c = history.costs[m]; Object.keys(c).forEach(function (x) { if (key(x) === k) { pick = m; val = c[x]; } }); } });
+    return pick === null ? null : { cost: val, month: pick };
+  }
+  function prevCatCost(cat, month) {
+    var keys = {}; (cat.skus || []).forEach(function (x) { keys[key(x)] = 1; }); var pick = null;
+    Object.keys(history.costs).sort().forEach(function (m) { if (m < month) { var c = history.costs[m]; if (Object.keys(c).some(function (x) { return keys[key(x)]; })) pick = m; } });
+    if (pick === null) return null;
+    var c = history.costs[pick], tally = {}; Object.keys(c).forEach(function (x) { if (keys[key(x)]) tally[c[x]] = (tally[c[x]] || 0) + 1; });
+    var best = null, n = 0, vals = Object.keys(tally); vals.forEach(function (v) { if (tally[v] > n) { n = tally[v]; best = +v; } });
+    return { cost: best, month: pick, mixed: vals.length > 1 };
+  }
   // a category's starting price: what its SKUs cost in the nearest earlier month that has any (the most common one), else this phone's copy
   function savedCatCost(cat, month) {
     var keys = {}; (cat.skus || []).forEach(function (x) { keys[key(x)] = 1; });
@@ -3249,7 +3266,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     buildSkus(); $("pf-res").hidden = true;
   }
 
-  function priceRow(host, title, sub, saved, haveHistory, get, set, extra) {
+  function priceRow(host, title, sub, saved, haveHistory, get, set, extra, prev) {
     var row = el("div", "pf-sku"), info = el("div", "pf-name"); info.appendChild(el("div", "", title));
     info.appendChild(el("small", "", sub)); if (extra) info.appendChild(el("small", "", extra));
     var inp = el("input"); inp.type = "text"; inp.inputMode = "decimal"; inp.autocomplete = "off"; inp.setAttribute("aria-label", "Unit cost for " + title);
@@ -3263,7 +3280,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     inp.addEventListener("input", function () { var v = parseFloat(inp.value); set(inp.value.trim() !== "" && isFinite(v) && v >= 0 ? v : undefined); upd(); refresh(); });
     upd();
     var c2 = el("div", "pf-cost"); c2.appendChild(el("span", "", "₹")); c2.appendChild(inp);
-    row.appendChild(info); row.appendChild(c2); row.appendChild(chip); host.appendChild(row);
+    var meta = el("div", "pf-meta"); meta.appendChild(chip);
+    if (prev) meta.appendChild(el("span", "pf-prev", "Last time: ₹" + prev.cost + " (" + monthName(prev.month) + (prev.mixed ? ", most SKUs" : "") + ")"));
+    else if (haveHistory) meta.appendChild(el("span", "pf-prev", "No earlier price"));
+    row.appendChild(info); row.appendChild(c2); row.appendChild(meta); host.appendChild(row);
   }
 
   function buildSkus() {
@@ -3275,14 +3295,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       var saved = savedCatCost(c.list, m);
       if (catCost[c.name] === undefined && saved !== null) catCost[c.name] = saved;
       priceRow(host, c.name, c.skus.length + (c.skus.length === 1 ? " SKU · " : " SKUs · ") + int.format(c.units) + " units · " + int.format(c.lines) + " lines", saved, haveHistory,
-        function () { return catCost[c.name]; }, function (v) { catCost[c.name] = v; }, c.skus.map(function (s) { return s.sku; }).join(", "));
+        function () { return catCost[c.name]; }, function (v) { catCost[c.name] = v; }, c.skus.map(function (s) { return s.sku; }).join(", "), prevCatCost(c.list, m));
     });
     if (g.cats.length && g.singles.length) host.appendChild(el("div", "note warn", "These SKUs are not in your SKU list, so each needs its own price. Add them under Settings, Manage SKUs to price them with a category next time."));
     g.singles.forEach(function (s) {
       var k = key(s.sku), saved = savedCost(s.sku, m);
       if (!(k in current) && saved !== null) current[k] = saved;
       priceRow(host, s.sku, int.format(s.units) + " units · " + int.format(s.lines) + " lines" + (g.cats.length ? " · " + OTHER : ""), saved, haveHistory,
-        function () { return current[k]; }, function (v) { current[k] = v; });
+        function () { return current[k]; }, function (v) { current[k] = v; }, undefined, prevCost(s.sku, m));
     });
     refresh();
   }
@@ -3347,7 +3367,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     k.appendChild(tile("Meesho settlement", money(r.settlement)));
     k.appendChild(tile("Profit before ads", money(r.lineProfit)));
     k.appendChild(tile("Ads cost", money(-r.ads)));
-    k.appendChild(tile("Profit % of settlement", r.profitPct == null ? "-" : r.profitPct.toFixed(2) + "%"));
+    k.appendChild(tile("Profit % of settlement", r.profitPct == null ? "-" : pctText(r.profitPct)));
     var notes = $("pf-notes"); notes.textContent = "";
     if (r.shippedLines) notes.appendChild(el("div", "note warn", r.shippedLines + " Shipped order" + (r.shippedLines > 1 ? "s were" : " was") + " already paid (" + money(r.shippedSettlement) + ") and counted with cost and packing. If Meesho takes the payment back later, that month adds the cost back."));
     if (r.claimsCount) notes.appendChild(el("div", "note info", r.claimsCount + " claim" + (r.claimsCount > 1 ? "s" : "") + " for returned parcels (" + money(r.claimsAmount) + ") are ignored: neither profit nor loss."));
@@ -3391,7 +3411,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     });
     out.push([r.month, "Total before ads", "Sum of all lines paid in the month", tl, Math.round(tc * 100) / 100, Math.round(tp * 100) / 100, Math.round(tk * 100) / 100, r.lineProfit]);
     out.push([r.month, "Ads cost", "Ads Cost sheet of the Meesho file, including GST, deducted once (" + r.adsRows + " deductions)", 0, 0, 0, 0, -r.ads]);
-    out.push([r.month, "Monthly profit", "Total before ads − ads cost. Packing " + r.packing + " per packet. Profit is " + (r.profitPct == null ? "-" : r.profitPct.toFixed(2) + "%") + " of the Meesho settlement " + r.settlement, r.lines, 0, 0, 0, r.profit]);
+    out.push([r.month, "Monthly profit", "Total before ads − ads cost. Packing " + r.packing + " per packet. Profit is " + (r.profitPct == null ? "-" : pctText(r.profitPct)) + " of the Meesho settlement " + r.settlement, r.lines, 0, 0, 0, r.profit]);
     return out;
   }
   function lineRows(r) {
@@ -3415,19 +3435,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     }).catch(function (e) { n.textContent = e.message + " The result is on screen. Tap Calculate again to retry saving."; n.className = "msg bad"; });
   }
 
-  /* ------------------------------------------------------------- downloads */
-  function csvCell(v) { var s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
-  $("pf-csv").addEventListener("click", function () {
-    var cols = ["subOrder", "orderDate", "paymentDate", "sku", "qty", "status", "kind", "settlement", "unitCost", "cost", "profit"];
-    var text = [cols.join(",")].concat(last.rows.map(function (x) { return cols.map(function (c) { return csvCell(x[c]); }).join(","); })).join("\n");
-    var a = el("a"); a.href = URL.createObjectURL(new Blob([text], { type: "text/csv" })); a.download = "meesho-profit-lines-" + last.month + ".csv";
-    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
-  });
+  /* ------------------------------------------------------- copy for WhatsApp */
   $("pf-copy").addEventListener("click", function () {
-    var r = last, t = [monthName(r.month), r.lines, r.settlement, r.lineProfit, r.ads, r.profit, r.profitPct, r.packing].join("\t");
+    var r = last; if (!r) return;
+    var t = "*" + monthName(r.month) + " results* 🎉\n💰 Total turnover: " + money(r.settlement) + "\n📈 Monthly profit: " + money(r.profit) + "\n📊 Profit: " + (r.profitPct == null ? "-" : pctText(r.profitPct));
     function done(m) { $("pf-copy-msg").textContent = m; }
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { done("Copied: month, lines, settlement, profit before ads, ads, profit, profit %, packing."); }).catch(function () { done("Copy was blocked. Row: " + t); });
-    else done("Copy is not available here. Row: " + t);
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { done("Copied. Paste it in WhatsApp."); }).catch(function () { done("Copy failed. Select and copy this: " + t); });
+    else done("Copy is not available here. Text: " + t);
   });
 
   /* ------------------------------------------------------------------ wiring */
@@ -3439,6 +3453,22 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   window.addEventListener("vavi:profit", loadHistory);
 })();
 
+</script>
+<script>
+/* big numbers shrink to fit their box (profit, dashboard and label totals) */
+(function () {
+  function fit(e) {
+    e.style.fontSize = ""; if (!e.clientWidth) return;
+    var size = parseFloat(getComputedStyle(e).fontSize);
+    while (e.scrollWidth > e.clientWidth + 0.5 && size > 11) { size -= 0.5; e.style.fontSize = size + "px"; }
+  }
+  var timer = 0;
+  function all() { if (timer) return; timer = setTimeout(function () { timer = 0; var l = document.querySelectorAll(".stat .n, .hero-n"); for (var i = 0; i < l.length; i++) fit(l[i]); }, 30); }
+  try { new MutationObserver(all).observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["hidden", "class", "data-skin"] }); } catch (e) {}
+  window.addEventListener("resize", all); window.addEventListener("orientationchange", all);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(all);
+  all();
+})();
 </script>
 
 </body>

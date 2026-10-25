@@ -3281,8 +3281,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     upd();
     var c2 = el("div", "pf-cost"); c2.appendChild(el("span", "", "₹")); c2.appendChild(inp);
     var meta = el("div", "pf-meta"); meta.appendChild(chip);
-    if (prev) meta.appendChild(el("span", "pf-prev", "Last time: ₹" + prev.cost + " (" + monthName(prev.month) + (prev.mixed ? ", most SKUs" : "") + ")"));
-    else if (haveHistory) meta.appendChild(el("span", "pf-prev", "No earlier price"));
+    if (prev) meta.appendChild(el("span", "pf-prev", "Last time: ₹" + prev.cost + (prev.month ? " (" + monthName(prev.month) + (prev.mixed ? ", most SKUs" : "") + ")" : "")));
+    
     row.appendChild(info); row.appendChild(c2); row.appendChild(meta); host.appendChild(row);
   }
 
@@ -3292,17 +3292,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     var g = groupsForMonth();
     if (!skuList.length) host.appendChild(el("div", "note info", "You have not made a SKU list yet, so every SKU is priced on its own. Settings, Manage SKUs lets you price a whole category at once."));
     g.cats.forEach(function (c) {
-      var saved = savedCatCost(c.list, m);
-      if (catCost[c.name] === undefined && saved !== null) catCost[c.name] = saved;
-      priceRow(host, c.name, c.skus.length + (c.skus.length === 1 ? " SKU · " : " SKUs · ") + int.format(c.units) + " units · " + int.format(c.lines) + " lines", saved, haveHistory,
-        function () { return catCost[c.name]; }, function (v) { catCost[c.name] = v; }, c.skus.map(function (s) { return s.sku; }).join(", "), prevCatCost(c.list, m));
+      var pv = prevCatCost(c.list, m), sv = savedCatCost(c.list, m);
+      if (!pv && sv !== null) pv = { cost: sv, month: "" };
+      priceRow(host, c.name, c.skus.length + (c.skus.length === 1 ? " SKU · " : " SKUs · ") + int.format(c.units) + " units · " + int.format(c.lines) + " lines", null, false,
+        function () { return catCost[c.name]; }, function (v) { catCost[c.name] = v; }, c.skus.map(function (s) { return s.sku; }).join(", "), pv);
     });
     if (g.cats.length && g.singles.length) host.appendChild(el("div", "note warn", "These SKUs are not in your SKU list, so each needs its own price. Add them under Settings, Manage SKUs to price them with a category next time."));
     g.singles.forEach(function (s) {
-      var k = key(s.sku), saved = savedCost(s.sku, m);
-      if (!(k in current) && saved !== null) current[k] = saved;
-      priceRow(host, s.sku, int.format(s.units) + " units · " + int.format(s.lines) + " lines" + (g.cats.length ? " · " + OTHER : ""), saved, haveHistory,
-        function () { return current[k]; }, function (v) { current[k] = v; }, undefined, prevCost(s.sku, m));
+      var k = key(s.sku), pv2 = prevCost(s.sku, m), sv2 = savedCost(s.sku, m);
+      if (!pv2 && sv2 !== null) pv2 = { cost: sv2, month: "" };
+      priceRow(host, s.sku, int.format(s.units) + " units · " + int.format(s.lines) + " lines" + (g.cats.length ? " · " + OTHER : ""), null, false,
+        function () { return current[k]; }, function (v) { current[k] = v; }, undefined, pv2);
     });
     refresh();
   }

@@ -14,7 +14,11 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
 
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Pixelify+Sans:wght@400;600&family=Space+Mono:wght@400;700&family=Lilita+One&family=Yatra+One&family=Mochiy+Pop+One&display=swap">
+<script>
+/* apply the saved theme before the page paints, so there is no flash of the default look */
+try{var _r=document.documentElement,_s=localStorage.getItem("vavi_skin"),_m=localStorage.getItem("vavi_mode"),_c=localStorage.getItem("vavi_custom_css");if(_c){var _e=document.createElement("style");_e.id="vavi-custom";_e.textContent=_c;document.head.appendChild(_e);}if(_s&&/^[a-z]+$/.test(_s))_r.setAttribute("data-skin",_s);if(_m==="light"||_m==="dark")_r.setAttribute("data-theme",_m);}catch(e){}
+</script>
 <style>
 /* Layout: one narrow column built for a phone. Pick files, read the totals, copy the summary, save the courier PDFs. */
 :root {
@@ -148,6 +152,7 @@ pre#summary {
 .tabs { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 .tab, .chip { appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: 500 0.95rem var(--font-body); min-height: 44px; padding: 0 16px; border-radius: 8px; cursor: pointer; }
 .tab.on, .chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); font-weight: 600; }
+.tb-btns { display: flex; gap: 8px; flex: none; }
 .titlebar { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .icon-btn { appearance: none; flex: none; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 8px; cursor: pointer; }
 .icon-btn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
@@ -167,6 +172,26 @@ pre#summary {
 .fold > summary::after { content: "▾"; font-size: 1.1rem; color: var(--muted); transition: transform 0.15s; }
 .fold:not([open]) > summary::after { transform: rotate(-90deg); }
 .fold-body { display: flex; flex-direction: column; gap: 12px; padding-top: 10px; min-width: 0; }
+.pf-sku { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.pf-name { min-width: 0; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 0.9rem; }
+.pf-name small { display: block; color: var(--muted); font-family: var(--font-body); }
+.pf-cost { display: flex; align-items: center; gap: 4px; }
+.pf-cost input { width: 6.5rem; text-align: right; }
+.pf-sku .pf-chip { grid-column: 1 / -1; justify-self: start; }
+.pf-chip { display: inline-block; font-size: 0.8rem; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--muted); }
+.pf-chip.new { background: var(--warn-bg); color: var(--warn-ink); }
+.pf-chip.miss { background: var(--bad-bg); color: var(--bad-ink); }
+#pf-pick { position: relative; }
+#pf-pick input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; font-size: 0; }
+#pf-pick:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+#view-profit table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+#view-profit td, #view-profit th { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+#view-profit td.n, #view-profit th.n { text-align: right; }
+#view-profit tr.total td { font-weight: 700; border-top: 2px solid var(--line); }
+#view-profit .pf-best { background: var(--accent-soft); color: var(--accent); border-radius: 99px; padding: 1px 8px; font-size: 0.75rem; font-weight: 600; }
+#view-profit .neg { color: var(--bad-ink); }
+#view-profit .tablewrap { overflow-x: auto; }
+#view-profit textarea { width: 100%; min-height: 84px; font: 0.85rem var(--font-mono); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
 .rc > summary { cursor: pointer; list-style: none; display: flex; flex-direction: column; align-items: stretch; gap: 2px; min-height: 44px; justify-content: center; font-weight: 400; }
 .rc > summary::-webkit-details-marker { display: none; }
 .rc-profile { display: flex; flex-direction: column; gap: 6px; padding-top: 8px; margin-top: 6px; border-top: 1px solid var(--line); font-size: 0.9rem; }
@@ -233,6 +258,541 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 #tip { position: fixed; z-index: 50; pointer-events: none; background: var(--ink); color: var(--bg); padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; display: flex; flex-direction: column; max-width: 240px; }
 #tip strong { font-size: 1rem; }
 @media (max-width: 480px) { .hb { grid-template-columns: minmax(0, 8rem) minmax(0, 1fr) 2.5rem; } .hero-n { font-size: 3rem; } }
+/* ---- colour themes: each has a light and a dark palette ---- */
+:root[data-skin] body { background-image: var(--deco, none); background-size: var(--deco-size, auto); }
+:root[data-skin="festival"][data-theme="light"] {
+  --bg: #fff6e5;
+  --surface: #fffdf8;
+  --ink: #3b1d0a;
+  --muted: #7a5a45;
+  --line: #f0d9b5;
+  --accent: #c2410c;
+  --accent-ink: #ffffff;
+  --accent-soft: #ffe6c7;
+  --s1: #b45309;
+  --s2: #be123c;
+  --s3: #15803d;
+  --grid: #f3e3c6;
+  --axis: #d9bf93;
+  --glow: rgba(194,65,12,0.0);
+  --deco: radial-gradient(circle at 14px 14px, rgba(217,119,6,0.16) 2px, transparent 3px);
+  --deco-size: 28px 28px;
+}
+@media (prefers-color-scheme: light) {
+:root[data-skin="festival"]:not([data-theme="dark"]) {
+  --bg: #fff6e5;
+  --surface: #fffdf8;
+  --ink: #3b1d0a;
+  --muted: #7a5a45;
+  --line: #f0d9b5;
+  --accent: #c2410c;
+  --accent-ink: #ffffff;
+  --accent-soft: #ffe6c7;
+  --s1: #b45309;
+  --s2: #be123c;
+  --s3: #15803d;
+  --grid: #f3e3c6;
+  --axis: #d9bf93;
+  --glow: rgba(194,65,12,0.0);
+  --deco: radial-gradient(circle at 14px 14px, rgba(217,119,6,0.16) 2px, transparent 3px);
+  --deco-size: 28px 28px;
+}
+}
+:root[data-skin="festival"][data-theme="dark"] {
+  --bg: #2a1206;
+  --surface: #3a1c0c;
+  --ink: #ffeccc;
+  --muted: #d8b48a;
+  --line: #5c3317;
+  --accent: #fbbf24;
+  --accent-ink: #3b1d0a;
+  --accent-soft: #4d2a10;
+  --s1: #f59e0b;
+  --s2: #fb7185;
+  --s3: #4ade80;
+  --grid: #4a2713;
+  --axis: #6b4023;
+  --glow: rgba(251,191,36,0.0);
+  --deco: radial-gradient(circle at 14px 14px, rgba(251,191,36,0.10) 2px, transparent 3px);
+  --deco-size: 28px 28px;
+}
+@media (prefers-color-scheme: dark) {
+:root[data-skin="festival"]:not([data-theme="light"]) {
+  --bg: #2a1206;
+  --surface: #3a1c0c;
+  --ink: #ffeccc;
+  --muted: #d8b48a;
+  --line: #5c3317;
+  --accent: #fbbf24;
+  --accent-ink: #3b1d0a;
+  --accent-soft: #4d2a10;
+  --s1: #f59e0b;
+  --s2: #fb7185;
+  --s3: #4ade80;
+  --grid: #4a2713;
+  --axis: #6b4023;
+  --glow: rgba(251,191,36,0.0);
+  --deco: radial-gradient(circle at 14px 14px, rgba(251,191,36,0.10) 2px, transparent 3px);
+  --deco-size: 28px 28px;
+}
+}
+
+:root[data-skin="festival"] body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: 12px; z-index: 60;
+  background: radial-gradient(circle at 10px 0, #dc2626 0 6px, transparent 7px) 0 0/20px 12px repeat-x, repeating-linear-gradient(90deg, #f59e0b 0 14px, #16a34a 14px 28px); clip-path: polygon(0 0,100% 0,100% 55%,0 55%); }
+:root[data-skin="festival"] { --font-display: "Yatra One", Georgia, serif; }
+:root[data-skin="festival"] h1 { color: var(--accent); }
+:root[data-skin="festival"] .card { border-radius: 18px 18px 14px 14px; border: 1px solid var(--line); border-top: 4px double var(--accent); box-shadow: 0 2px 0 var(--line); }
+:root[data-skin="festival"] .btn { border-radius: 999px 999px 999px 999px / 50%; border-width: 2px; box-shadow: 0 3px 0 rgba(120,53,15,.35); letter-spacing: .02em; }
+:root[data-skin="festival"] .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(120,53,15,.35); }
+:root[data-skin="festival"] .btn.ghost { box-shadow: none; border-style: dashed; }
+:root[data-skin="festival"] .tab, :root[data-skin="festival"] .chip { border-radius: 14px 14px 4px 4px; border-width: 2px; border-style: solid; }
+:root[data-skin="festival"] .tab.on, :root[data-skin="festival"] .chip.on { border-bottom-width: 4px; }
+:root[data-skin="festival"] .icon-btn { border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; border: 2px solid var(--accent); color: var(--accent); background: var(--accent-soft); }
+:root[data-skin="festival"] .stat { border-radius: 14px; border: 1px dashed var(--accent); }
+:root[data-skin="festival"] .note { border-radius: 14px; border-left: 5px solid var(--accent); }
+:root[data-skin="festival"] input, :root[data-skin="festival"] select, :root[data-skin="festival"] textarea { border-radius: 14px !important; border-width: 2px !important; }
+:root[data-skin="festival"] .meter, :root[data-skin="festival"] .meter > * { border-radius: 999px; }
+:root[data-skin="festival"] hr { border: 0; height: 8px; background: radial-gradient(circle, var(--s1) 2px, transparent 3px) 0 50%/16px 8px repeat-x; }
+
+:root[data-skin="festival"] #tab-theme svg, :root[data-skin="festival"] #tab-set svg { display: none; }
+:root[data-skin="festival"] #tab-theme::after, :root[data-skin="festival"] #tab-set::after { content: ""; width: 24px; height: 24px; background: currentColor;
+  -webkit-mask: var(--ic) center/contain no-repeat; mask: var(--ic) center/contain no-repeat; }
+:root[data-skin="festival"] #tab-theme { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 13h18c0 4-3.5 7-9 7s-9-3-9-7z'/%3E%3Cpath d='M12 3c2 2.5 2 4.5 0 6-2-1.500-2-3.500 0-6z'/%3E%3C/svg%3E"); }
+:root[data-skin="festival"] #tab-set { --ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='2.500'/%3E%3Cellipse cx='12' cy='5.500' rx='2.500' ry='3.500'/%3E%3Cellipse cx='12' cy='18.500' rx='2.500' ry='3.500'/%3E%3Cellipse cx='5.500' cy='12' rx='3.500' ry='2.500'/%3E%3Cellipse cx='18.500' cy='12' rx='3.500' ry='2.500'/%3E%3C/svg%3E"); }
+:root[data-skin="candy"][data-theme="light"] {
+  --bg: #fbf3dc;
+  --surface: #fffdf4;
+  --ink: #22262b;
+  --muted: #6b6a5e;
+  --line: #efe2b8;
+  --accent: #d94f6b;
+  --accent-ink: #ffffff;
+  --accent-soft: #fbdde3;
+  --s1: #2f8577;
+  --s2: #d94f6b;
+  --s3: #e5a024;
+  --grid: #f2e8c6;
+  --axis: #d8c98f;
+  --t2: #d4ece6;
+  --t3: #ece8fb;
+  --glow: rgba(0,0,0,0);
+  --deco: radial-gradient(circle at 30px 30px, rgba(229,160,36,0.18) 14px, transparent 15px), radial-gradient(circle at 110px 90px, rgba(47,133,119,0.13) 22px, transparent 23px);
+  --deco-size: 160px 140px;
+}
+@media (prefers-color-scheme: light) {
+:root[data-skin="candy"]:not([data-theme="dark"]) {
+  --bg: #fbf3dc;
+  --surface: #fffdf4;
+  --ink: #22262b;
+  --muted: #6b6a5e;
+  --line: #efe2b8;
+  --accent: #d94f6b;
+  --accent-ink: #ffffff;
+  --accent-soft: #fbdde3;
+  --s1: #2f8577;
+  --s2: #d94f6b;
+  --s3: #e5a024;
+  --grid: #f2e8c6;
+  --axis: #d8c98f;
+  --t2: #d4ece6;
+  --t3: #ece8fb;
+  --glow: rgba(0,0,0,0);
+  --deco: radial-gradient(circle at 30px 30px, rgba(229,160,36,0.18) 14px, transparent 15px), radial-gradient(circle at 110px 90px, rgba(47,133,119,0.13) 22px, transparent 23px);
+  --deco-size: 160px 140px;
+}
+}
+:root[data-skin="candy"][data-theme="dark"] {
+  --bg: #1b2b2a;
+  --surface: #25393a;
+  --ink: #fbf3dc;
+  --muted: #b9c7b5;
+  --line: #35504f;
+  --accent: #f07a93;
+  --accent-ink: #2a0d14;
+  --accent-soft: #4a3040;
+  --s1: #5fd1bd;
+  --s2: #f07a93;
+  --s3: #f4bf4f;
+  --grid: #2c4443;
+  --axis: #46645f;
+  --t2: #1f4a47;
+  --t3: #3a3560;
+  --glow: rgba(0,0,0,0);
+  --deco: radial-gradient(circle at 30px 30px, rgba(244,191,79,0.10) 14px, transparent 15px), radial-gradient(circle at 110px 90px, rgba(95,209,189,0.09) 22px, transparent 23px);
+  --deco-size: 160px 140px;
+}
+@media (prefers-color-scheme: dark) {
+:root[data-skin="candy"]:not([data-theme="light"]) {
+  --bg: #1b2b2a;
+  --surface: #25393a;
+  --ink: #fbf3dc;
+  --muted: #b9c7b5;
+  --line: #35504f;
+  --accent: #f07a93;
+  --accent-ink: #2a0d14;
+  --accent-soft: #4a3040;
+  --s1: #5fd1bd;
+  --s2: #f07a93;
+  --s3: #f4bf4f;
+  --grid: #2c4443;
+  --axis: #46645f;
+  --t2: #1f4a47;
+  --t3: #3a3560;
+  --glow: rgba(0,0,0,0);
+  --deco: radial-gradient(circle at 30px 30px, rgba(244,191,79,0.10) 14px, transparent 15px), radial-gradient(circle at 110px 90px, rgba(95,209,189,0.09) 22px, transparent 23px);
+  --deco-size: 160px 140px;
+}
+}
+
+:root[data-skin="candy"] { --font-display: "Mochiy Pop One", "Trebuchet MS", sans-serif; }
+:root[data-skin="candy"] body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: 8px; z-index: 60;
+  background: linear-gradient(90deg, #d94f6b 0 25%, #e5a024 25% 50%, #2f8577 50% 75%, #8f84e8 75%); border-radius: 0 0 10px 10px; }
+:root[data-skin="candy"] h1 { font-size: 1.55rem; letter-spacing: 0; }
+:root[data-skin="candy"] h2 { letter-spacing: 0; }
+:root[data-skin="candy"] .card { border-radius: 30px 30px 30px 12px; border: 0; box-shadow: 0 6px 0 var(--line), 0 14px 24px rgba(60,50,20,.08); padding: 20px; }
+:root[data-skin="candy"] main > .card:nth-of-type(3n+2) { border-radius: 12px 30px 30px 30px; }
+:root[data-skin="candy"] .btn { border-radius: 999px; border: 0; min-height: 52px; font-weight: 700; box-shadow: 0 4px 0 rgba(0,0,0,.22), inset 0 2px 0 rgba(255,255,255,.35); }
+:root[data-skin="candy"] .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.22); }
+:root[data-skin="candy"] .btn.ghost { background: var(--ink); color: var(--surface); box-shadow: none; }
+:root[data-skin="candy"] .tab, :root[data-skin="candy"] .chip { border-radius: 999px; border: 0; background: var(--line); font-weight: 600; }
+:root[data-skin="candy"] .tab.on, :root[data-skin="candy"] .chip.on { background: var(--ink); color: var(--surface); }
+:root[data-skin="candy"] .icon-btn { border-radius: 50% 50% 50% 14px; border: 0; background: var(--s3); color: #22262b; box-shadow: 0 4px 0 rgba(0,0,0,.18); }
+:root[data-skin="candy"] #tab-set { background: var(--s1); color: #fff; border-radius: 14px 50% 50% 50%; }
+:root[data-skin="candy"] .icon-btn.on { background: var(--ink); color: var(--surface); }
+:root[data-skin="candy"] .stat { border: 0; border-radius: 22px; background: var(--line); }
+:root[data-skin="candy"] .stats > .stat:nth-child(4n+1):not(.main) { background: var(--accent-soft); }
+:root[data-skin="candy"] .stats > .stat:nth-child(4n+2):not(.main) { background: var(--t2); }
+:root[data-skin="candy"] .stats > .stat:nth-child(4n+3):not(.main) { background: var(--t3); }
+:root[data-skin="candy"] .stats > .stat.main { background: var(--accent); color: var(--accent-ink); }
+:root[data-skin="candy"] .stat.main .l { color: var(--accent-ink); }
+:root[data-skin="candy"] .note { border-radius: 22px; border: 0; }
+:root[data-skin="candy"] input, :root[data-skin="candy"] select, :root[data-skin="candy"] textarea { border-radius: 999px !important; border: 2px solid var(--line) !important; padding-left: 16px; }
+:root[data-skin="candy"] textarea { border-radius: 20px !important; }
+:root[data-skin="candy"] .meter, :root[data-skin="candy"] .meter > * { border-radius: 999px; }
+:root[data-skin="pixel"][data-theme="light"] {
+  --bg: #b7dba0;
+  --surface: #fbf0d4;
+  --ink: #1a1a1a;
+  --muted: #4d4a3c;
+  --line: #1a1a1a;
+  --accent: #f26b4f;
+  --accent-ink: #1a1a1a;
+  --accent-soft: #fbd9a0;
+  --s1: #2f7d6b;
+  --s2: #f26b4f;
+  --s3: #d99a0b;
+  --grid: #d9cfa8;
+  --axis: #6d6a55;
+  --shadow: rgba(26,26,26,.55);
+  --deco: linear-gradient(rgba(26,26,26,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(26,26,26,0.07) 1px, transparent 1px);
+  --deco-size: 24px 24px;
+}
+@media (prefers-color-scheme: light) {
+:root[data-skin="pixel"]:not([data-theme="dark"]) {
+  --bg: #b7dba0;
+  --surface: #fbf0d4;
+  --ink: #1a1a1a;
+  --muted: #4d4a3c;
+  --line: #1a1a1a;
+  --accent: #f26b4f;
+  --accent-ink: #1a1a1a;
+  --accent-soft: #fbd9a0;
+  --s1: #2f7d6b;
+  --s2: #f26b4f;
+  --s3: #d99a0b;
+  --grid: #d9cfa8;
+  --axis: #6d6a55;
+  --shadow: rgba(26,26,26,.55);
+  --deco: linear-gradient(rgba(26,26,26,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(26,26,26,0.07) 1px, transparent 1px);
+  --deco-size: 24px 24px;
+}
+}
+:root[data-skin="pixel"][data-theme="dark"] {
+  --bg: #16231b;
+  --surface: #26352b;
+  --ink: #f6ecd0;
+  --muted: #c3bb9c;
+  --line: #050a07;
+  --accent: #ff8a6b;
+  --accent-ink: #1a1a1a;
+  --accent-soft: #4a3a22;
+  --s1: #6fd3b4;
+  --s2: #ff8a6b;
+  --s3: #f4c24a;
+  --grid: #2f4235;
+  --axis: #55705e;
+  --shadow: rgba(0,0,0,.7);
+  --deco: linear-gradient(rgba(246,236,208,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(246,236,208,0.05) 1px, transparent 1px);
+  --deco-size: 24px 24px;
+}
+@media (prefers-color-scheme: dark) {
+:root[data-skin="pixel"]:not([data-theme="light"]) {
+  --bg: #16231b;
+  --surface: #26352b;
+  --ink: #f6ecd0;
+  --muted: #c3bb9c;
+  --line: #050a07;
+  --accent: #ff8a6b;
+  --accent-ink: #1a1a1a;
+  --accent-soft: #4a3a22;
+  --s1: #6fd3b4;
+  --s2: #ff8a6b;
+  --s3: #f4c24a;
+  --grid: #2f4235;
+  --axis: #55705e;
+  --shadow: rgba(0,0,0,.7);
+  --deco: linear-gradient(rgba(246,236,208,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(246,236,208,0.05) 1px, transparent 1px);
+  --deco-size: 24px 24px;
+}
+}
+
+:root[data-skin="pixel"] { --font-display: "Pixelify Sans", "Courier New", monospace; --font-body: "Space Mono", "Courier New", monospace; }
+:root[data-skin="pixel"] body { font-family: var(--font-body); font-size: 15px; }
+:root[data-skin="pixel"] h1 { font-size: 1.7rem; letter-spacing: 0; }
+:root[data-skin="pixel"] h1 span, :root[data-skin="pixel"] h1 em { color: var(--accent); }
+:root[data-skin="pixel"] .titlebar { background: var(--surface); border: 3px solid var(--line); border-top: 22px solid var(--s3); border-radius: 8px; padding: 10px 12px; box-shadow: 4px 4px 0 var(--shadow); align-items: center; }
+:root[data-skin="pixel"] .card { border: 3px solid var(--line); border-top: 26px solid var(--s3); border-radius: 8px; box-shadow: 4px 4px 0 var(--shadow); position: relative; }
+:root[data-skin="pixel"] .card > h2:first-child { margin-top: -20px; background: var(--s3); color: #1a1a1a; align-self: stretch; margin-left: -16px; margin-right: -16px; padding: 0 14px 2px; font-size: .9rem; line-height: 18px; height: 20px; margin-bottom: 4px; overflow: hidden; white-space: nowrap; }
+:root[data-skin="pixel"] .btn { border: 3px solid #1a1a1a; border-radius: 8px; box-shadow: 0 4px 0 #1a1a1a; color: var(--accent-ink); font-family: var(--font-display); font-weight: 600; letter-spacing: .02em; }
+:root[data-skin="pixel"] .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #1a1a1a; }
+:root[data-skin="pixel"] .btn.ghost { background: var(--surface); color: var(--ink); border-color: var(--ink); box-shadow: 0 3px 0 var(--ink); }
+:root[data-skin="pixel"] .tab, :root[data-skin="pixel"] .chip { border: 3px solid var(--line); border-radius: 8px; font-family: var(--font-display); box-shadow: 0 3px 0 var(--shadow); }
+:root[data-skin="pixel"] .tab.on, :root[data-skin="pixel"] .chip.on { background: var(--accent); color: #1a1a1a; }
+:root[data-skin="pixel"] .icon-btn { border: 3px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); box-shadow: 3px 3px 0 var(--shadow); }
+:root[data-skin="pixel"] .stat { border: 2px solid var(--line); border-radius: 6px; background: var(--surface); }
+:root[data-skin="pixel"] .stat.main { background: var(--accent-soft); border-color: var(--line); }
+:root[data-skin="pixel"] .note { border: 2px solid var(--line); border-radius: 6px; }
+:root[data-skin="pixel"] input, :root[data-skin="pixel"] select, :root[data-skin="pixel"] textarea { border: 2px solid var(--line) !important; border-radius: 6px !important; font-family: var(--font-body); }
+:root[data-skin="pixel"] .meter, :root[data-skin="pixel"] .meter > * { border-radius: 0; }
+:root[data-skin="soft"][data-theme="light"] {
+  --bg: #fdf1ef;
+  --surface: #ffffff;
+  --ink: #1c2340;
+  --muted: #666b8c;
+  --line: #f6e3e6;
+  --accent: #f2566e;
+  --accent-ink: #ffffff;
+  --accent-soft: #ffe4e8;
+  --s1: #6c5ce7;
+  --s2: #f2566e;
+  --s3: #2fb98a;
+  --grid: #f4e6e8;
+  --axis: #d9c6cc;
+  --shadow: rgba(120,90,140,.14);
+  --deco: radial-gradient(circle at 100% 20%, rgba(168,155,255,0.30) 0, transparent 38%), radial-gradient(circle at 0% 0%, rgba(255,186,170,0.45) 0, transparent 34%), radial-gradient(circle at 80% 100%, rgba(255,170,140,0.35) 0, transparent 40%);
+  --deco-size: 100% 100%;
+}
+@media (prefers-color-scheme: light) {
+:root[data-skin="soft"]:not([data-theme="dark"]) {
+  --bg: #fdf1ef;
+  --surface: #ffffff;
+  --ink: #1c2340;
+  --muted: #666b8c;
+  --line: #f6e3e6;
+  --accent: #f2566e;
+  --accent-ink: #ffffff;
+  --accent-soft: #ffe4e8;
+  --s1: #6c5ce7;
+  --s2: #f2566e;
+  --s3: #2fb98a;
+  --grid: #f4e6e8;
+  --axis: #d9c6cc;
+  --shadow: rgba(120,90,140,.14);
+  --deco: radial-gradient(circle at 100% 20%, rgba(168,155,255,0.30) 0, transparent 38%), radial-gradient(circle at 0% 0%, rgba(255,186,170,0.45) 0, transparent 34%), radial-gradient(circle at 80% 100%, rgba(255,170,140,0.35) 0, transparent 40%);
+  --deco-size: 100% 100%;
+}
+}
+:root[data-skin="soft"][data-theme="dark"] {
+  --bg: #171a2e;
+  --surface: #212541;
+  --ink: #f1f2ff;
+  --muted: #a6abd0;
+  --line: #2f3458;
+  --accent: #ff7a8c;
+  --accent-ink: #2a0b12;
+  --accent-soft: #3a2840;
+  --s1: #9c8cff;
+  --s2: #ff7a8c;
+  --s3: #4fd6a8;
+  --grid: #2a2f50;
+  --axis: #4a5080;
+  --shadow: rgba(0,0,0,.35);
+  --deco: radial-gradient(circle at 100% 20%, rgba(156,140,255,0.22) 0, transparent 38%), radial-gradient(circle at 0% 0%, rgba(255,122,140,0.16) 0, transparent 34%);
+  --deco-size: 100% 100%;
+}
+@media (prefers-color-scheme: dark) {
+:root[data-skin="soft"]:not([data-theme="light"]) {
+  --bg: #171a2e;
+  --surface: #212541;
+  --ink: #f1f2ff;
+  --muted: #a6abd0;
+  --line: #2f3458;
+  --accent: #ff7a8c;
+  --accent-ink: #2a0b12;
+  --accent-soft: #3a2840;
+  --s1: #9c8cff;
+  --s2: #ff7a8c;
+  --s3: #4fd6a8;
+  --grid: #2a2f50;
+  --axis: #4a5080;
+  --shadow: rgba(0,0,0,.35);
+  --deco: radial-gradient(circle at 100% 20%, rgba(156,140,255,0.22) 0, transparent 38%), radial-gradient(circle at 0% 0%, rgba(255,122,140,0.16) 0, transparent 34%);
+  --deco-size: 100% 100%;
+}
+}
+
+:root[data-skin="soft"] body { background-attachment: fixed; }
+:root[data-skin="soft"] .card { border: 0; border-radius: 30px; box-shadow: 0 10px 30px var(--shadow); padding: 20px; }
+:root[data-skin="soft"] .btn { border: 0; border-radius: 999px; min-height: 54px; background: linear-gradient(90deg, var(--accent), #ff9a76); color: var(--accent-ink); box-shadow: 0 8px 18px rgba(242,86,110,.28); }
+:root[data-skin="soft"] .btn.ghost { background: var(--accent-soft); color: var(--accent); box-shadow: none; }
+:root[data-skin="soft"] .btn:disabled { box-shadow: none; }
+:root[data-skin="soft"] .tabs { background: var(--surface); border-radius: 999px; padding: 6px; gap: 4px; box-shadow: 0 6px 20px var(--shadow); flex-wrap: nowrap; }
+:root[data-skin="soft"] .tab { flex: 1; border: 0; border-radius: 999px; background: transparent; box-shadow: none; padding: 0 8px; }
+:root[data-skin="soft"] .tab.on { background: linear-gradient(90deg, var(--accent), #ff9a76); color: var(--accent-ink); }
+:root[data-skin="soft"] .chip { border: 0; border-radius: 999px; background: var(--accent-soft); }
+:root[data-skin="soft"] .chip.on { background: var(--accent); color: var(--accent-ink); }
+:root[data-skin="soft"] .icon-btn { border: 0; border-radius: 20px; width: 50px; height: 50px; background: var(--accent-soft); color: var(--accent); box-shadow: none; }
+:root[data-skin="soft"] #tab-set { background: #e9e6ff; color: #5b4bd6; }
+:root[data-skin="soft"] .stat { border: 0; border-radius: 22px; background: var(--accent-soft); }
+:root[data-skin="soft"] .stats > .stat:nth-child(3n+2):not(.main) { background: rgba(124,108,231,.14); }
+:root[data-skin="soft"] .stats > .stat:nth-child(3n+3):not(.main) { background: rgba(47,185,138,.14); }
+:root[data-skin="soft"] .stat.main { background: linear-gradient(90deg, var(--accent), #ff9a76); color: var(--accent-ink); }
+:root[data-skin="soft"] .stat.main .l { color: var(--accent-ink); }
+:root[data-skin="soft"] .note { border: 0; border-radius: 22px; }
+:root[data-skin="soft"] input, :root[data-skin="soft"] select, :root[data-skin="soft"] textarea { border: 2px solid var(--line) !important; border-radius: 18px !important; }
+:root[data-skin="soft"] .meter, :root[data-skin="soft"] .meter > * { border-radius: 999px; }
+:root[data-skin="pop"][data-theme="light"] {
+  --bg: #8b6cf0;
+  --surface: #fffaf0;
+  --ink: #14121f;
+  --muted: #3e3a52;
+  --line: #14121f;
+  --accent: #ff3d8b;
+  --accent-ink: #ffffff;
+  --accent-soft: #ffe36b;
+  --s1: #6c3df0;
+  --s2: #ff3d8b;
+  --s3: #1faa59;
+  --grid: #e9e0cc;
+  --axis: #6b6580;
+  --shadow: #14121f;
+  --page-ink: #14121f;
+  --hl: #dff56a;
+  --deco: radial-gradient(circle at 12px 12px, rgba(255,255,255,0.18) 2px, transparent 3px);
+  --deco-size: 36px 36px;
+}
+@media (prefers-color-scheme: light) {
+:root[data-skin="pop"]:not([data-theme="dark"]) {
+  --bg: #8b6cf0;
+  --surface: #fffaf0;
+  --ink: #14121f;
+  --muted: #3e3a52;
+  --line: #14121f;
+  --accent: #ff3d8b;
+  --accent-ink: #ffffff;
+  --accent-soft: #ffe36b;
+  --s1: #6c3df0;
+  --s2: #ff3d8b;
+  --s3: #1faa59;
+  --grid: #e9e0cc;
+  --axis: #6b6580;
+  --shadow: #14121f;
+  --page-ink: #14121f;
+  --hl: #dff56a;
+  --deco: radial-gradient(circle at 12px 12px, rgba(255,255,255,0.18) 2px, transparent 3px);
+  --deco-size: 36px 36px;
+}
+}
+:root[data-skin="pop"][data-theme="dark"] {
+  --bg: #2b2063;
+  --surface: #1e1840;
+  --ink: #f5f0ff;
+  --muted: #c9bfee;
+  --line: #06041a;
+  --accent: #ff5fa2;
+  --accent-ink: #1a0612;
+  --accent-soft: #5a4a10;
+  --s1: #a88bff;
+  --s2: #ff5fa2;
+  --s3: #5be08f;
+  --grid: #2f2766;
+  --axis: #5b4fa0;
+  --shadow: #06041a;
+  --page-ink: #f5f0ff;
+  --hl: #b7d93a;
+  --deco: radial-gradient(circle at 12px 12px, rgba(255,255,255,0.07) 2px, transparent 3px);
+  --deco-size: 36px 36px;
+}
+@media (prefers-color-scheme: dark) {
+:root[data-skin="pop"]:not([data-theme="light"]) {
+  --bg: #2b2063;
+  --surface: #1e1840;
+  --ink: #f5f0ff;
+  --muted: #c9bfee;
+  --line: #06041a;
+  --accent: #ff5fa2;
+  --accent-ink: #1a0612;
+  --accent-soft: #5a4a10;
+  --s1: #a88bff;
+  --s2: #ff5fa2;
+  --s3: #5be08f;
+  --grid: #2f2766;
+  --axis: #5b4fa0;
+  --shadow: #06041a;
+  --page-ink: #f5f0ff;
+  --hl: #b7d93a;
+  --deco: radial-gradient(circle at 12px 12px, rgba(255,255,255,0.07) 2px, transparent 3px);
+  --deco-size: 36px 36px;
+}
+}
+
+:root[data-skin="pop"] { --font-display: "Lilita One", "Arial Black", sans-serif; }
+:root[data-skin="pop"] body { color: var(--page-ink); }
+:root[data-skin="pop"] .card, :root[data-skin="pop"] .card * { color: var(--ink); }
+:root[data-skin="pop"] .card .help, :root[data-skin="pop"] .card .sub, :root[data-skin="pop"] .card .msg, :root[data-skin="pop"] .stat .l { color: var(--muted); }
+:root[data-skin="pop"] h1 { font-size: 1.85rem; letter-spacing: 0; color: #14121f; }
+:root[data-skin="pop"] .titlebar { background: var(--hl); border: 3px solid var(--line); border-radius: 30px 30px 30px 10px; padding: 14px 14px 14px 18px; box-shadow: 5px 5px 0 var(--shadow); align-items: center; }
+:root[data-skin="pop"] .lede { color: var(--page-ink); }
+:root[data-skin="pop"] .card { border: 3px solid var(--line); border-radius: 26px; box-shadow: 5px 5px 0 var(--shadow); }
+:root[data-skin="pop"] .card h2 { align-self: flex-start; background: linear-gradient(transparent 50%, var(--accent-soft) 50%); color: var(--ink); padding: 0 4px; font-size: 1.3rem; }
+:root[data-skin="pop"] .btn { border: 3px solid var(--line); border-radius: 999px; min-height: 54px; box-shadow: 0 5px 0 var(--line); font-family: var(--font-display); font-size: 1.1rem; letter-spacing: .02em; font-weight: 400; }
+:root[data-skin="pop"] .btn:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--line); }
+:root[data-skin="pop"] .btn.ghost { background: var(--surface); color: var(--ink); }
+:root[data-skin="pop"] .tabs { background: var(--surface); border: 3px solid var(--line); border-radius: 999px; padding: 5px; gap: 4px; box-shadow: 4px 4px 0 var(--shadow); flex-wrap: nowrap; }
+:root[data-skin="pop"] .tab { flex: 1; border: 0; border-radius: 999px; background: transparent; color: var(--ink); padding: 0 8px; font-family: var(--font-display); font-weight: 400; }
+:root[data-skin="pop"] .tab.on { background: #6c3df0; color: #fff; box-shadow: inset 0 0 0 2px var(--line); }
+:root[data-skin="pop"] .chip { border: 2px solid var(--line); border-radius: 999px; color: var(--ink); }
+:root[data-skin="pop"] .chip.on { background: var(--accent-soft); }
+:root[data-skin="pop"] .icon-btn { border: 3px solid var(--line); border-radius: 16px; background: #ff7ac1; color: #14121f; box-shadow: 3px 3px 0 var(--shadow); }
+:root[data-skin="pop"] #tab-set { background: var(--surface); color: #14121f; }
+:root[data-skin="pop"] .stat { border: 2px solid var(--line); border-radius: 18px; background: var(--surface); }
+:root[data-skin="pop"] .stats > .stat:nth-child(3n+1):not(.main) { background: #ffe36b; color: #14121f; }
+:root[data-skin="pop"] .stats > .stat:nth-child(3n+2):not(.main) { background: #c6b8ff; color: #14121f; }
+:root[data-skin="pop"] .stats > .stat:nth-child(3n+3):not(.main) { background: #b9f3c9; color: #14121f; }
+:root[data-skin="pop"] .stats > .stat * { color: #14121f !important; }
+:root[data-skin="pop"] .stat.main { background: var(--accent); }
+:root[data-skin="pop"] .stat.main * { color: var(--accent-ink) !important; }
+:root[data-skin="pop"] .note { border: 2px solid var(--line); border-radius: 18px; }
+:root[data-skin="pop"] input, :root[data-skin="pop"] select, :root[data-skin="pop"] textarea { border: 2px solid var(--line) !important; border-radius: 16px !important; }
+:root[data-skin="pop"] .meter, :root[data-skin="pop"] .meter > * { border-radius: 999px; }
+
+.th-opt { appearance: none; display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: var(--surface); color: var(--ink); border: 2px solid var(--line); border-radius: 12px; padding: 10px; min-height: 64px; cursor: pointer; font: inherit; }
+.th-opt.on { border-color: var(--accent); background: var(--accent-soft); }
+.th-sws { display: flex; gap: 6px; flex: none; }
+.th-sw { width: 44px; height: 44px; border-radius: 10px; border: 2px solid; display: flex; flex-direction: column; justify-content: flex-end; gap: 3px; padding: 4px; }
+.th-sw i { display: block; height: 9px; border-radius: 3px; }
+.th-tx { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.th-tx small { color: var(--muted); }
+.th-ck { font-size: 0.8rem; font-weight: 600; color: var(--accent); }
+.th-seg { display: flex; gap: 6px; }
+.th-segb { appearance: none; flex: 1; min-height: 44px; border-radius: 8px; border: 2px solid var(--line); background: var(--surface); color: var(--ink); font: 600 0.95rem var(--font-body); cursor: pointer; }
+.th-segb.on { border-color: var(--accent); background: var(--accent-soft); }
+.ed-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; }
+.ed-row input[type=color] { width: 56px; height: 40px; padding: 0; border: 2px solid var(--line); border-radius: 10px; background: none; cursor: pointer; }
+.ed-lab { font-weight: 600; margin-top: 4px; }
+.ed-sel { font: 400 1rem var(--font-body); min-height: 48px; width: 100%; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 0 10px; }
+.th-seg { flex-wrap: wrap; }
+.th-opt:focus-visible, .th-segb:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 </style>
 </head>
 <body>
@@ -241,14 +801,20 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   <header>
     <div class="titlebar">
       <h1>Vavi Meesho Labels</h1>
+      <div class="tb-btns">
+      <button class="icon-btn" id="tab-theme" type="button" aria-label="Theme" hidden>
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.8-.4-1.1-.3-.4-.5-.7-.5-1.2 0-.9.7-1.6 1.6-1.6H17a4 4 0 0 0 4-4C21 6.8 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.1"/><circle cx="10.5" cy="7.2" r="1.1"/><circle cx="15" cy="7.4" r="1.1"/></svg>
+      </button>
       <button class="icon-btn" id="tab-set" type="button" aria-label="Settings" hidden>
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
       </button>
+      </div>
     </div>
     <p class="lede">Choose the day's label PDFs. You get the courier-wise PDFs and the WhatsApp summary. Everything runs on this device and your PDFs are not uploaded.</p>
     <div class="tabs" id="tabs" role="tablist" hidden>
       <button class="tab on" id="tab-labels" type="button" role="tab" aria-selected="true">Labels</button>
       <button class="tab" id="tab-dash" type="button" role="tab" aria-selected="false">Dashboard</button>
+      <button class="tab" id="tab-profit" type="button" role="tab" aria-selected="false" hidden>Profit</button>
     </div>
   </header>
 
@@ -373,6 +939,66 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     </div>
   </div>
 
+  <div id="view-profit" class="stack" hidden>
+    <section class="card" aria-labelledby="h-pf">
+      <h2 id="h-pf">Monthly profit</h2>
+      <p class="help">Upload the monthly Meesho payment zip (or the .xlsx inside it), enter the month's packing cost and SKU prices, and get the profit. The file is read on this phone and is not uploaded. The result is saved to your Google Sheet.</p>
+      <label class="btn wide" id="pf-pick"><span>Choose the Meesho payment file</span><input id="pf-file" type="file" accept=".zip,.xlsx"></label>
+      <div id="pf-msg" role="status" aria-live="polite"></div>
+    </section>
+    <section class="card" id="pf-s2" hidden>
+      <h2>Month and packing</h2>
+      <p class="help">Profit counts every line Meesho paid in the chosen month (by Payment Date). Packing changes every month, so enter it each time.</p>
+      <div class="field"><label for="pf-month">Payment month</label><select id="pf-month"></select></div>
+      <div class="field"><label for="pf-pack">Packing cost per packet (₹)</label><input id="pf-pack" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 5"></div>
+      <p class="help" id="pf-pack-note"></p>
+      <div id="pf-month-note" class="stack" style="gap:8px"></div>
+    </section>
+    <section class="card" id="pf-s3" hidden>
+      <h2>Cost price per SKU</h2>
+      <p class="help">Unit cost including GST, one price for each category of your SKU list (Settings, Manage SKUs). Every SKU in the category gets that price. A SKU that is not in your list is asked on its own. Prices from your last saved month are filled in, so check them. An order of quantity 2 costs 2 × the unit price.</p>
+      <details><summary>Paste a price list instead</summary>
+        <div class="stack" style="gap:8px"><p class="help">One per line, price at the end. Use a category name or a SKU, for example 1 Mtr pack of 10 400 or PRINT_1MT_10PC 400</p>
+        <textarea id="pf-paste" spellcheck="false" placeholder="PRINT_1MT_10PC 400&#10;BOOKFOLD_1MTR_5PC 200"></textarea>
+        <button class="btn ghost sm" id="pf-apply" type="button">Apply list</button></div>
+      </details>
+      <div id="pf-skus" class="stack" style="gap:8px"></div>
+      <button class="btn" id="pf-calc" type="button" disabled>Calculate profit</button>
+      <p class="msg" id="pf-hint"></p>
+      <div id="pf-s3msg"></div>
+    </section>
+    <section class="card" id="pf-res" hidden>
+      <h2>Result</h2>
+      <p class="help" id="pf-res-hint"></p>
+      <div class="stats" id="pf-kpis"></div>
+      <div id="pf-notes" class="stack" style="gap:8px"></div>
+      <p class="msg" id="pf-save-msg" role="status"></p>
+      <h3>By type of line</h3>
+      <div class="tablewrap"><table id="pf-types"><thead><tr><th>Type</th><th class="n">Lines</th><th class="n">Settlement</th><th class="n">Profit</th></tr></thead><tbody></tbody></table></div>
+      <h3>Profit by category</h3>
+      <div class="tablewrap"><table id="pf-cats"><thead><tr><th>Category</th><th class="n">Units</th><th class="n">Settlement</th><th class="n">Profit</th><th class="n">Per unit</th></tr></thead><tbody></tbody></table></div>
+      <p class="help" id="pf-cats-note"></p>
+      <details><summary>By SKU</summary>
+        <div class="tablewrap"><table id="pf-bysku"><thead><tr><th>SKU</th><th class="n">Units</th><th class="n">Settlement</th><th class="n">Profit</th></tr></thead><tbody></tbody></table></div>
+      </details>
+      <div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="btn ghost sm" id="pf-csv" type="button">Download lines (CSV)</button><button class="btn ghost sm" id="pf-copy" type="button">Copy summary row</button></div>
+      <p class="msg" id="pf-copy-msg" aria-live="polite"></p>
+    </section>
+    <section class="card" aria-labelledby="h-pfh">
+      <h2 id="h-pfh">Saved months</h2>
+      <p class="help" id="pf-hist-msg"></p>
+      <p class="help" id="pf-hist-empty">No month saved yet. Your first calculation will appear here.</p>
+      <div class="tablewrap" id="pf-hist-wrap" hidden><table id="pf-hist"><thead><tr><th>Month</th><th class="n">Profit</th><th class="n">Profit %</th><th class="n">Settlement</th><th>Best category</th></tr></thead><tbody></tbody></table></div>
+    </section>
+    <section class="card">
+      <details><summary>How profit is calculated</summary>
+        <div class="stack" style="gap:8px"><p class="help">Cash basis: every line in Meesho's Order Payments sheet whose Payment Date is in the month. Cost = unit cost × quantity.</p>
+        <div class="tablewrap"><table id="pf-rules"><thead><tr><th>Line</th><th>Profit</th></tr></thead><tbody></tbody></table></div>
+        <p class="help">Monthly profit = sum of line profits − ads cost (Ads Cost sheet, including GST, deducted once). GST payable, TCS/TDS credits and fixed expenses are not included.</p></div>
+      </details>
+    </section>
+  </div>
+
   <div id="sheet-settings" class="stack" hidden>
     <div class="row"><h2 id="h-settings">Settings</h2><button class="btn ghost sm" id="set-back" type="button">Back</button></div>
   <section class="card" id="fraud-report" aria-labelledby="h-fr">
@@ -413,6 +1039,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     <p class="msg" id="set-msg" role="status" aria-live="polite"></p>
   </section>
   </div>
+  <section id="theme-view" class="stack" hidden><div id="theme-body" class="stack"></div></section>
   <section id="sku-view" class="stack" hidden><div id="sku-body" class="stack"></div></section>
   <div id="tip" role="status" hidden></div>
 </main>
@@ -1244,17 +1871,18 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   window.VaviSheet = { call: call, connected: connected };
 
   /* -------------------------------------------------------------- tabs/views */
-  var views = { labels: $("view-labels"), dash: $("view-dash"), set: $("sheet-settings"), skus: $("sku-view") };
-  var tabs = { labels: $("tab-labels"), dash: $("tab-dash"), set: $("tab-set") };
-  $("tabs").hidden = false; tabs.set.hidden = false;
+  var views = { labels: $("view-labels"), dash: $("view-dash"), set: $("sheet-settings"), skus: $("sku-view"), theme: $("theme-view"), profit: $("view-profit") };
+  var tabs = { labels: $("tab-labels"), dash: $("tab-dash"), profit: $("tab-profit"), set: $("tab-set") };
+  $("tabs").hidden = false; tabs.set.hidden = false; tabs.profit.hidden = false;
   var lastView = "labels";
   function show(name) {
-    if (name !== "set" && name !== "skus") lastView = name;
+    if (name !== "set" && name !== "skus" && name !== "theme") lastView = name;
     Object.keys(views).forEach(function (k) {
       views[k].hidden = k !== name;
       if (tabs[k]) { tabs[k].setAttribute("aria-selected", k === name ? "true" : "false"); tabs[k].classList.toggle("on", k === name); }
     });
     if (name === "dash") openDash();
+    if (name === "profit") window.dispatchEvent(new CustomEvent("vavi:profit"));
     if (name === "set") { $("set-url").value = lsGet(LS_URL); $("set-key").value = lsGet(LS_KEY); }
     window.scrollTo(0, 0);
   }
@@ -2098,6 +2726,679 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   });
   document.getElementById("tab-set").addEventListener("click", fill);
   fill();
+})();
+
+</script>
+<script>
+// Theme picker (standalone page): choose a theme and light / dark / follow the phone. Saved on this phone.
+(function () {
+  if (window.claude && window.claude.use) return;
+  var SKINS = [{"id": "default", "name": "Default", "blurb": "The standard teal look.", "light": {"accent": "#0a6c68"}, "dark": {"accent": "#45c6bb"}, "shape": {}}, {"id": "festival", "name": "Festival", "blurb": "Marigold and saffron colours with a festive top band.", "light": {"--bg": "#fff6e5", "--surface": "#fffdf8", "--ink": "#3b1d0a", "--muted": "#7a5a45", "--line": "#f0d9b5", "--accent": "#c2410c", "--accent-ink": "#ffffff", "--accent-soft": "#ffe6c7", "--s1": "#b45309", "--s2": "#be123c", "--s3": "#15803d", "--grid": "#f3e3c6", "--axis": "#d9bf93", "--glow": "rgba(194,65,12,0.0)", "--deco": "radial-gradient(circle at 14px 14px, rgba(217,119,6,0.16) 2px, transparent 3px)", "--deco-size": "28px 28px"}, "dark": {"--bg": "#2a1206", "--surface": "#3a1c0c", "--ink": "#ffeccc", "--muted": "#d8b48a", "--line": "#5c3317", "--accent": "#fbbf24", "--accent-ink": "#3b1d0a", "--accent-soft": "#4d2a10", "--s1": "#f59e0b", "--s2": "#fb7185", "--s3": "#4ade80", "--grid": "#4a2713", "--axis": "#6b4023", "--glow": "rgba(251,191,36,0.0)", "--deco": "radial-gradient(circle at 14px 14px, rgba(251,191,36,0.10) 2px, transparent 3px)", "--deco-size": "28px 28px"}, "shape": {"corner": 14, "btn": "raised", "border": 2, "font": "serif"}}, {"id": "candy", "name": "Candy", "blurb": "Soft cream, coral, teal and mustard with chunky rounded blobs, like a playful learning app.", "light": {"--bg": "#fbf3dc", "--surface": "#fffdf4", "--ink": "#22262b", "--muted": "#6b6a5e", "--line": "#efe2b8", "--accent": "#d94f6b", "--accent-ink": "#ffffff", "--accent-soft": "#fbdde3", "--s1": "#2f8577", "--s2": "#d94f6b", "--s3": "#e5a024", "--grid": "#f2e8c6", "--axis": "#d8c98f", "--t2": "#d4ece6", "--t3": "#ece8fb", "--glow": "rgba(0,0,0,0)", "--deco": "radial-gradient(circle at 30px 30px, rgba(229,160,36,0.18) 14px, transparent 15px), radial-gradient(circle at 110px 90px, rgba(47,133,119,0.13) 22px, transparent 23px)", "--deco-size": "160px 140px"}, "dark": {"--bg": "#1b2b2a", "--surface": "#25393a", "--ink": "#fbf3dc", "--muted": "#b9c7b5", "--line": "#35504f", "--accent": "#f07a93", "--accent-ink": "#2a0d14", "--accent-soft": "#4a3040", "--s1": "#5fd1bd", "--s2": "#f07a93", "--s3": "#f4bf4f", "--grid": "#2c4443", "--axis": "#46645f", "--t2": "#1f4a47", "--t3": "#3a3560", "--glow": "rgba(0,0,0,0)", "--deco": "radial-gradient(circle at 30px 30px, rgba(244,191,79,0.10) 14px, transparent 15px), radial-gradient(circle at 110px 90px, rgba(95,209,189,0.09) 22px, transparent 23px)", "--deco-size": "160px 140px"}, "shape": {"corner": 28, "btn": "raised", "border": 0, "font": "round"}}, {"id": "pixel", "name": "Retro Pixel", "blurb": "Green grid background, cream windows with yellow title bars, chunky outlines and a pixel font.", "light": {"--bg": "#b7dba0", "--surface": "#fbf0d4", "--ink": "#1a1a1a", "--muted": "#4d4a3c", "--line": "#1a1a1a", "--accent": "#f26b4f", "--accent-ink": "#1a1a1a", "--accent-soft": "#fbd9a0", "--s1": "#2f7d6b", "--s2": "#f26b4f", "--s3": "#d99a0b", "--grid": "#d9cfa8", "--axis": "#6d6a55", "--shadow": "rgba(26,26,26,.55)", "--deco": "linear-gradient(rgba(26,26,26,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(26,26,26,0.07) 1px, transparent 1px)", "--deco-size": "24px 24px"}, "dark": {"--bg": "#16231b", "--surface": "#26352b", "--ink": "#f6ecd0", "--muted": "#c3bb9c", "--line": "#050a07", "--accent": "#ff8a6b", "--accent-ink": "#1a1a1a", "--accent-soft": "#4a3a22", "--s1": "#6fd3b4", "--s2": "#ff8a6b", "--s3": "#f4c24a", "--grid": "#2f4235", "--axis": "#55705e", "--shadow": "rgba(0,0,0,.7)", "--deco": "linear-gradient(rgba(246,236,208,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(246,236,208,0.05) 1px, transparent 1px)", "--deco-size": "24px 24px"}, "shape": {"corner": 6, "btn": "hard", "border": 3, "font": "pixel"}}, {"id": "soft", "name": "Soft Glass", "blurb": "Blush and lavender with big soft cards, a coral gradient button and pastel icon tiles.", "light": {"--bg": "#fdf1ef", "--surface": "#ffffff", "--ink": "#1c2340", "--muted": "#666b8c", "--line": "#f6e3e6", "--accent": "#f2566e", "--accent-ink": "#ffffff", "--accent-soft": "#ffe4e8", "--s1": "#6c5ce7", "--s2": "#f2566e", "--s3": "#2fb98a", "--grid": "#f4e6e8", "--axis": "#d9c6cc", "--shadow": "rgba(120,90,140,.14)", "--deco": "radial-gradient(circle at 100% 20%, rgba(168,155,255,0.30) 0, transparent 38%), radial-gradient(circle at 0% 0%, rgba(255,186,170,0.45) 0, transparent 34%), radial-gradient(circle at 80% 100%, rgba(255,170,140,0.35) 0, transparent 40%)", "--deco-size": "100% 100%"}, "dark": {"--bg": "#171a2e", "--surface": "#212541", "--ink": "#f1f2ff", "--muted": "#a6abd0", "--line": "#2f3458", "--accent": "#ff7a8c", "--accent-ink": "#2a0b12", "--accent-soft": "#3a2840", "--s1": "#9c8cff", "--s2": "#ff7a8c", "--s3": "#4fd6a8", "--grid": "#2a2f50", "--axis": "#4a5080", "--shadow": "rgba(0,0,0,.35)", "--deco": "radial-gradient(circle at 100% 20%, rgba(156,140,255,0.22) 0, transparent 38%), radial-gradient(circle at 0% 0%, rgba(255,122,140,0.16) 0, transparent 34%)", "--deco-size": "100% 100%"}, "shape": {"corner": 28, "btn": "raised", "border": 0, "font": "std"}}, {"id": "pop", "name": "Pop Art", "blurb": "Bold purple with a lime header, thick black outlines, hard shadows and a hot-pink button.", "light": {"--bg": "#8b6cf0", "--surface": "#fffaf0", "--ink": "#14121f", "--muted": "#3e3a52", "--line": "#14121f", "--accent": "#ff3d8b", "--accent-ink": "#ffffff", "--accent-soft": "#ffe36b", "--s1": "#6c3df0", "--s2": "#ff3d8b", "--s3": "#1faa59", "--grid": "#e9e0cc", "--axis": "#6b6580", "--shadow": "#14121f", "--page-ink": "#14121f", "--hl": "#dff56a", "--deco": "radial-gradient(circle at 12px 12px, rgba(255,255,255,0.18) 2px, transparent 3px)", "--deco-size": "36px 36px"}, "dark": {"--bg": "#2b2063", "--surface": "#1e1840", "--ink": "#f5f0ff", "--muted": "#c9bfee", "--line": "#06041a", "--accent": "#ff5fa2", "--accent-ink": "#1a0612", "--accent-soft": "#5a4a10", "--s1": "#a88bff", "--s2": "#ff5fa2", "--s3": "#5be08f", "--grid": "#2f2766", "--axis": "#5b4fa0", "--shadow": "#06041a", "--page-ink": "#f5f0ff", "--hl": "#b7d93a", "--deco": "radial-gradient(circle at 12px 12px, rgba(255,255,255,0.07) 2px, transparent 3px)", "--deco-size": "36px 36px"}, "shape": {"corner": 26, "btn": "hard", "border": 3, "font": "bold"}}, {"id": "mine", "name": "My own theme", "blurb": "Your own colours, corners, buttons and font. Tap Edit my theme below.", "light": {"--bg": "#fdf1ef", "--surface": "#ffffff", "--ink": "#1c2340", "--accent": "#f2566e"}, "dark": {"--bg": "#171a2e", "--surface": "#212541", "--ink": "#f1f2ff", "--accent": "#ff7a8c"}, "shape": {"corner": 16, "btn": "raised", "border": 1, "font": "std"}}];
+  var btn = document.getElementById("tab-theme"), view = document.getElementById("theme-body");
+  if (!btn || !view || !window.VaviShow) return;
+  function lsGet(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+  function lsSet(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) {} }
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
+  var root = document.documentElement;
+  function skin() { var s = lsGet("vavi_skin"); return SKINS.some(function (x) { return x.id === s; }) ? s : "default"; }
+  function mode() { var m = lsGet("vavi_mode"); return m === "light" || m === "dark" ? m : "auto"; }
+  function apply() {
+    var s = skin(), m = mode();
+    if (s === "default") root.removeAttribute("data-skin"); else root.setAttribute("data-skin", s);
+    if (m === "auto") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", m);
+  }
+
+  var FONTS = { std: ["Standard", ""], round: ["Round and playful", '"Mochiy Pop One", "Trebuchet MS", sans-serif'], pixel: ["Pixel", '"Pixelify Sans", "Courier New", monospace'], serif: ["Festive serif", '"Yatra One", Georgia, serif'], bold: ["Bold poster", '"Lilita One", "Arial Black", sans-serif'] };
+  var HEX = /^#[0-9a-fA-F]{6}$/;
+  function skinById(id) { for (var i = 0; i < SKINS.length; i++) if (SKINS[i].id === id) return SKINS[i]; return SKINS[0]; }
+  function pal(s, dark) {
+    var p = dark ? s.dark : s.light;
+    if (s.id === "default") return dark ? { bg: "#0d1a1f", sf: "#14252b", ink: "#e6f0ef", ac: p.accent } : { bg: "#f1f5f5", sf: "#ffffff", ink: "#12262b", ac: p.accent };
+    return { bg: p["--bg"], sf: p["--surface"], ink: p["--ink"], ac: p["--accent"] };
+  }
+  function defaultCustom() { var s = skinById("mine"); return { l: pal(s, false), d: pal(s, true), corner: s.shape.corner, btn: s.shape.btn, border: s.shape.border, font: s.shape.font }; }
+  function getCustom() {
+    var d = defaultCustom(), c; try { c = JSON.parse(lsGet("vavi_custom") || "null"); } catch (e) { c = null; }
+    if (!c) return d;
+    ["l", "d"].forEach(function (m) { ["bg", "sf", "ink", "ac"].forEach(function (k) { if (!c[m] || !HEX.test(c[m][k])) { c[m] = c[m] || {}; c[m][k] = d[m][k]; } }); });
+    if (typeof c.corner !== "number") c.corner = d.corner; if (!/^(flat|raised|hard)$/.test(c.btn)) c.btn = d.btn;
+    if (typeof c.border !== "number") c.border = d.border; if (!FONTS[c.font]) c.font = "std";
+    return c;
+  }
+  function lum(h) { var n = parseInt(h.slice(1), 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255; return (0.299 * r + 0.587 * g + 0.114 * b) / 255; }
+  function vars(p, dark) {
+    var o = "--bg:" + p.bg + ";--surface:" + p.sf + ";--ink:" + p.ink + ";--muted:color-mix(in srgb," + p.ink + " 62%," + p.bg + ");--line:color-mix(in srgb," + p.ink + " 18%," + p.bg + ");"
+      + "--accent:" + p.ac + ";--accent-ink:" + (lum(p.ac) > 0.6 ? "#14181c" : "#ffffff") + ";--accent-soft:color-mix(in srgb," + p.ac + " 18%," + p.sf + ");--s1:" + p.ac + ";"
+      + "--s2:" + (dark ? "#ff7ab0" : "#d6336c") + ";--s3:" + (dark ? "#5fd1a8" : "#2f8f6a") + ";--grid:color-mix(in srgb," + p.ink + " 9%," + p.bg + ");--axis:color-mix(in srgb," + p.ink + " 35%," + p.bg + ");--deco:none;";
+    return o;
+  }
+  function buildCss(c) {
+    var A = ':root[data-skin="mine"]', css = "";
+    css += A + '[data-theme="light"]{' + vars(c.l, false) + "}";
+    css += "@media (prefers-color-scheme: light){" + A + ':not([data-theme="dark"]){' + vars(c.l, false) + "}}";
+    css += A + '[data-theme="dark"]{' + vars(c.d, true) + "}";
+    css += "@media (prefers-color-scheme: dark){" + A + ':not([data-theme="light"]){' + vars(c.d, true) + "}}";
+    var R = c.corner, br = c.border, bt = c.btn, f = FONTS[c.font][1], B = "var(--line)";
+    if (f) css += A + "{--font-display:" + f + ";}";
+    css += A + " .card{border-radius:" + R + "px;border:" + br + "px solid " + B + ";" + (bt === "hard" ? "box-shadow:4px 4px 0 var(--ink);" : bt === "raised" ? "box-shadow:0 6px 18px rgba(0,0,0,.10);" : "") + "}";
+    css += A + " .stat{border-radius:" + Math.round(R * 0.7) + "px;}";
+    css += A + " .note{border-radius:" + Math.round(R * 0.7) + "px;}";
+    css += A + " .btn{border-radius:" + Math.min(R * 2, 999) + "px;" + (br ? "border:" + Math.max(br, 1) + "px solid " + (bt === "hard" ? "var(--ink)" : "var(--accent)") + ";" : "border-color:transparent;")
+      + (bt === "hard" ? "box-shadow:0 4px 0 var(--ink);" : bt === "raised" ? "box-shadow:0 5px 0 rgba(0,0,0,.22);" : "") + "}";
+    css += A + " .btn:active{" + (bt === "flat" ? "" : "transform:translateY(3px);box-shadow:none;") + "}";
+    css += A + " .btn.ghost{background:transparent;color:var(--accent);box-shadow:none;}";
+    css += A + " .tab," + A + " .chip," + A + " .icon-btn{border-radius:" + Math.min(R * 1.2, 999) + "px;" + (bt === "hard" ? "border:2px solid var(--ink);" : "") + "}";
+    css += A + " input," + A + " select," + A + " textarea{border-radius:" + Math.round(R * 0.6) + "px !important;}";
+    return css;
+  }
+  function saveCustom(c) { lsSet("vavi_custom", JSON.stringify(c)); var css = buildCss(c); lsSet("vavi_custom_css", css); injectCustom(css); }
+  function injectCustom(css) { var e = document.getElementById("vavi-custom"); if (!e) { e = document.createElement("style"); e.id = "vavi-custom"; document.head.appendChild(e); } e.textContent = css; }
+  var editing = false;
+  function systemDark() { return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches); }
+
+  function swatch(p, isDefault, dark, isMine) {
+    if (isMine) { var c = getCustom(), q = dark ? c.d : c.l; p = { "--bg": q.bg, "--surface": q.sf, "--accent": q.ac }; }
+    var box = el("span", "th-sw");
+    var bg = isDefault ? (dark ? "#0d1a1f" : "#f1f5f5") : p["--bg"], sf = isDefault ? (dark ? "#14252b" : "#ffffff") : p["--surface"], ac = isDefault ? p.accent : p["--accent"];
+    box.style.background = bg; box.style.borderColor = ac;
+    var c1 = el("i"); c1.style.background = sf; var c2 = el("i"); c2.style.background = ac;
+    box.appendChild(c1); box.appendChild(c2); return box;
+  }
+
+  function render() {
+    if (editing) return renderEditor();
+    view.textContent = "";
+    var head = el("div", "row"); head.appendChild(el("h2", "", "Theme"));
+    var back = el("button", "btn ghost sm", "Back"); back.type = "button"; back.addEventListener("click", function () { window.VaviShow("labels"); });
+    head.appendChild(back); view.appendChild(head);
+    view.appendChild(el("p", "help", "Pick a look for the whole tool. Every theme has a light and a dark version. It is saved on this phone only."));
+    var card = el("section", "card"); card.appendChild(el("h2", "", "Look"));
+    SKINS.forEach(function (s) {
+      var b = el("button", "th-opt" + (skin() === s.id ? " on" : "")); b.type = "button"; b.setAttribute("aria-pressed", skin() === s.id ? "true" : "false");
+      var sw = el("span", "th-sws"); sw.appendChild(swatch(s.light, s.id === "default", false, s.id === "mine")); sw.appendChild(swatch(s.dark, s.id === "default", true, s.id === "mine")); b.appendChild(sw);
+      var tx = el("span", "th-tx"); tx.appendChild(el("b", "", s.name)); tx.appendChild(el("small", "", s.blurb)); b.appendChild(tx);
+      b.appendChild(el("span", "th-ck", skin() === s.id ? "Selected" : ""));
+      b.addEventListener("click", function () { lsSet("vavi_skin", s.id === "default" ? "" : s.id); apply(); render(); });
+      card.appendChild(b);
+    });
+    view.appendChild(card);
+    var ec = el("section", "card"); ec.appendChild(el("h2", "", "Make it your own"));
+    ec.appendChild(el("p", "help", "Change any theme to suit you: colours for light and dark, how round the corners are, how the buttons look and the font. Your changes are saved as My own theme, on this phone only."));
+    var eb = el("button", "btn wide", "Edit my theme"); eb.type = "button"; eb.addEventListener("click", function () { editing = true; render(); });
+    ec.appendChild(eb); view.appendChild(ec);
+    var mc = el("section", "card"); mc.appendChild(el("h2", "", "Light or dark"));
+    mc.appendChild(el("p", "help", "Auto follows your phone (" + (systemDark() ? "dark now" : "light now") + ")."));
+    var seg = el("div", "th-seg");
+    [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].forEach(function (o) {
+      var b = el("button", "th-segb" + (mode() === o[0] ? " on" : ""), o[1]); b.type = "button"; b.setAttribute("aria-pressed", mode() === o[0] ? "true" : "false");
+      b.addEventListener("click", function () { lsSet("vavi_mode", o[0] === "auto" ? "" : o[0]); apply(); render(); });
+      seg.appendChild(b);
+    });
+    mc.appendChild(seg); view.appendChild(mc);
+  }
+
+  function renderEditor() {
+    view.textContent = "";
+    var c = getCustom();
+    var head = el("div", "row"); head.appendChild(el("h2", "", "Edit my theme"));
+    var back = el("button", "btn ghost sm", "Done"); back.type = "button";
+    back.addEventListener("click", function () { editing = false; render(); });
+    head.appendChild(back); view.appendChild(head);
+    view.appendChild(el("p", "help", "Changes show straight away and are saved on this phone. Pick My own theme is turned on for you."));
+    function commit() { saveCustom(c); lsSet("vavi_skin", "mine"); apply(); }
+    commit();
+    // start from an existing theme
+    var sc = el("section", "card"); sc.appendChild(el("h2", "", "Start from a theme"));
+    sc.appendChild(el("p", "help", "Copy the colours and shapes of any theme, then change what you like."));
+    var sel = el("select", "ed-sel"); sel.setAttribute("aria-label", "Copy from theme");
+    var o0 = el("option", "", "Choose a theme to copy…"); o0.value = ""; sel.appendChild(o0);
+    SKINS.forEach(function (x) { if (x.id === "mine") return; var o = el("option", "", x.name); o.value = x.id; sel.appendChild(o); });
+    sel.addEventListener("change", function () {
+      if (!sel.value) return; var x = skinById(sel.value);
+      c.l = pal(x, false); c.d = pal(x, true); var sh = x.shape || {};
+      c.corner = typeof sh.corner === "number" ? sh.corner : 12; c.btn = sh.btn || "flat"; c.border = typeof sh.border === "number" ? sh.border : 1; c.font = sh.font || "std";
+      commit(); renderEditor();
+    });
+    sc.appendChild(sel); view.appendChild(sc);
+    // colours
+    function colourCard(title, key) {
+      var cc = el("section", "card"); cc.appendChild(el("h2", "", title));
+      [["bg", "Page background"], ["sf", "Cards"], ["ink", "Text"], ["ac", "Buttons and highlights"]].forEach(function (f) {
+        var r = el("label", "ed-row"); r.appendChild(el("span", "", f[1]));
+        var i = el("input"); i.type = "color"; i.value = c[key][f[0]]; i.setAttribute("aria-label", title + " " + f[1]);
+        i.addEventListener("input", function () { c[key][f[0]] = i.value; commit(); });
+        r.appendChild(i); cc.appendChild(r);
+      });
+      return cc;
+    }
+    view.appendChild(colourCard("Light colours", "l")); view.appendChild(colourCard("Dark colours", "d"));
+    // shape
+    function choice(card, label, key, opts) {
+      card.appendChild(el("p", "ed-lab", label));
+      var seg = el("div", "th-seg");
+      opts.forEach(function (o) {
+        var on = c[key] === o[0], b = el("button", "th-segb" + (on ? " on" : ""), o[1]); b.type = "button"; b.setAttribute("aria-pressed", on ? "true" : "false");
+        b.addEventListener("click", function () { c[key] = o[0]; commit(); renderEditor(); });
+        seg.appendChild(b);
+      });
+      card.appendChild(seg);
+    }
+    var shp = el("section", "card"); shp.appendChild(el("h2", "", "Shapes and font"));
+    choice(shp, "Corners", "corner", [[0, "Square"], [10, "Slightly round"], [18, "Round"], [28, "Very round"]]);
+    choice(shp, "Buttons", "btn", [["flat", "Flat"], ["raised", "Raised"], ["hard", "Bold shadow"]]);
+    choice(shp, "Outlines", "border", [[0, "None"], [1, "Thin"], [3, "Thick"]]);
+    shp.appendChild(el("p", "ed-lab", "Font for headings"));
+    var fs = el("select", "ed-sel"); Object.keys(FONTS).forEach(function (k) { var o = el("option", "", FONTS[k][0]); o.value = k; if (c.font === k) o.selected = true; fs.appendChild(o); });
+    fs.addEventListener("change", function () { c.font = fs.value; commit(); });
+    shp.appendChild(fs); view.appendChild(shp);
+    var rc = el("section", "card");
+    var rb = el("button", "btn ghost wide", "Reset my theme"); rb.type = "button";
+    rb.addEventListener("click", function () { lsSet("vavi_custom", ""); lsSet("vavi_custom_css", ""); var e = document.getElementById("vavi-custom"); if (e) e.textContent = ""; renderEditor(); });
+    rc.appendChild(rb); view.appendChild(rc);
+  }
+
+  if (lsGet("vavi_custom_css")) injectCustom(lsGet("vavi_custom_css"));
+  apply();
+  btn.hidden = false;
+  btn.addEventListener("click", function () { editing = false; render(); window.VaviShow("theme"); });
+})();
+
+</script>
+<script>
+// Meesho profit logic (payment zip/xlsx reading + the agreed profit rules). Ported unchanged from the profit calculator.
+(function (root) {
+'use strict';
+const round2=v=>Math.round((v+Number.EPSILON)*100)/100;
+const num=v=>{if(typeof v==='number')return v;const x=parseFloat(v);return isFinite(x)?x:0;};
+const skey=s=>String(s==null?'':s).trim().toLowerCase();
+const RULES=[
+ ['Delivered, Shipped, Cancelled (all paid)','settlement − packing − cost'],
+ ['RTO','−packing (the stock comes back)'],
+ ['Return, Total Sale Amount above 0 (sale and return in the same payment)','settlement − packing'],
+ ['Return, Total Sale Amount 0 (takes back an earlier payment)','settlement + cost (stock is back; packing was already charged)'],
+ ['Blank status, negative settlement (affiliate fee)','settlement'],
+ ['Blank status, positive settlement (claims for returned parcels)','0, ignored: neither profit nor loss']
+];
+/* ---------- zip + xlsx reading (no libraries) ---------- */
+async function inflate(data){
+  const stream=new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function unzip(buf){
+  const u8=new Uint8Array(buf),dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength);
+  let e=u8.length-22;while(e>=0&&dv.getUint32(e,true)!==0x06054b50)e--;
+  if(e<0)throw new Error('This is not a zip or xlsx file.');
+  const n=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const out={};
+  for(let i=0;i<n;i++){
+    if(dv.getUint32(p,true)!==0x02014b50)throw new Error('Zip directory is damaged.');
+    const method=dv.getUint16(p+10,true),csize=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),xl=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lh=dv.getUint32(p+42,true);
+    const name=new TextDecoder().decode(u8.subarray(p+46,p+46+nl));
+    const start=lh+30+dv.getUint16(lh+26,true)+dv.getUint16(lh+28,true);
+    out[name]={method,data:u8.subarray(start,start+csize)};
+    p+=46+nl+xl+cl;
+  }
+  return out;
+}
+async function entryBytes(ent){
+  if(ent.method===0)return ent.data;
+  if(ent.method===8)return inflate(ent.data);
+  throw new Error('Unsupported zip compression.');
+}
+const txt=b=>new TextDecoder().decode(b);
+const unesc=s=>s.replace(/&#x([0-9a-f]+);/gi,(m,h)=>String.fromCodePoint(parseInt(h,16))).replace(/&#(\d+);/g,(m,d)=>String.fromCodePoint(+d)).replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&');
+const colIdx=c=>{let n=0;for(const ch of c)n=n*26+ch.charCodeAt(0)-64;return n-1;};
+function parseSheet(xml,sst){
+  const rows=[];const rowRe=/<row\b[^>]*?(?:\/>|>([\s\S]*?)<\/row>)/g;let rm;
+  while((rm=rowRe.exec(xml))){
+    const body=rm[1];if(!body){rows.push([]);continue;}
+    const r=[];const cRe=/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;let cm;
+    while((cm=cRe.exec(body))){
+      const at=cm[1],inner=cm[2]||'';const ref=/\br="([A-Z]+)\d+"/.exec(at);if(!ref)continue;
+      const t=(/\bt="([^"]*)"/.exec(at)||[])[1];let v=null;
+      if(t==='inlineStr'){const ts=[...inner.matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map(x=>unesc(x[1]));v=ts.length?ts.join(''):null;}
+      else{const m=/<v>([\s\S]*?)<\/v>/.exec(inner);if(m){const raw=unesc(m[1]);v=t==='s'?sst[+raw]:(t==='str'||t==='e')?raw:t==='b'?raw==='1':parseFloat(raw);}}
+      r[colIdx(ref[1])]=v;
+    }
+    rows.push(r);
+  }
+  return rows;
+}
+async function readWorkbook(buf){
+  const z=await unzip(buf);const get=async n=>z[n]?txt(await entryBytes(z[n])):null;
+  const wb=await get('xl/workbook.xml'),rels=await get('xl/_rels/workbook.xml.rels');
+  if(!wb||!rels)throw new Error('This xlsx has no workbook data.');
+  const sstXml=await get('xl/sharedStrings.xml');const sst=[];
+  if(sstXml)for(const si of sstXml.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g))sst.push(unesc([...si[1].matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map(x=>x[1]).join('')));
+  const relMap={};for(const m of rels.matchAll(/<Relationship\b[^>]*>/g)){const id=/\bId="([^"]*)"/.exec(m[0]),tg=/\bTarget="([^"]*)"/.exec(m[0]);if(id&&tg)relMap[id[1]]=tg[1];}
+  const sheets={};
+  for(const m of wb.matchAll(/<sheet\b[^>]*>/g)){
+    const name=/\bname="([^"]*)"/.exec(m[0]),rid=/\br:id="([^"]*)"/.exec(m[0]);if(!name||!rid||!relMap[rid[1]])continue;
+    const tg=relMap[rid[1]].replace(/^\//,'');const path=tg.startsWith('xl/')?tg:'xl/'+tg;
+    sheets[unesc(name[1])]=()=>get(path).then(x=>x==null?[]:parseSheet(x,sst));
+  }
+  return sheets;
+}
+function toDate(v){
+  if(v==null||v==='')return '';
+  if(typeof v==='number'&&v>20000){const d=new Date(Math.round((v-25569)*86400000));return d.toISOString().slice(0,10);}
+  return String(v).trim().slice(0,10);
+}
+async function parseFile(file){
+  let buf=await file.arrayBuffer();
+  const head=new Uint8Array(buf,0,4);if(head[0]!==0x50||head[1]!==0x4b)throw new Error('Please choose the Meesho .zip or its .xlsx file.');
+  let sheets;
+  try{sheets=await readWorkbook(buf);}catch(e){sheets=null;}
+  if(!sheets||!sheets['Order Payments']){
+    const z=await unzip(buf);const x=Object.keys(z).find(n=>/\.xlsx$/i.test(n));
+    if(!x)throw new Error('No Meesho payment workbook found in this file.');
+    sheets=await readWorkbook((await entryBytes(z[x])).buffer.slice(0));
+  }
+  if(!sheets['Order Payments'])throw new Error('The sheet "Order Payments" is missing. Is this the Meesho payment file?');
+  const rows=await sheets['Order Payments']();
+  const hi=rows.findIndex(r=>r&&r.includes('Sub Order No'));
+  if(hi<0)throw new Error('Could not find the header row in "Order Payments".');
+  const H={};rows[hi].forEach((h,i)=>{if(h!=null&&!(h in H))H[h]=i;});
+  const need=['Sub Order No','Supplier SKU','Live Order Status','Quantity','Payment Date','Final Settlement Amount','Total Sale Amount (Incl. Shipping & GST)'];
+  const lack=need.filter(n=>!(n in H));if(lack.length)throw new Error('Columns missing in Order Payments: '+lack.join(', '));
+  const lines=[];
+  for(let i=hi+1;i<rows.length;i++){
+    const r=rows[i];if(!r||r[H['Sub Order No']]==null||String(r[H['Sub Order No']]).trim()==='')continue;
+    lines.push({subOrder:String(r[H['Sub Order No']]),orderDate:toDate(r[H['Order Date']]),paymentDate:toDate(r[H['Payment Date']]),
+      sku:String(r[H['Supplier SKU']]==null?'':r[H['Supplier SKU']]).trim(),qty:num(r[H['Quantity']])||1,
+      status:String(r[H['Live Order Status']]==null?'':r[H['Live Order Status']]).trim()||'BLANK',
+      settlement:num(r[H['Final Settlement Amount']]),sale:num(r[H['Total Sale Amount (Incl. Shipping & GST)']])});
+  }
+  let adsTotal=0,adsRows=0;
+  if(sheets['Ads Cost']){
+    const ar=await sheets['Ads Cost']();const ah=ar.findIndex(r=>r&&r.includes('Total Ads Cost'));
+    if(ah>=0){const c=ar[ah].indexOf('Total Ads Cost');for(let i=ah+1;i<ar.length;i++){const v=ar[i]&&ar[i][c];const x=typeof v==='number'?v:(v!=null&&v!==''?parseFloat(v):NaN);if(isFinite(x)){adsTotal+=-x;adsRows++;}}}
+  }
+  const months={};lines.forEach(l=>{const m=l.paymentDate.slice(0,7);months[m]=(months[m]||0)+1;});
+  return {fileName:file.name,lines,adsTotal:round2(adsTotal),adsRows,months};
+}
+
+/* ---------- calculation ---------- */
+function classify(l){
+  if(l.status==='Return')return l.sale>0?'Return (same payment)':'Return (earlier payment taken back)';
+  if(l.status==='BLANK')return l.settlement<0?'Affiliate fee / recovery':'Claim (ignored)';
+  return l.status;
+}
+function lineProfit(l,packing,cost){
+  switch(l.status){
+    case 'Delivered':case 'Shipped':case 'Cancelled':return l.settlement-packing-cost;
+    case 'RTO':return -packing;
+    case 'Return':return l.sale>0?l.settlement-packing:l.settlement+cost;
+    case 'BLANK':return l.settlement<0?l.settlement:0;
+    default:throw new Error('Unknown order status in the file: "'+l.status+'". Tell the developer; the rule for it is not defined.');
+  }
+}
+// the three parts every line's profit is made of: settlement counted, packing charged, cost (negative = stock cost charged, positive = stock back)
+function components(l,packing,cost){
+  switch(l.status){
+    case 'Delivered':case 'Shipped':case 'Cancelled':return {counted:l.settlement,packing:packing,costEffect:-cost};
+    case 'RTO':return {counted:0,packing:packing,costEffect:0};
+    case 'Return':return l.sale>0?{counted:l.settlement,packing:packing,costEffect:0}:{counted:l.settlement,packing:0,costEffect:cost};
+    case 'BLANK':return {counted:l.settlement<0?l.settlement:0,packing:0,costEffect:0};
+    default:return {counted:0,packing:0,costEffect:0};
+  }
+}
+const f2=v=>(Math.round(v*100)/100).toFixed(2);
+function how(l,kind,c,profit){
+  if(kind==='Claim (ignored)')return 'Claim for a returned parcel: ignored, profit 0.00';
+  if(l.status==='RTO')return 'RTO: settlement not counted, − packing '+f2(c.packing)+' = '+f2(profit);
+  if(kind==='Affiliate fee / recovery')return 'Fee or recovery: settlement '+f2(l.settlement)+' = '+f2(profit);
+  let t='Settlement '+f2(l.settlement);
+  if(c.packing)t+=' − packing '+f2(c.packing);
+  if(c.costEffect<0)t+=' − cost '+f2(-c.costEffect);else if(c.costEffect>0)t+=' + cost '+f2(c.costEffect)+' (stock back)';
+  return t+' = '+f2(profit);
+}
+function calculate(o){
+  const {month,packing}=o;const costs={};Object.keys(o.costs||{}).forEach(k=>{costs[skey(k)]=num(o.costs[k]);});
+  const inMonth=o.lines.filter(l=>l.paymentDate.slice(0,7)===month);
+  const seenMiss={};const missing=inMonth.map(l=>l.sku).filter(s=>{const k=skey(s);if(k in costs||seenMiss[k])return false;seenMiss[k]=1;return true;}).sort();
+  if(missing.length){const e=new Error('Missing cost for: '+missing.join(', '));e.missing=missing;throw e;}
+  const rows=inMonth.map(l=>{const unit=costs[skey(l.sku)],cost=unit*l.qty,kind=classify(l);
+    const profit=lineProfit(l,packing,cost),c=components(l,packing,cost);
+    return {subOrder:l.subOrder,orderDate:l.orderDate,paymentDate:l.paymentDate,sku:l.sku,qty:l.qty,status:l.status,kind,settlement:l.settlement,unitCost:unit,cost,profit,
+      counted:round2(c.counted),packingCharged:round2(c.packing),costEffect:round2(c.costEffect),how:how(l,kind,c,profit)};});
+  const sum=(a,f)=>a.reduce((s,x)=>s+f(x),0);
+  const settlement=sum(rows,r=>r.settlement),lineP=sum(rows,r=>r.profit),ads=o.adsTotal||0;
+  const group=(key,mk)=>{const m=new Map();rows.forEach(r=>{const k=key(r);if(!m.has(k))m.set(k,mk(k));const g=m.get(k);g.lines++;g.settlement+=r.settlement;g.profit+=r.profit;g.units=(g.units||0)+r.qty;});return [...m.values()];};
+  const typeSum=new Map();rows.forEach(r=>{const g=typeSum.get(r.kind)||{counted:0,packing:0,costEffect:0};g.counted+=r.counted;g.packing+=r.packingCharged;g.costEffect+=r.costEffect;typeSum.set(r.kind,g);});
+  const byType=group(r=>r.kind,k=>({kind:k,lines:0,settlement:0,profit:0})).map(g=>{const t=typeSum.get(g.kind);return {kind:g.kind,lines:g.lines,settlement:round2(g.settlement),profit:round2(g.profit),counted:round2(t.counted),packing:round2(t.packing),costEffect:round2(t.costEffect)};}).sort((a,b)=>a.kind.localeCompare(b.kind));
+  const bySku=group(r=>r.sku,k=>({sku:k,lines:0,units:0,settlement:0,profit:0})).map(g=>({sku:g.sku,lines:g.lines,units:g.units,settlement:round2(g.settlement),profit:round2(g.profit)})).sort((a,b)=>b.profit-a.profit);
+  const ship=rows.filter(r=>r.status==='Shipped'),claims=rows.filter(r=>r.kind==='Claim (ignored)');
+  const otherMonths={};Object.keys(o.months||{}).forEach(k=>{if(k!==month)otherMonths[k]=o.months[k];});
+  return {month,lines:rows.length,settlement:round2(settlement),lineProfit:round2(lineP),ads:round2(ads),adsRows:o.adsRows||0,profit:round2(lineP-ads),
+    profitPct:settlement?round2((lineP-ads)/settlement*100):null,packing,shippedLines:ship.length,shippedSettlement:round2(sum(ship,r=>r.settlement)),
+    claimsCount:claims.length,claimsAmount:round2(sum(claims,r=>r.settlement)),otherMonths,byType,bySku,
+    rows:rows.map(r=>({...r,settlement:round2(r.settlement),cost:round2(r.cost),profit:round2(r.profit)}))};
+}
+
+const api = { RULES: RULES.map(r => r.join(': ')), RULES_TABLE: RULES, parseFile, calculate, skey, round2 };
+if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.MeeshoProfit = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+// Profit tab (standalone page only): monthly profit from the Meesho payment zip, saved to the Google Sheet.
+(function () {
+  if (window.claude && window.claude.use) return;
+  var P = window.MeeshoProfit, SH = window.VaviSheet;
+  if (!P || !SH || !document.getElementById("view-profit")) return;
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
+  function lsGet(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  var inr = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), int = new Intl.NumberFormat("en-IN");
+  function money(v) { return (v < 0 ? "−" : "") + "₹" + inr.format(Math.abs(v)); }
+  var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function monthName(m) { var p = m.split("-"); return MON[+p[1] - 1] + " " + p[0]; }
+  var key = P.skey;
+
+  var parsed = null, last = null, history = { months: [], costs: {}, categories: {} }, current = {}, catCost = {}, LS_COSTS = "vavi_profit_costs", LS_PACK = "vavi_profit_packing";
+  var OTHER = "Other (not in your SKU list)";
+  var skuList = [];   // [{name, skus[]}] from Manage SKUs (the SKU Setup tab); empty = every SKU is priced on its own
+
+  function readCachedList() { try { var c = JSON.parse(localStorage.getItem("vavi_sku_cfg") || "null"); return c && c.length ? c : []; } catch (e) { return []; } }
+  function skuToCat() { var m = {}; skuList.forEach(function (c) { (c.skus || []).forEach(function (x) { var k = key(x); if (k && m[k] === undefined) m[k] = c.name; }); }); return m; }
+
+  function msg(id, kind, text) { var n = $(id); n.textContent = ""; if (text) n.appendChild(el("div", "note " + kind, text)); }
+
+  /* ------------------------------------------------ saved months and costs */
+  function loadHistory() {
+    skuList = readCachedList();
+    if (!SH.connected()) { renderHistory(); return; }
+    SH.call("sku_get").then(function (r) { if (r && r.categories && r.categories.length) skuList = r.categories; if (parsed) buildSkus(); }).catch(function () { /* the saved copy on this phone is used */ });
+    SH.call("profit_get").then(function (r) { history = { months: r.months || [], costs: r.costs || {}, categories: r.categories || {} }; renderHistory(); if (parsed) buildSkus(); })
+      .catch(function (e) { $("pf-hist-msg").textContent = e.message + " Showing what is saved on this phone."; renderHistory(); });
+  }
+  function renderHistory() {
+    var tb = $("pf-hist").tBodies[0]; tb.textContent = "";
+    var rows = history.months.slice().reverse();
+    $("pf-hist-wrap").hidden = !rows.length;
+    $("pf-hist-empty").hidden = !!rows.length;
+    rows.forEach(function (m) {
+      var tr = el("tr");
+      tr.appendChild(el("td", "", monthName(m.month)));
+      var p = el("td", "n" + (m.profit < 0 ? " neg" : ""), money(m.profit)); tr.appendChild(p);
+      tr.appendChild(el("td", "n", m.profitPct == null ? "-" : m.profitPct.toFixed(1) + "%"));
+      tr.appendChild(el("td", "n", money(m.settlement)));
+      var cs = (history.categories[m.month] || []).filter(function (c) { return c.category !== "Other" || (history.categories[m.month] || []).length === 1; });
+      tr.appendChild(el("td", "", cs.length ? cs[0].category : "-"));
+      tb.appendChild(tr);
+    });
+  }
+  // the price to start from: the same SKU's price in the nearest earlier month (else the latest), then this phone's copy
+  function savedCost(sku, month) {
+    var k = key(sku), best = null, bestM = "";
+    Object.keys(history.costs).sort().forEach(function (m) {
+      var c = history.costs[m]; Object.keys(c).forEach(function (s) {
+        if (key(s) === k && (m <= month || !best) && (m <= month ? (bestM === "" || m > bestM || bestM > month) : bestM === "")) { best = c[s]; bestM = m; }
+      });
+    });
+    if (best !== null) return best;
+    var local = lsGet(LS_COSTS) || {};
+    for (var s in local) if (key(s) === k) return local[s];
+    return null;
+  }
+
+  // a category's starting price: what its SKUs cost in the nearest earlier month that has any (the most common one), else this phone's copy
+  function savedCatCost(cat, month) {
+    var keys = {}; (cat.skus || []).forEach(function (x) { keys[key(x)] = 1; });
+    var months = Object.keys(history.costs).sort(), pick = null;
+    months.forEach(function (m) { if (m <= month) { var c = history.costs[m], has = Object.keys(c).some(function (x) { return keys[key(x)]; }); if (has) pick = m; } });
+    if (pick === null) months.forEach(function (m) { if (pick === null) { var c = history.costs[m], has = Object.keys(c).some(function (x) { return keys[key(x)]; }); if (has) pick = m; } });
+    var tally = {};
+    if (pick !== null) { var c = history.costs[pick]; Object.keys(c).forEach(function (x) { if (keys[key(x)]) tally[c[x]] = (tally[c[x]] || 0) + 1; }); }
+    else { var loc = lsGet(LS_COSTS) || {}; Object.keys(loc).forEach(function (x) { if (keys[key(x)]) tally[loc[x]] = (tally[loc[x]] || 0) + 1; }); }
+    var best = null, n = 0; Object.keys(tally).forEach(function (v) { if (tally[v] > n) { n = tally[v]; best = +v; } });
+    return best;
+  }
+
+  /* ---------------------------------------------------------------- upload */
+  function onFile(f) {
+    parsed = null; last = null;
+    ["pf-s2", "pf-s3", "pf-res"].forEach(function (i) { $(i).hidden = true; });
+    msg("pf-msg", "info", "Reading " + f.name + " …");
+    if (typeof DecompressionStream === "undefined") { msg("pf-msg", "bad", "This browser cannot open zip files. Update iOS or Chrome, or choose the .xlsx file inside the zip."); return; }
+    P.parseFile(f).then(function (p) {
+      if (!p.lines.length) throw new Error("No order lines were found in this file.");
+      parsed = p;
+      var ms = Object.keys(p.months).sort(), sel = $("pf-month"); sel.textContent = "";
+      var main = ms.reduce(function (a, b) { return p.months[b] > p.months[a] ? b : a; }, ms[0]);
+      ms.forEach(function (m) { var o = el("option", "", monthName(m) + " (" + int.format(p.months[m]) + " lines)"); o.value = m; if (m === main) o.selected = true; sel.appendChild(o); });
+      msg("pf-msg", "ok", "Read " + int.format(p.lines.length) + " order lines and " + p.adsRows + " ad deductions (" + money(p.adsTotal) + ").");
+      $("pf-s2").hidden = false; $("pf-s3").hidden = false;
+      var pk = lsGet(LS_PACK); $("pf-pack").value = "";
+      $("pf-pack-note").textContent = pk != null ? "Last time you used ₹" + pk + " per packet. Enter this month's figure." : "";
+      current = {}; catCost = {};
+      onMonth();
+    }).catch(function (e) { msg("pf-msg", "bad", e && e.message ? e.message : String(e)); });
+  }
+
+  function skusForMonth() {
+    var m = $("pf-month").value, map = {};
+    parsed.lines.filter(function (l) { return l.paymentDate.slice(0, 7) === m; }).forEach(function (l) {
+      var k = key(l.sku), g = map[k] || (map[k] = { sku: l.sku, units: 0, lines: 0 }); g.units += l.qty; g.lines++;
+    });
+    return Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) { return b.units - a.units; });
+  }
+
+  // what is priced: one row per category of the SKU list, then every SKU that is not in the list on its own
+  function groupsForMonth() {
+    var skus = skusForMonth();
+    if (!skuList.length) return { cats: [], singles: skus };
+    var map = skuToCat(), by = {}, singles = [];
+    skus.forEach(function (s) { var c = map[key(s.sku)]; if (c === undefined) singles.push(s); else (by[c] = by[c] || []).push(s); });
+    var cats = [];
+    skuList.forEach(function (c) { if (by[c.name]) { var g = { name: c.name, list: c, skus: by[c.name], units: 0, lines: 0 }; g.skus.forEach(function (s) { g.units += s.units; g.lines += s.lines; }); cats.push(g); } });
+    return { cats: cats, singles: singles };
+  }
+  // every SKU of the month with the price it will be calculated at
+  function costsForMonth() {
+    var g = groupsForMonth(), out = {};
+    g.cats.forEach(function (c) { c.skus.forEach(function (s) { out[s.sku] = catCost[c.name]; }); });
+    g.singles.forEach(function (s) { out[s.sku] = current[key(s.sku)]; });
+    return out;
+  }
+
+  function onMonth() {
+    var m = $("pf-month").value, nm = Object.keys(parsed.months).length, box = $("pf-month-note"); box.textContent = "";
+    if (nm > 1) box.appendChild(el("div", "note warn", "This file has payments in " + nm + " months. Only lines paid in " + monthName(m) + " are counted, and the ad costs in the file are taken as that month's."));
+    var prev = history.months.filter(function (x) { return x.month === m; })[0];
+    if (prev) box.appendChild(el("div", "note info", monthName(m) + " was saved before (profit " + money(prev.profit) + "). Calculating again replaces it."));
+    buildSkus(); $("pf-res").hidden = true;
+  }
+
+  function priceRow(host, title, sub, saved, haveHistory, get, set, extra) {
+    var row = el("div", "pf-sku"), info = el("div", "pf-name"); info.appendChild(el("div", "", title));
+    info.appendChild(el("small", "", sub)); if (extra) info.appendChild(el("small", "", extra));
+    var inp = el("input"); inp.type = "text"; inp.inputMode = "decimal"; inp.autocomplete = "off"; inp.setAttribute("aria-label", "Unit cost for " + title);
+    if (get() !== undefined) inp.value = get();
+    var chip = el("span", "pf-chip");
+    function upd() {
+      var v = parseFloat(inp.value), has = inp.value.trim() !== "" && isFinite(v) && v >= 0, isNew = saved === null && haveHistory;
+      chip.className = "pf-chip" + (has ? (isNew ? " new" : "") : " miss");
+      chip.textContent = has ? (saved !== null && v === saved ? "Saved price" : saved !== null ? "Changed" : isNew ? "New: check price" : "Entered") : (isNew ? "New: needs a price" : "Needs a price");
+    }
+    inp.addEventListener("input", function () { var v = parseFloat(inp.value); set(inp.value.trim() !== "" && isFinite(v) && v >= 0 ? v : undefined); upd(); refresh(); });
+    upd();
+    var c2 = el("div", "pf-cost"); c2.appendChild(el("span", "", "₹")); c2.appendChild(inp);
+    row.appendChild(info); row.appendChild(c2); row.appendChild(chip); host.appendChild(row);
+  }
+
+  function buildSkus() {
+    var m = $("pf-month").value, host = $("pf-skus"); host.textContent = "";
+    var haveHistory = Object.keys(history.costs).length || Object.keys(lsGet(LS_COSTS) || {}).length;
+    var g = groupsForMonth();
+    if (!skuList.length) host.appendChild(el("div", "note info", "You have not made a SKU list yet, so every SKU is priced on its own. Settings, Manage SKUs lets you price a whole category at once."));
+    g.cats.forEach(function (c) {
+      var saved = savedCatCost(c.list, m);
+      if (catCost[c.name] === undefined && saved !== null) catCost[c.name] = saved;
+      priceRow(host, c.name, c.skus.length + (c.skus.length === 1 ? " SKU · " : " SKUs · ") + int.format(c.units) + " units · " + int.format(c.lines) + " lines", saved, haveHistory,
+        function () { return catCost[c.name]; }, function (v) { catCost[c.name] = v; }, c.skus.map(function (s) { return s.sku; }).join(", "));
+    });
+    if (g.cats.length && g.singles.length) host.appendChild(el("div", "note warn", "These SKUs are not in your SKU list, so each needs its own price. Add them under Settings, Manage SKUs to price them with a category next time."));
+    g.singles.forEach(function (s) {
+      var k = key(s.sku), saved = savedCost(s.sku, m);
+      if (!(k in current) && saved !== null) current[k] = saved;
+      priceRow(host, s.sku, int.format(s.units) + " units · " + int.format(s.lines) + " lines" + (g.cats.length ? " · " + OTHER : ""), saved, haveHistory,
+        function () { return current[k]; }, function (v) { current[k] = v; });
+    });
+    refresh();
+  }
+
+  function missing() { var c = costsForMonth(); return Object.keys(c).filter(function (k) { return !(c[k] >= 0); }); }
+  function packOk() { var v = $("pf-pack").value.trim(); return v !== "" && isFinite(parseFloat(v)) && parseFloat(v) >= 0; }
+  function refresh() {
+    var miss = missing(), ok = packOk();
+    $("pf-calc").disabled = !!miss.length || !ok;
+    $("pf-hint").textContent = !ok ? "Enter the packing cost first." : miss.length ? "A price is still needed for " + miss.length + " SKU" + (miss.length > 1 ? "s" : "") + "." : "";
+  }
+
+  $("pf-apply").addEventListener("click", function () {
+    var n = 0;
+    $("pf-paste").value.split(/\r?\n/).forEach(function (line) {
+      var m = /^\s*"?(.+?)"?[\s,;:\t]+₹?([0-9][0-9,]*(?:\.[0-9]+)?)\s*$/.exec(line);
+      if (!m) return;
+      var k = key(m[1]), v = parseFloat(m[2].replace(/,/g, "")), map = skuToCat(), hit = skuList.filter(function (c) { return key(c.name) === k; })[0];
+      if (hit) catCost[hit.name] = v; else if (map[k] !== undefined) catCost[map[k]] = v; else current[k] = v;
+      n++;
+    });
+    buildSkus(); $("pf-hint").textContent = n + " price" + (n === 1 ? "" : "s") + " read from the list.";
+    setTimeout(refresh, 2500);
+  });
+
+  /* ------------------------------------------------------------- calculate */
+  $("pf-calc").addEventListener("click", function () {
+    var month = $("pf-month").value, packing = parseFloat($("pf-pack").value), costs = {};
+    costs = costsForMonth();
+    var r;
+    try { r = P.calculate({ lines: parsed.lines, adsTotal: parsed.adsTotal, adsRows: parsed.adsRows, months: parsed.months, month: month, costs: costs, packing: packing }); }
+    catch (e) { msg("pf-s3msg", "bad", e.message || String(e)); return; }
+    msg("pf-s3msg", "", "");
+    last = r; lsSet(LS_PACK, packing);
+    var local = lsGet(LS_COSTS) || {}; Object.keys(costs).forEach(function (s) { local[s] = costs[s]; }); lsSet(LS_COSTS, local);
+    render(r); save(r, costs);
+  });
+
+  // profit of each category (before ads), best first; SKUs that are not in the SKU list count as Other
+  function categoryRows(r) {
+    var map = skuToCat(), by = {}, order = [];
+    r.bySku.forEach(function (s) {
+      var c = map[key(s.sku)] || "Other", g = by[c];
+      if (!g) { g = by[c] = { category: c, lines: 0, units: 0, settlement: 0, profit: 0 }; order.push(c); }
+      g.lines += s.lines; g.units += s.units; g.settlement += s.settlement; g.profit += s.profit;
+    });
+    var list = order.map(function (c) { return by[c]; }), totalProfit = list.reduce(function (a, g) { return a + (g.profit > 0 ? g.profit : 0); }, 0);
+    list.forEach(function (g) {
+      g.settlement = Math.round(g.settlement * 100) / 100; g.profit = Math.round(g.profit * 100) / 100;
+      g.perUnit = g.units ? Math.round(g.profit / g.units * 100) / 100 : 0;
+      g.share = g.profit > 0 && totalProfit > 0 ? Math.round(g.profit / totalProfit * 1000) / 10 : "";
+    });
+    list.sort(function (a, b) { return b.profit - a.profit; });
+    return list;
+  }
+
+  function tile(l, v, main) { var t = el("div", "stat" + (main ? " main wide" : "")); t.appendChild(el("div", "n", v)); t.appendChild(el("div", "l", l)); return t; }
+  function render(r) {
+    $("pf-res-hint").textContent = monthName(r.month) + " · " + int.format(r.lines) + " lines paid in the month · packing ₹" + r.packing + " per packet";
+    var k = $("pf-kpis"); k.textContent = "";
+    k.appendChild(tile("Monthly profit", money(r.profit), true));
+    k.appendChild(tile("Meesho settlement", money(r.settlement)));
+    k.appendChild(tile("Profit before ads", money(r.lineProfit)));
+    k.appendChild(tile("Ads cost", money(-r.ads)));
+    k.appendChild(tile("Profit % of settlement", r.profitPct == null ? "-" : r.profitPct.toFixed(2) + "%"));
+    var notes = $("pf-notes"); notes.textContent = "";
+    if (r.shippedLines) notes.appendChild(el("div", "note warn", r.shippedLines + " Shipped order" + (r.shippedLines > 1 ? "s were" : " was") + " already paid (" + money(r.shippedSettlement) + ") and counted with cost and packing. If Meesho takes the payment back later, that month adds the cost back."));
+    if (r.claimsCount) notes.appendChild(el("div", "note info", r.claimsCount + " claim" + (r.claimsCount > 1 ? "s" : "") + " for returned parcels (" + money(r.claimsAmount) + ") are ignored: neither profit nor loss."));
+    var tt = $("pf-types").tBodies[0]; tt.textContent = "";
+    r.byType.forEach(function (t) {
+      var tr = el("tr"); tr.appendChild(el("td", "", t.kind)); tr.appendChild(el("td", "n", int.format(t.lines))); tr.appendChild(el("td", "n", money(t.settlement))); tr.appendChild(el("td", "n" + (t.profit < 0 ? " neg" : ""), money(t.profit))); tt.appendChild(tr);
+    });
+    var tot = el("tr", "total"); tot.appendChild(el("td", "", "Total before ads")); tot.appendChild(el("td", "n", int.format(r.lines))); tot.appendChild(el("td", "n", money(r.settlement))); tot.appendChild(el("td", "n", money(r.lineProfit))); tt.appendChild(tot);
+    var ct = $("pf-cats").tBodies[0]; ct.textContent = "";
+    var cl = categoryRows(r);
+    $("pf-cats-note").textContent = skuList.length ? "Before ads. Share is each category's part of the profit made by the profitable categories. SKUs that are not in your SKU list are counted as Other." : "Make your SKU list in Settings, Manage SKUs to see profit by category. Until then everything shows as Other.";
+    var bestIdx = -1; cl.forEach(function (g, i) { if (bestIdx < 0 && g.category !== "Other" && g.profit > 0) bestIdx = i; });
+    cl.forEach(function (g, i) {
+      var tr = el("tr"); var nm = el("td", "", g.category); if (i === bestIdx) nm.appendChild(el("small", "pf-best", " Best"));
+      tr.appendChild(nm); tr.appendChild(el("td", "n", int.format(g.units))); tr.appendChild(el("td", "n", money(g.settlement)));
+      tr.appendChild(el("td", "n" + (g.profit < 0 ? " neg" : ""), money(g.profit))); tr.appendChild(el("td", "n", money(g.perUnit))); ct.appendChild(tr);
+    });
+    var st = $("pf-bysku").tBodies[0]; st.textContent = "";
+    r.bySku.forEach(function (s) {
+      var tr = el("tr"); tr.appendChild(el("td", "", s.sku)); tr.appendChild(el("td", "n", int.format(s.units))); tr.appendChild(el("td", "n", money(s.settlement))); tr.appendChild(el("td", "n" + (s.profit < 0 ? " neg" : ""), money(s.profit))); st.appendChild(tr);
+    });
+    $("pf-res").hidden = false; $("pf-copy-msg").textContent = "";
+    $("pf-res").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // how the month was calculated, for the sheet: one row per type of line, then the totals and the ads
+  function breakdownRows(r) {
+    var rules = {}; P.RULES_TABLE.forEach(function (x) { rules[x[0]] = x[1]; });
+    var ruleOf = function (kind) {
+      if (/^Delivered|^Shipped|^Cancelled/.test(kind)) return "settlement − packing − cost";
+      if (kind === "RTO") return "−packing (stock comes back)";
+      if (kind === "Return (same payment)") return "settlement − packing";
+      if (kind === "Return (earlier payment taken back)") return "settlement + cost (stock is back)";
+      if (kind === "Affiliate fee / recovery") return "settlement";
+      return "0 (ignored)";
+    };
+    var out = [], tl = 0, tc = 0, tp = 0, tk = 0, tpr = 0;
+    r.byType.forEach(function (t) {
+      out.push([r.month, "Line type", t.kind + ": " + ruleOf(t.kind), t.lines, t.counted, -t.packing, t.costEffect, t.profit]);
+      tl += t.lines; tc += t.counted; tp += -t.packing; tk += t.costEffect; tpr += t.profit;
+    });
+    out.push([r.month, "Total before ads", "Sum of all lines paid in the month", tl, Math.round(tc * 100) / 100, Math.round(tp * 100) / 100, Math.round(tk * 100) / 100, r.lineProfit]);
+    out.push([r.month, "Ads cost", "Ads Cost sheet of the Meesho file, including GST, deducted once (" + r.adsRows + " deductions)", 0, 0, 0, 0, -r.ads]);
+    out.push([r.month, "Monthly profit", "Total before ads − ads cost. Packing " + r.packing + " per packet. Profit is " + (r.profitPct == null ? "-" : r.profitPct.toFixed(2) + "%") + " of the Meesho settlement " + r.settlement, r.lines, 0, 0, 0, r.profit]);
+    return out;
+  }
+  function lineRows(r) {
+    var map = skuToCat();
+    return r.rows.map(function (x) {
+      return [x.subOrder, x.orderDate, x.paymentDate, x.sku, map[key(x.sku)] || (skuList.length ? "Other" : ""), x.qty, x.status, x.kind, x.settlement, x.counted, -x.packingCharged, x.costEffect, x.profit, x.how];
+    });
+  }
+
+  function save(r, costs) {
+    var n = $("pf-save-msg");
+    if (!SH.connected()) { n.textContent = "Not saved to your sheet: connect it in Settings. The result stays on screen and your prices are kept on this phone."; n.className = "msg"; return; }
+    n.textContent = "Saving to your sheet …"; n.className = "msg";
+    var s = { lines: r.lines, settlement: r.settlement, lineProfit: r.lineProfit, ads: r.ads, profit: r.profit, profitPct: r.profitPct, shippedLines: r.shippedLines, shippedSettlement: r.shippedSettlement, claimsCount: r.claimsCount, claimsAmount: r.claimsAmount };
+    SH.call("profit_save", { month: r.month, packing: r.packing, costs: costs, summary: s, bySku: r.bySku, breakdown: breakdownRows(r), lines: lineRows(r), byCategory: categoryRows(r).map(function (g) { return [r.month, g.category, g.lines, g.units, g.settlement, g.profit, g.perUnit, g.share]; }) }).then(function () {
+      n.textContent = "Saved to your sheet: the monthly row, prices, SKU profits, profit by category, the step-by-step breakdown and every line (tab Profit Lines " + r.month + ")."; n.className = "msg";
+      history.costs[r.month] = costs;
+      history.categories[r.month] = categoryRows(r).map(function (g) { return { category: g.category, profit: g.profit, units: g.units, settlement: g.settlement, perUnit: g.perUnit }; });
+      history.months = history.months.filter(function (m) { return m.month !== r.month; }).concat([{ month: r.month, lines: r.lines, settlement: r.settlement, lineProfit: r.lineProfit, ads: r.ads, profit: r.profit, profitPct: r.profitPct, packing: r.packing }]).sort(function (a, b) { return a.month < b.month ? -1 : 1; });
+      renderHistory();
+    }).catch(function (e) { n.textContent = e.message + " The result is on screen. Tap Calculate again to retry saving."; n.className = "msg bad"; });
+  }
+
+  /* ------------------------------------------------------------- downloads */
+  function csvCell(v) { var s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+  $("pf-csv").addEventListener("click", function () {
+    var cols = ["subOrder", "orderDate", "paymentDate", "sku", "qty", "status", "kind", "settlement", "unitCost", "cost", "profit"];
+    var text = [cols.join(",")].concat(last.rows.map(function (x) { return cols.map(function (c) { return csvCell(x[c]); }).join(","); })).join("\n");
+    var a = el("a"); a.href = URL.createObjectURL(new Blob([text], { type: "text/csv" })); a.download = "meesho-profit-lines-" + last.month + ".csv";
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  });
+  $("pf-copy").addEventListener("click", function () {
+    var r = last, t = [monthName(r.month), r.lines, r.settlement, r.lineProfit, r.ads, r.profit, r.profitPct, r.packing].join("\t");
+    function done(m) { $("pf-copy-msg").textContent = m; }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { done("Copied: month, lines, settlement, profit before ads, ads, profit, profit %, packing."); }).catch(function () { done("Copy was blocked. Row: " + t); });
+    else done("Copy is not available here. Row: " + t);
+  });
+
+  /* ------------------------------------------------------------------ wiring */
+  $("pf-file").addEventListener("change", function (e) { if (e.target.files[0]) onFile(e.target.files[0]); e.target.value = ""; });
+  $("pf-month").addEventListener("change", onMonth);
+  $("pf-pack").addEventListener("input", refresh);
+  var rt = $("pf-rules").tBodies[0];
+  P.RULES_TABLE.forEach(function (r) { var tr = el("tr"); tr.appendChild(el("td", "", r[0])); tr.appendChild(el("td", "", r[1])); rt.appendChild(tr); });
+  window.addEventListener("vavi:profit", loadHistory);
 })();
 
 </script>

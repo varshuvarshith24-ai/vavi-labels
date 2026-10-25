@@ -1,6 +1,6 @@
 {
-  "name": "Vavi Labels",
-  "short_name": "Vavi Labels",
+  "name": "Vavi Collections",
+  "short_name": "Vavi Collections",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

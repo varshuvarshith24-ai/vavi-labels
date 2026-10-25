@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Vavi Labels</title>
+<title>Vavi Collections</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Vavi Labels">
+<meta name="apple-mobile-web-app-title" content="Vavi Collections">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#0b3b3a">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -842,11 +842,11 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 <body>
 
 <div id="splash" aria-hidden="true"><svg class="sp-mark" viewBox="0 0 100 100"><path class="sp-line" d="M14 22 L50 84 L86 22 L66 22 L50 52 L34 22 Z"/><path class="sp-fill" d="M14 22 L50 84 L86 22 L66 22 L50 52 L34 22 Z"/></svg><div class="sp-name">VAVI COLLECTIONS</div><div class="sp-bar"><i></i></div></div>
-<div id="lock" role="dialog" aria-label="Locked"><svg class="sp-mark" viewBox="0 0 100 100" aria-hidden="true"><path d="M14 22 L50 84 L86 22 L66 22 L50 52 L34 22 Z" fill="currentColor"/></svg><h2>Vavi Labels is locked</h2><input id="lock-pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="PIN" aria-label="PIN" hidden><p class="help" id="lock-msg" role="status"></p><button class="btn" id="lock-btn" type="button">Unlock</button><button class="btn ghost" id="lock-bio" type="button" hidden>Use Face ID / fingerprint</button><button class="btn ghost sm" id="lock-forgot" type="button" hidden>Forgot PIN?</button></div>
+<div id="lock" role="dialog" aria-label="Locked"><svg class="sp-mark" viewBox="0 0 100 100" aria-hidden="true"><path d="M14 22 L50 84 L86 22 L66 22 L50 52 L34 22 Z" fill="currentColor"/></svg><h2>Vavi Collections is locked</h2><input id="lock-pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="PIN" aria-label="PIN" hidden><p class="help" id="lock-msg" role="status"></p><button class="btn" id="lock-btn" type="button">Unlock</button><button class="btn ghost" id="lock-bio" type="button" hidden>Use Face ID / fingerprint</button><button class="btn ghost sm" id="lock-forgot" type="button" hidden>Forgot PIN?</button></div>
 <main>
   <header>
     <div class="titlebar">
-      <h1>Vavi Meesho Labels</h1>
+      <h1>Vavi Collections</h1>
       <div class="tb-btns">
       <button class="icon-btn" id="tab-theme" type="button" aria-label="Theme" hidden>
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.8-.4-1.1-.3-.4-.5-.7-.5-1.2 0-.9.7-1.6 1.6-1.6H17a4 4 0 0 0 4-4C21 6.8 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.1"/><circle cx="10.5" cy="7.2" r="1.1"/><circle cx="15" cy="7.4" r="1.1"/></svg>
@@ -1018,6 +1018,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       <p class="help" id="pf-res-hint"></p>
       <div class="stats" id="pf-kpis"></div>
       <div id="pf-notes" class="stack" style="gap:8px"></div>
+      <div id="pf-outcome" class="stack" style="gap:6px"></div>
       <p class="msg" id="pf-save-msg" role="status"></p>
       <h3>By type of line</h3>
       <div class="tablewrap"><table id="pf-types"><thead><tr><th>Type</th><th class="n">Lines</th><th class="n">Settlement</th><th class="n">Profit</th></tr></thead><tbody></tbody></table></div>
@@ -2717,7 +2718,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     var hits = [];
     list.forEach(function (c) {
       var rows = mine[c.key]; if (!rows) return;
-      var prev = c.orderNos.filter(function (o) { return !upload[o]; }).length;   // orders from before these labels
+      var prev = c.orderNos.filter(function (o) { return !upload[o]; }).length + (c.archived || 0);   // orders from before these labels
       if (prev >= MIN) hits.push({ c: c, prev: prev, rows: rows });
     });
     if (!hits.length) { note("info", "Loyal customer check done: no customer in these labels has ordered " + MIN + " or more times before."); return; }
@@ -3333,7 +3334,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   function monthName(m) { var p = m.split("-"); return MON[+p[1] - 1] + " " + p[0]; }
   var key = P.skey;
 
-  var parsed = null, last = null, history = { months: [], costs: {}, categories: {} }, current = {}, catCost = {}, LS_COSTS = "vavi_profit_costs", LS_PACK = "vavi_profit_packing";
+  var parsed = null, last = null, history = { months: [], costs: {}, categories: {}, breakdown: {} }, current = {}, catCost = {}, LS_COSTS = "vavi_profit_costs", LS_PACK = "vavi_profit_packing";
   var OTHER = "Other (not in your SKU list)";
   var skuList = [];   // [{name, skus[]}] from Manage SKUs (the SKU Setup tab); empty = every SKU is priced on its own
 
@@ -3347,8 +3348,33 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     skuList = readCachedList();
     if (!SH.connected()) { renderHistory(); return; }
     SH.call("sku_get").then(function (r) { if (r && r.categories && r.categories.length) skuList = r.categories; if (parsed) buildSkus(); }).catch(function () { /* the saved copy on this phone is used */ });
-    SH.call("profit_get").then(function (r) { history = { months: r.months || [], costs: r.costs || {}, categories: r.categories || {} }; renderHistory(); if (parsed) buildSkus(); })
+    SH.call("profit_get").then(function (r) { history = { months: r.months || [], costs: r.costs || {}, categories: r.categories || {}, breakdown: r.breakdown || {} }; renderHistory(); if (parsed) buildSkus(); })
       .catch(function (e) { $("pf-hist-msg").textContent = e.message + " Showing what is saved on this phone."; renderHistory(); });
+  }
+  // delivered / RTO / returns (both kinds of return together), from rows of {kind, lines, counted, profit}
+  function outcomes(list) {
+    var o = { del: { n: 0, amt: 0, profit: 0 }, rto: { n: 0, amt: 0, profit: 0 }, ret: { n: 0, amt: 0, profit: 0 } };
+    list.forEach(function (t) {
+      var b = t.kind === "Delivered" ? o.del : t.kind === "RTO" ? o.rto : /^Return/.test(t.kind) ? o.ret : null;
+      if (b) { b.n += t.lines; b.amt += t.counted; b.profit += t.profit; }
+    });
+    return o;
+  }
+  function outcomeTable(o) {
+    var w = el("div", "tablewrap"), t = el("table"), th = el("thead"), hr = el("tr");
+    ["", "Orders", "Settlement", "Profit effect"].forEach(function (h, i) { hr.appendChild(el("th", i ? "n" : "", h)); });
+    th.appendChild(hr); t.appendChild(th); var tb = el("tbody");
+    [["Delivered", o.del], ["RTO", o.rto], ["Returns", o.ret]].forEach(function (x) {
+      var b = x[1], tr = el("tr"); tr.appendChild(el("td", "", x[0])); tr.appendChild(el("td", "n", int.format(b.n)));
+      tr.appendChild(el("td", "n" + (b.amt < 0 ? " neg" : ""), money(Math.round(b.amt * 100) / 100)));
+      tr.appendChild(el("td", "n" + (b.profit < 0 ? " neg" : ""), money(Math.round(b.profit * 100) / 100))); tb.appendChild(tr);
+    });
+    t.appendChild(tb); w.appendChild(t); return w;
+  }
+  function outcomeFromBreakdown(m) {
+    var rows = (history.breakdown || {})[m]; if (!rows) return null;
+    var list = rows.filter(function (x) { return x.step === "Line type"; }).map(function (x) { return { kind: x.rule.split(": ")[0], lines: x.lines, counted: x.counted, profit: x.profit }; });
+    return list.length ? outcomes(list) : null;
   }
   function monthDetail(m) {
     var box = el("div", "pf-det");
@@ -3365,6 +3391,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     if (m.claimsCount) add("Return claims ignored", int.format(m.claimsCount) + " (" + money(m.claimsAmount) + ")");
     if (m.savedOn) add("Saved on", m.savedOn);
     box.appendChild(kv);
+    var oc = outcomeFromBreakdown(m.month);
+    box.appendChild(el("h3", "pf-h3", "Delivered, RTO and returns"));
+    if (oc) { box.appendChild(outcomeTable(oc)); box.appendChild(el("p", "help", "Returns count both kinds together: returned in the same payment, and an earlier payment taken back. Settlement is the amount counted from Meesho; Profit effect also includes packing and the stock cost.")); }
+    else box.appendChild(el("p", "help", "Not saved for this month yet. Calculate this month again and save it to see this table."));
     var cats = history.categories[m.month] || [];
     if (cats.length) {
       box.appendChild(el("h3", "pf-h3", "Profit by category (before ads)"));
@@ -3607,6 +3637,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     k.appendChild(tile("Profit before ads", money(r.lineProfit)));
     k.appendChild(tile("Ads cost", money(-r.ads)));
     k.appendChild(tile("Profit % of settlement", r.profitPct == null ? "-" : pctText(r.profitPct)));
+    var oh = $("pf-outcome"); oh.textContent = ""; oh.appendChild(el("h3", "pf-h3", "Delivered, RTO and returns")); oh.appendChild(outcomeTable(outcomes(r.byType)));
+    oh.appendChild(el("p", "help", "Returns count both kinds together: returned in the same payment, and an earlier payment taken back. Settlement is the amount counted from Meesho; Profit effect also includes packing and the stock cost."));
     var notes = $("pf-notes"); notes.textContent = "";
     if (r.shippedLines) notes.appendChild(el("div", "note warn", r.shippedLines + " Shipped order" + (r.shippedLines > 1 ? "s were" : " was") + " already paid (" + money(r.shippedSettlement) + ") and counted with cost and packing. If Meesho takes the payment back later, that month adds the cost back."));
     if (r.claimsCount) notes.appendChild(el("div", "note info", r.claimsCount + " claim" + (r.claimsCount > 1 ? "s" : "") + " for returned parcels (" + money(r.claimsAmount) + ") are ignored: neither profit nor loss."));
@@ -3670,6 +3702,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       history.costs[r.month] = costs;
       history.categories[r.month] = categoryRows(r).map(function (g) { return { category: g.category, profit: g.profit, units: g.units, settlement: g.settlement, perUnit: g.perUnit }; });
       history.months = history.months.filter(function (m) { return m.month !== r.month; }).concat([{ month: r.month, lines: r.lines, settlement: r.settlement, lineProfit: r.lineProfit, ads: r.ads, profit: r.profit, profitPct: r.profitPct, packing: r.packing }]).sort(function (a, b) { return a.month < b.month ? -1 : 1; });
+    history.breakdown = history.breakdown || {}; history.breakdown[r.month] = breakdownRows(r).map(function (x) { return { step: x[1], rule: x[2], lines: x[3], counted: x[4], packing: x[5], cost: x[6], profit: x[7] }; });
       renderHistory();
     }).catch(function (e) { n.textContent = e.message + " The result is on screen. Tap Calculate again to retry saving."; n.className = "msg bad"; });
   }

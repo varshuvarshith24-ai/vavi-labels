@@ -992,7 +992,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   </div>
 
   <div id="view-profit" class="stack pf-hidden" hidden>
-    <div class="pf-lockbar"><span id="pf-lock-txt">Profit is hidden</span><button class="btn sm" id="pf-reveal" type="button">Show profit</button></div>
+    <div class="pf-lockbar"><span id="pf-lock-txt">Profit and settlement are hidden</span><button class="btn sm" id="pf-reveal" type="button">Show amounts</button></div>
     <p class="help" id="pf-lock-tip">Tip: turn on App lock in Settings, then showing profit will ask for Face ID, fingerprint or your PIN.</p>
     <section class="card" aria-labelledby="h-pf">
       <h2 id="h-pf">Monthly profit</h2>
@@ -3390,7 +3390,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     th.appendChild(hr); t.appendChild(th); var tb = el("tbody");
     [["Delivered", o.del], ["RTO", o.rto], ["Returns", o.ret]].forEach(function (x) {
       var b = x[1], tr = el("tr"); tr.appendChild(el("td", "", x[0])); tr.appendChild(el("td", "n", int.format(b.n)));
-      tr.appendChild(el("td", "n" + (b.amt < 0 ? " neg" : ""), money(Math.round(b.amt * 100) / 100)));
+      tr.appendChild(el("td", "n pf-s" + (b.amt < 0 ? " neg" : ""), money(Math.round(b.amt * 100) / 100)));
       tr.appendChild(el("td", "n pf-s" + (b.profit < 0 ? " neg" : ""), money(Math.round(b.profit * 100) / 100))); tb.appendChild(tr);
     });
     t.appendChild(tb); w.appendChild(t); return w;
@@ -3405,14 +3405,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     var kv = el("dl", "pf-kv");
     function add(k, v, neg, sec) { kv.appendChild(el("dt", "", k)); kv.appendChild(el("dd", (neg ? "neg" : "") + (sec ? " pf-s" : ""), v)); }
     add("Lines paid in the month", int.format(m.lines));
-    add("Meesho settlement (total turnover)", money(m.settlement));
+    add("Meesho settlement (total turnover)", money(m.settlement), false, true);
     add("Profit before ads", money(m.lineProfit), m.lineProfit < 0, true);
     add("Ads cost", money(-m.ads));
     add("Monthly profit", money(m.profit), m.profit < 0, true);
     add("Profit % of settlement", m.profitPct == null ? "-" : pctText(m.profitPct), m.profit < 0, true);
     add("Packing per packet", "₹" + m.packing);
-    if (m.shippedLines) add("Shipped orders already paid", int.format(m.shippedLines) + " (" + money(m.shippedSettlement) + ")");
-    if (m.claimsCount) add("Return claims ignored", int.format(m.claimsCount) + " (" + money(m.claimsAmount) + ")");
+    if (m.shippedLines) add("Shipped orders already paid", int.format(m.shippedLines) + " (" + money(m.shippedSettlement) + ")", false, true);
+    if (m.claimsCount) add("Return claims ignored", int.format(m.claimsCount) + " (" + money(m.claimsAmount) + ")", false, true);
     if (m.savedOn) add("Saved on", m.savedOn);
     box.appendChild(kv);
     var oc = outcomeFromBreakdown(m.month);
@@ -3426,7 +3426,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       ["Category", "Settlement", "Profit", "Profit %"].forEach(function (h, i) { hr.appendChild(el("th", i ? "n" : "", h)); });
       th.appendChild(hr); t.appendChild(th); var tb = el("tbody");
       cats.forEach(function (g) {
-        var tr = el("tr"); tr.appendChild(el("td", "", g.category)); tr.appendChild(el("td", "n", money(g.settlement)));
+        var tr = el("tr"); tr.appendChild(el("td", "", g.category)); tr.appendChild(el("td", "n pf-s", money(g.settlement)));
         tr.appendChild(el("td", "n pf-s" + (g.profit < 0 ? " neg" : ""), money(g.profit))); tr.appendChild(el("td", "n pf-s" + (g.profit < 0 ? " neg" : ""), catPct(g))); tb.appendChild(tr);
       });
       t.appendChild(tb); w.appendChild(t); box.appendChild(w);
@@ -3449,7 +3449,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       var first = el("td", ""); first.appendChild(el("span", "pf-chev", "▸")); first.appendChild(document.createTextNode(" " + monthName(m.month))); tr.appendChild(first);
       var p = el("td", "n pf-s" + (m.profit < 0 ? " neg" : ""), money(m.profit)); tr.appendChild(p);
       tr.appendChild(el("td", "n pf-s", m.profitPct == null ? "-" : pctText(m.profitPct)));
-      tr.appendChild(el("td", "n", money(m.settlement)));
+      tr.appendChild(el("td", "n pf-s", money(m.settlement)));
       var cs = (history.categories[m.month] || []).filter(function (c) { return c.category !== "Other" || (history.categories[m.month] || []).length === 1; });
       tr.appendChild(el("td", "", cs.length ? cs[0].category : "-"));
       var det = null;
@@ -3669,32 +3669,32 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     $("pf-res-hint").textContent = monthName(r.month) + " · " + int.format(r.lines) + " lines paid in the month · packing ₹" + r.packing + " per packet";
     var k = $("pf-kpis"); k.textContent = "";
     k.appendChild(tile("Monthly profit", money(r.profit), true, true));
-    k.appendChild(tile("Meesho settlement", money(r.settlement)));
+    k.appendChild(tile("Meesho settlement", money(r.settlement), false, true));
     k.appendChild(tile("Profit before ads", money(r.lineProfit), false, true));
     k.appendChild(tile("Ads cost", money(-r.ads)));
     k.appendChild(tile("Profit % of settlement", r.profitPct == null ? "-" : pctText(r.profitPct)));
     var oh = $("pf-outcome"); oh.textContent = ""; oh.appendChild(el("h3", "pf-h3", "Delivered, RTO and returns")); oh.appendChild(outcomeTable(outcomes(r.byType)));
     oh.appendChild(el("p", "help", "Returns count both kinds together: returned in the same payment, and an earlier payment taken back. Settlement is the amount counted from Meesho; Profit effect also includes packing and the stock cost."));
     var notes = $("pf-notes"); notes.textContent = "";
-    if (r.shippedLines) notes.appendChild(el("div", "note warn", r.shippedLines + " Shipped order" + (r.shippedLines > 1 ? "s were" : " was") + " already paid (" + money(r.shippedSettlement) + ") and counted with cost and packing. If Meesho takes the payment back later, that month adds the cost back."));
-    if (r.claimsCount) notes.appendChild(el("div", "note info", r.claimsCount + " claim" + (r.claimsCount > 1 ? "s" : "") + " for returned parcels (" + money(r.claimsAmount) + ") are ignored: neither profit nor loss."));
+    if (r.shippedLines) { var sn = el("div", "note warn"); sn.appendChild(document.createTextNode(r.shippedLines + " Shipped order" + (r.shippedLines > 1 ? "s were" : " was") + " already paid (")); sn.appendChild(el("span", "pf-s", money(r.shippedSettlement))); sn.appendChild(document.createTextNode(") and counted with cost and packing. If Meesho takes the payment back later, that month adds the cost back.")); notes.appendChild(sn); }
+    if (r.claimsCount) { var cn = el("div", "note info"); cn.appendChild(document.createTextNode(r.claimsCount + " claim" + (r.claimsCount > 1 ? "s" : "") + " for returned parcels (")); cn.appendChild(el("span", "pf-s", money(r.claimsAmount))); cn.appendChild(document.createTextNode(") are ignored: neither profit nor loss.")); notes.appendChild(cn); }
     var tt = $("pf-types").tBodies[0]; tt.textContent = "";
     r.byType.forEach(function (t) {
-      var tr = el("tr"); tr.appendChild(el("td", "", t.kind)); tr.appendChild(el("td", "n", int.format(t.lines))); tr.appendChild(el("td", "n", money(t.settlement))); tr.appendChild(el("td", "n pf-s" + (t.profit < 0 ? " neg" : ""), money(t.profit))); tt.appendChild(tr);
+      var tr = el("tr"); tr.appendChild(el("td", "", t.kind)); tr.appendChild(el("td", "n", int.format(t.lines))); tr.appendChild(el("td", "n pf-s", money(t.settlement))); tr.appendChild(el("td", "n pf-s" + (t.profit < 0 ? " neg" : ""), money(t.profit))); tt.appendChild(tr);
     });
-    var tot = el("tr", "total"); tot.appendChild(el("td", "", "Total before ads")); tot.appendChild(el("td", "n", int.format(r.lines))); tot.appendChild(el("td", "n", money(r.settlement))); tot.appendChild(el("td", "n pf-s", money(r.lineProfit))); tt.appendChild(tot);
+    var tot = el("tr", "total"); tot.appendChild(el("td", "", "Total before ads")); tot.appendChild(el("td", "n", int.format(r.lines))); tot.appendChild(el("td", "n pf-s", money(r.settlement))); tot.appendChild(el("td", "n pf-s", money(r.lineProfit))); tt.appendChild(tot);
     var ct = $("pf-cats").tBodies[0]; ct.textContent = "";
     var cl = categoryRows(r);
     $("pf-cats-note").textContent = skuList.length ? "Before ads. Profit % is the category's profit divided by its Meesho settlement. Share is each category's part of the profit made by the profitable categories. SKUs that are not in your SKU list are counted as Other." : "Make your SKU list in Settings, Manage SKUs to see profit by category. Until then everything shows as Other.";
     var bestIdx = -1; cl.forEach(function (g, i) { if (bestIdx < 0 && g.category !== "Other" && g.profit > 0) bestIdx = i; });
     cl.forEach(function (g, i) {
       var tr = el("tr"); var nm = el("td", "", g.category); if (i === bestIdx) nm.appendChild(el("small", "pf-best", " Best"));
-      tr.appendChild(nm); tr.appendChild(el("td", "n", int.format(g.units))); tr.appendChild(el("td", "n", money(g.settlement)));
+      tr.appendChild(nm); tr.appendChild(el("td", "n", int.format(g.units))); tr.appendChild(el("td", "n pf-s", money(g.settlement)));
       tr.appendChild(el("td", "n pf-s" + (g.profit < 0 ? " neg" : ""), money(g.profit))); tr.appendChild(el("td", "n pf-s" + (g.profit < 0 ? " neg" : ""), catPct(g))); tr.appendChild(el("td", "n pf-s", money(g.perUnit))); ct.appendChild(tr);
     });
     var st = $("pf-bysku").tBodies[0]; st.textContent = "";
     r.bySku.forEach(function (s) {
-      var tr = el("tr"); tr.appendChild(el("td", "", s.sku)); tr.appendChild(el("td", "n", int.format(s.units))); tr.appendChild(el("td", "n", money(s.settlement))); tr.appendChild(el("td", "n pf-s" + (s.profit < 0 ? " neg" : ""), money(s.profit))); st.appendChild(tr);
+      var tr = el("tr"); tr.appendChild(el("td", "", s.sku)); tr.appendChild(el("td", "n", int.format(s.units))); tr.appendChild(el("td", "n pf-s", money(s.settlement))); tr.appendChild(el("td", "n pf-s" + (s.profit < 0 ? " neg" : ""), money(s.profit))); st.appendChild(tr);
     });
     $("pf-res").hidden = false; $("pf-copy-msg").textContent = "";
     $("pf-res").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -3756,7 +3756,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   /* ------------------------------------------------------ hide profit until confirmed, fold cards */
   var view = $("view-profit"), revealTimer = null;
   function hiddenNow() { return view.classList.contains("pf-hidden"); }
-  function setBtn() { var b = $("pf-reveal"); b.textContent = hiddenNow() ? "Show profit" : "Hide profit"; $("pf-lock-txt").textContent = hiddenNow() ? "Profit is hidden" : "Profit is showing"; }
+  function setBtn() { var b = $("pf-reveal"); b.textContent = hiddenNow() ? "Show amounts" : "Hide amounts"; $("pf-lock-txt").textContent = hiddenNow() ? "Profit and settlement are hidden" : "Profit and settlement are showing"; }
   function hideProfit() { clearTimeout(revealTimer); view.classList.add("pf-hidden"); setBtn(); }
   function showProfit() { view.classList.remove("pf-hidden"); setBtn(); clearTimeout(revealTimer); revealTimer = setTimeout(hideProfit, 120000); }
   function reveal(then) {

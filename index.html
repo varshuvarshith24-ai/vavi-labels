@@ -185,6 +185,12 @@ pre#summary {
 .pf-row { cursor: pointer; } .pf-row:focus-visible { outline: 3px solid var(--accent); outline-offset: -2px; }
 .pf-chev { display: inline-block; width: 1em; color: var(--accent); }
 .pf-detail > td { background: var(--accent-soft); padding: 12px; }
+.pf-lockbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pf-hidden .pf-s { font-size: 0 !important; user-select: none; -webkit-user-select: none; cursor: pointer; }
+.pf-hidden .pf-s::after { content: "******"; font-size: 16px; letter-spacing: 2px; font-weight: 700; }
+.pf-hidden .stat .pf-s::after { font-size: 26px; }
+.pf-fold > *:not(h2) { display: none; }
+h2 .pf-chev { display: inline-block; width: 1.1em; }
 .pf-det { white-space: normal; position: sticky; left: 0; display: flex; flex-direction: column; gap: 10px; }
 .pf-kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 0; }
 .pf-kv dt { color: var(--muted); } .pf-kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
@@ -842,7 +848,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 <body>
 
 <div id="splash" aria-hidden="true"><svg class="sp-mark" viewBox="0 0 100 100"><path class="sp-line" d="M14 22 L50 84 L86 22 L66 22 L50 52 L34 22 Z"/><path class="sp-fill" d="M14 22 L50 84 L86 22 L66 22 L50 52 L34 22 Z"/></svg><div class="sp-name">VAVI COLLECTIONS</div><div class="sp-bar"><i></i></div></div>
-<div id="lock" role="dialog" aria-label="Locked"><svg class="sp-mark" viewBox="0 0 100 100" aria-hidden="true"><path d="M14 22 L50 84 L86 22 L66 22 L50 52 L34 22 Z" fill="currentColor"/></svg><h2>Vavi Collections is locked</h2><input id="lock-pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="PIN" aria-label="PIN" hidden><p class="help" id="lock-msg" role="status"></p><button class="btn" id="lock-btn" type="button">Unlock</button><button class="btn ghost" id="lock-bio" type="button" hidden>Use Face ID / fingerprint</button><button class="btn ghost sm" id="lock-forgot" type="button" hidden>Forgot PIN?</button></div>
+<div id="lock" role="dialog" aria-label="Locked"><svg class="sp-mark" viewBox="0 0 100 100" aria-hidden="true"><path d="M14 22 L50 84 L86 22 L66 22 L50 52 L34 22 Z" fill="currentColor"/></svg><h2>Vavi Collections is locked</h2><input id="lock-pin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="PIN" aria-label="PIN" hidden><p class="help" id="lock-msg" role="status"></p><button class="btn" id="lock-btn" type="button">Unlock</button><button class="btn ghost" id="lock-bio" type="button" hidden>Use Face ID / fingerprint</button><button class="btn ghost sm" id="lock-cancel" type="button" hidden>Cancel</button><button class="btn ghost sm" id="lock-forgot" type="button" hidden>Forgot PIN?</button></div>
 <main>
   <header>
     <div class="titlebar">
@@ -985,7 +991,9 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     </div>
   </div>
 
-  <div id="view-profit" class="stack" hidden>
+  <div id="view-profit" class="stack pf-hidden" hidden>
+    <div class="pf-lockbar"><span id="pf-lock-txt">Profit is hidden</span><button class="btn sm" id="pf-reveal" type="button">Show profit</button></div>
+    <p class="help" id="pf-lock-tip">Tip: turn on App lock in Settings, then showing profit will ask for Face ID, fingerprint or your PIN.</p>
     <section class="card" aria-labelledby="h-pf">
       <h2 id="h-pf">Monthly profit</h2>
       <p class="help">Upload the monthly Meesho payment zip (or the .xlsx inside it), enter the month's packing cost and SKU prices, and get the profit. The file is read on this phone and is not uploaded. The result is saved to your Google Sheet.</p>
@@ -3027,13 +3035,14 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   /* ---- lock screen ---- */
   var lockScreen = document.getElementById("lock"), lmsg = document.getElementById("lock-msg"), lpin = document.getElementById("lock-pin"), lbtn = document.getElementById("lock-btn"), lbio = document.getElementById("lock-bio"), lforgot = document.getElementById("lock-forgot");
   function setLocked(on) { if (on) html.classList.add("locked"); else html.classList.remove("locked"); if (on) showMode(); }
-  function done() { lsSet("vavi_pick_until", ""); if (lpin) lpin.value = ""; if (lmsg) lmsg.textContent = ""; html.classList.remove("locked"); }
+  function done() { lsSet("vavi_pick_until", ""); if (lpin) lpin.value = ""; if (lmsg) lmsg.textContent = ""; html.classList.remove("locked"); if (verifyRes) { var r = verifyRes; verifyRes = null; verifyUI(false); r(true); } }
   function showMode() {
     if (!lpin) return;
     var pin = hasPin(); lpin.hidden = !pin; if (lbio) lbio.hidden = !(pin && hasBio()); if (lforgot) lforgot.hidden = !pin;
     lbtn.textContent = pin ? "Unlock" : "Unlock with Face ID / fingerprint";
   }
-  var busy = false;
+  var busy = false, verifyRes = null, lcancel = document.getElementById("lock-cancel");
+  function verifyUI(on) { if (lcancel) lcancel.hidden = !on; var h = lockScreen && lockScreen.querySelector("h2"); if (h) h.textContent = on ? "Confirm it is you" : "Vavi Collections is locked"; }
   function tryBio() {
     if (busy || !hasBio()) return Promise.resolve(); busy = true;
     return bioVerify().then(function () { busy = false; done(); }).catch(function (e) { busy = false; if (lmsg) lmsg.textContent = e && e.name === "NotAllowedError" ? "Not unlocked. Try again." : "Could not unlock: " + (e && e.message ? e.message : e); });
@@ -3051,7 +3060,12 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   if (lockScreen) lockScreen.addEventListener("click", function (e) { if (!hasPin() && hasBio() && e.target === lockScreen) tryBio(); });
   if (lpin) lpin.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); submit(); } });
   if (lforgot) lforgot.addEventListener("click", function () { lmsg.textContent = "Forgot the PIN? Clear this website's data in your browser settings. That removes the lock and the saved sheet key on this phone, so enter the key again afterwards."; });
-  window.VaviLock = { enabled: enabled, lockNow: function () { if (enabled()) setLocked(true); }, unlock: submit };
+  function verify() {
+    if (!enabled()) return Promise.resolve(true);
+    return new Promise(function (res) { verifyRes = res; verifyUI(true); setLocked(true); promptUnlock(); });
+  }
+  if (lcancel) lcancel.addEventListener("click", function () { if (!verifyRes) return; var r = verifyRes; verifyRes = null; verifyUI(false); if (lpin) lpin.value = ""; if (lmsg) lmsg.textContent = ""; html.classList.remove("locked"); r(false); });
+  window.VaviLock = { verify: verify, enabled: enabled, lockNow: function () { if (enabled()) setLocked(true); }, unlock: submit };
 
   // every time the app is left and opened again, it asks again
   function lockIfLeft() { if (enabled() && !inGrace()) setLocked(true); }
@@ -3377,7 +3391,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     [["Delivered", o.del], ["RTO", o.rto], ["Returns", o.ret]].forEach(function (x) {
       var b = x[1], tr = el("tr"); tr.appendChild(el("td", "", x[0])); tr.appendChild(el("td", "n", int.format(b.n)));
       tr.appendChild(el("td", "n" + (b.amt < 0 ? " neg" : ""), money(Math.round(b.amt * 100) / 100)));
-      tr.appendChild(el("td", "n" + (b.profit < 0 ? " neg" : ""), money(Math.round(b.profit * 100) / 100))); tb.appendChild(tr);
+      tr.appendChild(el("td", "n pf-s" + (b.profit < 0 ? " neg" : ""), money(Math.round(b.profit * 100) / 100))); tb.appendChild(tr);
     });
     t.appendChild(tb); w.appendChild(t); return w;
   }
@@ -3389,13 +3403,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   function monthDetail(m) {
     var box = el("div", "pf-det");
     var kv = el("dl", "pf-kv");
-    function add(k, v, neg) { kv.appendChild(el("dt", "", k)); kv.appendChild(el("dd", neg ? "neg" : "", v)); }
+    function add(k, v, neg, sec) { kv.appendChild(el("dt", "", k)); kv.appendChild(el("dd", (neg ? "neg" : "") + (sec ? " pf-s" : ""), v)); }
     add("Lines paid in the month", int.format(m.lines));
     add("Meesho settlement (total turnover)", money(m.settlement));
-    add("Profit before ads", money(m.lineProfit), m.lineProfit < 0);
+    add("Profit before ads", money(m.lineProfit), m.lineProfit < 0, true);
     add("Ads cost", money(-m.ads));
-    add("Monthly profit", money(m.profit), m.profit < 0);
-    add("Profit % of settlement", m.profitPct == null ? "-" : pctText(m.profitPct), m.profit < 0);
+    add("Monthly profit", money(m.profit), m.profit < 0, true);
+    add("Profit % of settlement", m.profitPct == null ? "-" : pctText(m.profitPct), m.profit < 0, true);
     add("Packing per packet", "₹" + m.packing);
     if (m.shippedLines) add("Shipped orders already paid", int.format(m.shippedLines) + " (" + money(m.shippedSettlement) + ")");
     if (m.claimsCount) add("Return claims ignored", int.format(m.claimsCount) + " (" + money(m.claimsAmount) + ")");
@@ -3413,7 +3427,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       th.appendChild(hr); t.appendChild(th); var tb = el("tbody");
       cats.forEach(function (g) {
         var tr = el("tr"); tr.appendChild(el("td", "", g.category)); tr.appendChild(el("td", "n", money(g.settlement)));
-        tr.appendChild(el("td", "n" + (g.profit < 0 ? " neg" : ""), money(g.profit))); tr.appendChild(el("td", "n" + (g.profit < 0 ? " neg" : ""), catPct(g))); tb.appendChild(tr);
+        tr.appendChild(el("td", "n pf-s" + (g.profit < 0 ? " neg" : ""), money(g.profit))); tr.appendChild(el("td", "n pf-s" + (g.profit < 0 ? " neg" : ""), catPct(g))); tb.appendChild(tr);
       });
       t.appendChild(tb); w.appendChild(t); box.appendChild(w);
     }
@@ -3433,8 +3447,8 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     rows.forEach(function (m) {
       var tr = el("tr", "pf-row"); tr.tabIndex = 0; tr.setAttribute("role", "button"); tr.setAttribute("aria-expanded", "false");
       var first = el("td", ""); first.appendChild(el("span", "pf-chev", "▸")); first.appendChild(document.createTextNode(" " + monthName(m.month))); tr.appendChild(first);
-      var p = el("td", "n" + (m.profit < 0 ? " neg" : ""), money(m.profit)); tr.appendChild(p);
-      tr.appendChild(el("td", "n", m.profitPct == null ? "-" : pctText(m.profitPct)));
+      var p = el("td", "n pf-s" + (m.profit < 0 ? " neg" : ""), money(m.profit)); tr.appendChild(p);
+      tr.appendChild(el("td", "n pf-s", m.profitPct == null ? "-" : pctText(m.profitPct)));
       tr.appendChild(el("td", "n", money(m.settlement)));
       var cs = (history.categories[m.month] || []).filter(function (c) { return c.category !== "Other" || (history.categories[m.month] || []).length === 1; });
       tr.appendChild(el("td", "", cs.length ? cs[0].category : "-"));
@@ -3553,7 +3567,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     var m = $("pf-month").value, nm = Object.keys(parsed.months).length, box = $("pf-month-note"); box.textContent = "";
     if (nm > 1) box.appendChild(el("div", "note warn", "This file has payments in " + nm + " months. Only lines paid in " + monthName(m) + " are counted, and the ad costs in the file are taken as that month's."));
     var prev = history.months.filter(function (x) { return x.month === m; })[0];
-    if (prev) box.appendChild(el("div", "note info", monthName(m) + " was saved before (profit " + money(prev.profit) + "). Calculating again replaces it."));
+    if (prev) { var pn = el("div", "note info"); pn.appendChild(document.createTextNode(monthName(m) + " was saved before (profit ")); pn.appendChild(el("span", "pf-s", money(prev.profit))); pn.appendChild(document.createTextNode("). Calculating again replaces it.")); box.appendChild(pn); }
     buildSkus(); $("pf-res").hidden = true;
   }
 
@@ -3650,13 +3664,13 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     return list;
   }
 
-  function tile(l, v, main) { var t = el("div", "stat" + (main ? " main wide" : "")); t.appendChild(el("div", "n", v)); t.appendChild(el("div", "l", l)); return t; }
+  function tile(l, v, main, sec) { var t = el("div", "stat" + (main ? " main wide" : "")); t.appendChild(el("div", "n" + (sec ? " pf-s" : ""), v)); t.appendChild(el("div", "l", l)); return t; }
   function render(r) {
     $("pf-res-hint").textContent = monthName(r.month) + " · " + int.format(r.lines) + " lines paid in the month · packing ₹" + r.packing + " per packet";
     var k = $("pf-kpis"); k.textContent = "";
-    k.appendChild(tile("Monthly profit", money(r.profit), true));
+    k.appendChild(tile("Monthly profit", money(r.profit), true, true));
     k.appendChild(tile("Meesho settlement", money(r.settlement)));
-    k.appendChild(tile("Profit before ads", money(r.lineProfit)));
+    k.appendChild(tile("Profit before ads", money(r.lineProfit), false, true));
     k.appendChild(tile("Ads cost", money(-r.ads)));
     k.appendChild(tile("Profit % of settlement", r.profitPct == null ? "-" : pctText(r.profitPct)));
     var oh = $("pf-outcome"); oh.textContent = ""; oh.appendChild(el("h3", "pf-h3", "Delivered, RTO and returns")); oh.appendChild(outcomeTable(outcomes(r.byType)));
@@ -3666,9 +3680,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     if (r.claimsCount) notes.appendChild(el("div", "note info", r.claimsCount + " claim" + (r.claimsCount > 1 ? "s" : "") + " for returned parcels (" + money(r.claimsAmount) + ") are ignored: neither profit nor loss."));
     var tt = $("pf-types").tBodies[0]; tt.textContent = "";
     r.byType.forEach(function (t) {
-      var tr = el("tr"); tr.appendChild(el("td", "", t.kind)); tr.appendChild(el("td", "n", int.format(t.lines))); tr.appendChild(el("td", "n", money(t.settlement))); tr.appendChild(el("td", "n" + (t.profit < 0 ? " neg" : ""), money(t.profit))); tt.appendChild(tr);
+      var tr = el("tr"); tr.appendChild(el("td", "", t.kind)); tr.appendChild(el("td", "n", int.format(t.lines))); tr.appendChild(el("td", "n", money(t.settlement))); tr.appendChild(el("td", "n pf-s" + (t.profit < 0 ? " neg" : ""), money(t.profit))); tt.appendChild(tr);
     });
-    var tot = el("tr", "total"); tot.appendChild(el("td", "", "Total before ads")); tot.appendChild(el("td", "n", int.format(r.lines))); tot.appendChild(el("td", "n", money(r.settlement))); tot.appendChild(el("td", "n", money(r.lineProfit))); tt.appendChild(tot);
+    var tot = el("tr", "total"); tot.appendChild(el("td", "", "Total before ads")); tot.appendChild(el("td", "n", int.format(r.lines))); tot.appendChild(el("td", "n", money(r.settlement))); tot.appendChild(el("td", "n pf-s", money(r.lineProfit))); tt.appendChild(tot);
     var ct = $("pf-cats").tBodies[0]; ct.textContent = "";
     var cl = categoryRows(r);
     $("pf-cats-note").textContent = skuList.length ? "Before ads. Profit % is the category's profit divided by its Meesho settlement. Share is each category's part of the profit made by the profitable categories. SKUs that are not in your SKU list are counted as Other." : "Make your SKU list in Settings, Manage SKUs to see profit by category. Until then everything shows as Other.";
@@ -3676,11 +3690,11 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     cl.forEach(function (g, i) {
       var tr = el("tr"); var nm = el("td", "", g.category); if (i === bestIdx) nm.appendChild(el("small", "pf-best", " Best"));
       tr.appendChild(nm); tr.appendChild(el("td", "n", int.format(g.units))); tr.appendChild(el("td", "n", money(g.settlement)));
-      tr.appendChild(el("td", "n" + (g.profit < 0 ? " neg" : ""), money(g.profit))); tr.appendChild(el("td", "n" + (g.profit < 0 ? " neg" : ""), catPct(g))); tr.appendChild(el("td", "n", money(g.perUnit))); ct.appendChild(tr);
+      tr.appendChild(el("td", "n pf-s" + (g.profit < 0 ? " neg" : ""), money(g.profit))); tr.appendChild(el("td", "n pf-s" + (g.profit < 0 ? " neg" : ""), catPct(g))); tr.appendChild(el("td", "n pf-s", money(g.perUnit))); ct.appendChild(tr);
     });
     var st = $("pf-bysku").tBodies[0]; st.textContent = "";
     r.bySku.forEach(function (s) {
-      var tr = el("tr"); tr.appendChild(el("td", "", s.sku)); tr.appendChild(el("td", "n", int.format(s.units))); tr.appendChild(el("td", "n", money(s.settlement))); tr.appendChild(el("td", "n" + (s.profit < 0 ? " neg" : ""), money(s.profit))); st.appendChild(tr);
+      var tr = el("tr"); tr.appendChild(el("td", "", s.sku)); tr.appendChild(el("td", "n", int.format(s.units))); tr.appendChild(el("td", "n", money(s.settlement))); tr.appendChild(el("td", "n pf-s" + (s.profit < 0 ? " neg" : ""), money(s.profit))); st.appendChild(tr);
     });
     $("pf-res").hidden = false; $("pf-copy-msg").textContent = "";
     $("pf-res").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -3732,10 +3746,36 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   /* ------------------------------------------------------- copy for WhatsApp */
   $("pf-copy").addEventListener("click", function () {
     var r = last; if (!r) return;
+    if (hiddenNow()) { reveal(function () { $("pf-copy").click(); }); return; }
     var t = "*" + monthName(r.month) + " results* 🎉\n💰 Total turnover: " + money(r.settlement) + "\n📈 Monthly profit: " + money(r.profit) + "\n📊 Profit: " + (r.profitPct == null ? "-" : pctText(r.profitPct));
     function done(m) { $("pf-copy-msg").textContent = m; }
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { done("Copied. Paste it in WhatsApp."); }).catch(function () { done("Copy failed. Select and copy this: " + t); });
     else done("Copy is not available here. Text: " + t);
+  });
+
+  /* ------------------------------------------------------ hide profit until confirmed, fold cards */
+  var view = $("view-profit"), revealTimer = null;
+  function hiddenNow() { return view.classList.contains("pf-hidden"); }
+  function setBtn() { var b = $("pf-reveal"); b.textContent = hiddenNow() ? "Show profit" : "Hide profit"; $("pf-lock-txt").textContent = hiddenNow() ? "Profit is hidden" : "Profit is showing"; }
+  function hideProfit() { clearTimeout(revealTimer); view.classList.add("pf-hidden"); setBtn(); }
+  function showProfit() { view.classList.remove("pf-hidden"); setBtn(); clearTimeout(revealTimer); revealTimer = setTimeout(hideProfit, 120000); }
+  function reveal(then) {
+    var L = window.VaviLock;
+    var go = L && L.verify ? L.verify() : Promise.resolve(true);
+    go.then(function (ok) { if (ok) { showProfit(); if (then) then(); } });
+  }
+  var tip = $("pf-lock-tip"); if (tip) tip.hidden = !!(window.VaviLock && window.VaviLock.enabled && window.VaviLock.enabled());
+  $("pf-reveal").addEventListener("click", function () { if (hiddenNow()) reveal(); else hideProfit(); });
+  view.addEventListener("click", function (e) { if (hiddenNow() && e.target.closest && e.target.closest(".pf-s")) { e.preventDefault(); e.stopPropagation(); reveal(); } }, true);
+  document.addEventListener("visibilitychange", function () { if (document.hidden) hideProfit(); });
+  document.addEventListener("click", function (e) { var t = e.target.closest && e.target.closest(".tab"); if (t && t.id !== "tab-profit") hideProfit(); });
+  setBtn();
+  // one tap on a card heading folds or unfolds the card
+  ["h-pfh", "h-pfc"].forEach(function (id) {
+    var h = document.getElementById(id); if (!h) return; var card = h.parentNode;
+    var chev = el("span", "pf-chev", "▾"); h.insertBefore(chev, h.firstChild); h.tabIndex = 0; h.setAttribute("role", "button"); h.setAttribute("aria-expanded", "true"); h.style.cursor = "pointer";
+    function flip() { var c = card.classList.toggle("pf-fold"); chev.textContent = c ? "▸" : "▾"; h.setAttribute("aria-expanded", c ? "false" : "true"); }
+    h.addEventListener("click", flip); h.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
   });
 
   /* ------------------------------------------------------------------ wiring */

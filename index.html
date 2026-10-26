@@ -1037,6 +1037,11 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       <p class="help" id="pf-hist-empty">No month saved yet. Your first calculation will appear here.</p>
       <div class="tablewrap" id="pf-hist-wrap" hidden><table id="pf-hist"><thead><tr><th>Month</th><th class="n">Profit</th><th class="n">Profit %</th><th class="n">Settlement</th><th>Best category</th></tr></thead><tbody></tbody></table></div>
     </section>
+    <section class="card" aria-labelledby="h-pfc" id="pf-cmp-card" hidden>
+      <h2 id="h-pfc">Orders by month</h2>
+      <p class="help">Delivered, RTO and returns for each saved month. Order counts only.</p>
+      <div class="tablewrap"><table id="pf-cmp"><thead><tr><th>Month</th><th class="n">Delivered</th><th class="n">RTO</th><th class="n">Returns</th></tr></thead><tbody></tbody></table></div>
+    </section>
     <section class="card">
       <details><summary>How profit is calculated</summary>
         <div class="stack" style="gap:8px"><p class="help">Cash basis: every line in Meesho's Order Payments sheet whose Payment Date is in the month. Cost = unit cost × quantity.</p>
@@ -3436,6 +3441,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       }
       tr.addEventListener("click", toggle);
       tr.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+      tb.appendChild(tr);
+    });
+    renderCompare();
+  }
+  function renderCompare() {
+    var tb = $("pf-cmp").tBodies[0]; tb.textContent = "";
+    var rows = history.months.slice().reverse();
+    $("pf-cmp-card").hidden = !rows.length;
+    rows.forEach(function (m) {
+      var oc = outcomeFromBreakdown(m.month), tr = el("tr");
+      tr.appendChild(el("td", "", monthName(m.month)));
+      [oc && oc.del, oc && oc.rto, oc && oc.ret].forEach(function (b) { tr.appendChild(el("td", "n", b ? int.format(b.n) : "-")); });
       tb.appendChild(tr);
     });
   }

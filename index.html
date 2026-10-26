@@ -809,7 +809,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 #lock input { font: 600 1.6rem var(--font-body); text-align: center; letter-spacing: .4em; width: 11rem; min-height: 56px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); color: var(--ink); }
 #lock .btn { min-width: 14rem; } #lock [hidden] { display: none !important; }
 #lock .sp-mark { width: 72px; height: 72px; color: var(--accent); }
-.locked #lock { display: flex; } .locked main { visibility: hidden; } .locked #splash { display: none !important; }
+.locked #lock { display: flex; } .locked main { visibility: hidden; } .locked #splash { z-index: 1001; }
 /* opening animation: colours and font follow the chosen theme */
 #splash { display: none; position: fixed; inset: 0; z-index: 999; background: var(--accent); color: var(--accent-ink); flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
 .splash-on #splash { display: flex; animation: sp-out .6s ease 2.4s forwards; }
@@ -3061,7 +3061,12 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   });
   window.addEventListener("pagehide", lockIfLeft);
   window.addEventListener("pageshow", function (e) { if (e.persisted) { lockIfLeft(); if (html.classList.contains("locked")) promptUnlock(); } });
-  if (enabled() && html.classList.contains("locked")) promptUnlock();
+  // on a fresh open the opening animation plays first (on top of the lock), then the unlock prompt appears
+  function afterSplash(fn) {
+    var tries = 0;
+    (function wait() { if (html.classList.contains("splash-on") && tries++ < 40) { setTimeout(wait, 150); return; } fn(); })();
+  }
+  if (enabled() && html.classList.contains("locked")) afterSplash(function () { if (html.classList.contains("locked")) promptUnlock(); });
 
   /* ---- Settings card ---- */
   var host = document.getElementById("lock-card");

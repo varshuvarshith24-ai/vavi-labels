@@ -185,6 +185,11 @@ pre#summary {
 .pf-row { cursor: pointer; } .pf-row:focus-visible { outline: 3px solid var(--accent); outline-offset: -2px; }
 .pf-chev { display: inline-block; width: 1em; color: var(--accent); }
 .pf-detail > td { background: var(--accent-soft); padding: 12px; }
+.sr-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.sr-head { font-weight: 700; word-break: break-all; font-size: 1.05rem; }
+.sr-line { display: flex; align-items: center; gap: 8px; }
+.sr-k { flex: none; width: 108px; color: var(--muted); font-size: .9rem; }
+.sr-v { flex: 1; min-width: 0; word-break: break-word; }
 .pf-lockbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .pf-hidden .pf-s { font-size: 0 !important; user-select: none; -webkit-user-select: none; cursor: pointer; }
 .pf-hidden .pf-s::after { content: "******"; font-size: 16px; letter-spacing: 2px; font-weight: 700; }
@@ -854,6 +859,9 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     <div class="titlebar">
       <h1>Vavi Collections</h1>
       <div class="tb-btns">
+      <button class="icon-btn" id="tab-search" type="button" aria-label="Search orders" hidden>
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>
+      </button>
       <button class="icon-btn" id="tab-theme" type="button" aria-label="Theme" hidden>
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.8-.4-1.1-.3-.4-.5-.7-.5-1.2 0-.9.7-1.6 1.6-1.6H17a4 4 0 0 0 4-4C21 6.8 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.1"/><circle cx="10.5" cy="7.2" r="1.1"/><circle cx="15" cy="7.4" r="1.1"/></svg>
       </button>
@@ -989,6 +997,17 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
           <div class="tablewrap"><table id="dash-table"></table></div>
         </div></details>
     </div>
+  </div>
+
+  <div id="search-view" class="stack" hidden>
+    <section class="card" aria-labelledby="h-sr">
+      <h2 id="h-sr">Search orders</h2>
+      <p class="help">Type the order number or the AWB number. Part of it is enough (at least 5 characters).</p>
+      <div class="field"><label for="sr-q">Order number or AWB</label><input id="sr-q" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="e.g. 3420000000"></div>
+      <div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="btn" id="sr-go" type="button">Search</button><button class="btn ghost" id="sr-clear" type="button">Clear</button></div>
+      <p class="msg" id="sr-msg" role="status" aria-live="polite"></p>
+    </section>
+    <div id="sr-out" class="stack"></div>
   </div>
 
   <div id="view-profit" class="stack pf-hidden" hidden>
@@ -1932,12 +1951,12 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   window.VaviSheet = { call: call, connected: connected };
 
   /* -------------------------------------------------------------- tabs/views */
-  var views = { labels: $("view-labels"), dash: $("view-dash"), set: $("sheet-settings"), skus: $("sku-view"), theme: $("theme-view"), profit: $("view-profit") };
-  var tabs = { labels: $("tab-labels"), dash: $("tab-dash"), profit: $("tab-profit"), set: $("tab-set") };
-  $("tabs").hidden = false; tabs.set.hidden = false; tabs.profit.hidden = false;
+  var views = { labels: $("view-labels"), dash: $("view-dash"), set: $("sheet-settings"), skus: $("sku-view"), theme: $("theme-view"), profit: $("view-profit"), search: $("search-view") };
+  var tabs = { labels: $("tab-labels"), dash: $("tab-dash"), profit: $("tab-profit"), set: $("tab-set"), search: $("tab-search") };
+  $("tabs").hidden = false; tabs.set.hidden = false; tabs.profit.hidden = false; tabs.search.hidden = false;
   var lastView = "labels";
   function show(name) {
-    if (name !== "set" && name !== "skus" && name !== "theme") lastView = name;
+    if (name !== "set" && name !== "skus" && name !== "theme" && name !== "search") lastView = name;
     Object.keys(views).forEach(function (k) {
       views[k].hidden = k !== name;
       if (tabs[k]) { tabs[k].setAttribute("aria-selected", k === name ? "true" : "false"); tabs[k].classList.toggle("on", k === name); }
@@ -1947,7 +1966,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     if (name === "set") { $("set-url").value = lsGet(LS_URL); $("set-key").value = lsGet(LS_KEY); }
     window.scrollTo(0, 0);
   }
-  Object.keys(tabs).forEach(function (k) { tabs[k].addEventListener("click", function () { show(k === "set" && !views.set.hidden ? lastView : k); }); });
+  Object.keys(tabs).forEach(function (k) { tabs[k].addEventListener("click", function () { show((k === "set" || k === "search") && !views[k].hidden ? lastView : k); }); });
   window.VaviShow = show;
   $("set-back").addEventListener("click", function () { show(lastView); });
 
@@ -3166,6 +3185,64 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
 </script>
 <script>
+// Search (standalone page only): find an order by its order number or AWB (part of it is enough).
+(function () {
+  if (window.claude && window.claude.use) return;
+  var SH = window.VaviSheet, btn = document.getElementById("tab-search"), view = document.getElementById("search-view");
+  if (!SH || !btn || !view) return;
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
+  var inr = new Intl.NumberFormat("en-IN");
+  function dmy(k) { var p = String(k || "").split("-"); return p.length === 3 ? p[2] + "-" + p[1] + "-" + p[0] : k || "-"; }
+  var input = $("sr-q"), go = $("sr-go"), msg = $("sr-msg"), out = $("sr-out"), token = 0;
+
+  function copy(text, done) {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { done("Copied"); }).catch(function () { done("Copy failed"); });
+    else done("Copy not available");
+  }
+  function line(box, k, v, copyable) {
+    var r = el("div", "sr-line"); r.appendChild(el("span", "sr-k", k));
+    var vv = el("span", "sr-v", v || "-"); r.appendChild(vv);
+    if (copyable && v) { var c = el("button", "btn ghost sm", "Copy"); c.type = "button"; c.addEventListener("click", function () { copy(v, function (m) { c.textContent = m; setTimeout(function () { c.textContent = "Copy"; }, 1500); }); }); r.appendChild(c); }
+    box.appendChild(r);
+  }
+  function card(o) {
+    var c = el("div", "sr-card");
+    c.appendChild(el("div", "sr-head", o.orderNo || "(no order number)"));
+    line(c, "Sent to courier", dmy(o.date) + (o.courier ? " · " + o.courier : ""));
+    line(c, "AWB", o.awb, true);
+    line(c, "Order date", o.orderDate ? dmy(o.orderDate) : "");
+    line(c, "SKU", o.sku);
+    line(c, "Category", o.category);
+    line(c, "Quantity", String(o.qty));
+    line(c, "Payment", (o.payment || "-") + " · ₹" + inr.format(o.value));
+    line(c, "Customer", o.name);
+    if (o.address) line(c, "Address", o.address, true); else line(c, "Pincode", o.pincode);
+    return c;
+  }
+  function run() {
+    var q = input.value.replace(/\s+/g, "");
+    out.textContent = "";
+    if (q.length < 5) { msg.className = "msg bad"; msg.textContent = "Type at least 5 characters of the order number or AWB."; return; }
+    if (!SH.connected()) { msg.className = "msg bad"; msg.textContent = "Connect your Google Sheet in Settings first."; return; }
+    var my = ++token; go.disabled = true; msg.className = "msg"; msg.textContent = "Searching your sheet …";
+    SH.call("find", { q: q }).then(function (r) {
+      if (my !== token) return;
+      var n = r.results.length;
+      if (!n) { msg.textContent = "Not found. Check the number. Orders older than a year are kept in the archive sheets in your Drive folder “Meesho Orders Archive”."; return; }
+      msg.textContent = r.total > n ? "Showing the latest " + n + " of " + r.total + " matches. Type more of the number to narrow it down." : n + (n === 1 ? " order found." : " orders found.");
+      r.results.forEach(function (o) { out.appendChild(card(o)); });
+    }).catch(function (e) { if (my === token) { msg.className = "msg bad"; msg.textContent = e.message; } })
+      .then(function () { if (my === token) go.disabled = false; });
+  }
+  go.addEventListener("click", run);
+  input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); run(); } });
+  $("sr-clear").addEventListener("click", function () { input.value = ""; out.textContent = ""; msg.textContent = ""; token++; go.disabled = false; input.focus(); });
+  btn.addEventListener("click", function () { setTimeout(function () { if (!view.hidden) input.focus(); }, 50); });
+})();
+
+</script>
+<script>
 // Meesho profit logic (payment zip/xlsx reading + the agreed profit rules). Ported unchanged from the profit calculator.
 (function (root) {
 'use strict';
@@ -3771,6 +3848,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   document.addEventListener("visibilitychange", function () { if (document.hidden) hideProfit(); });
   document.addEventListener("click", function (e) { var t = e.target.closest && e.target.closest(".tab"); if (t && t.id !== "tab-profit") hideProfit(); });
   setBtn();
+  try { new MutationObserver(function () { if (view.hidden) hideProfit(); }).observe(view, { attributes: true, attributeFilter: ["hidden"] }); } catch (e) {}
   // one tap on a card heading folds or unfolds the card
   ["h-pfh", "h-pfc"].forEach(function (id) {
     var h = document.getElementById(id); if (!h) return; var card = h.parentNode;

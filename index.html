@@ -786,7 +786,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 :root[data-skin="pop"] .chip { border: 2px solid var(--line); border-radius: 999px; color: var(--ink); }
 :root[data-skin="pop"] .chip.on { background: var(--accent-soft); }
 :root[data-skin="pop"] .icon-btn { border: 3px solid var(--line); border-radius: 16px; background: #ff7ac1; color: #14121f; box-shadow: 3px 3px 0 var(--shadow); }
-:root[data-skin="pop"] #tab-set { background: var(--surface); color: #14121f; }
+:root[data-skin="pop"] #tab-set { background: #fff6dc; color: #14121f; }
 :root[data-skin="pop"] .stat { border: 2px solid var(--line); border-radius: 18px; background: var(--surface); }
 :root[data-skin="pop"] .stats > .stat:nth-child(3n+1):not(.main) { background: #ffe36b; color: #14121f; }
 :root[data-skin="pop"] .stats > .stat:nth-child(3n+2):not(.main) { background: #c6b8ff; color: #14121f; }
@@ -2303,17 +2303,18 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     $("updated").textContent = (state.fromCache ? "Saved copy from " : "Updated ") + t + " · " + d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
   }
 
-  function loadStats() {
+  function loadStats(fresh) {
     var body = $("dash-body"); body.classList.add("loading"); $("refresh").disabled = true;
-    $("dash-msg").hidden = true;
+    var failed = false, lm = $("dash-msg");
+    if (state.days.length) lm.hidden = true; else { lm.hidden = false; lm.textContent = "Loading your orders from the sheet. The first time can take 10 to 20 seconds."; }
     pinKey = ""; repDone = false;
-    return call("stats").then(function (res) {
+    return call("stats", fresh === true ? { fresh: true } : {}).then(function (res) {
       state.days = res.days || []; state.updated = Date.now(); state.fromCache = false;
       lsSet(LS_CACHE, JSON.stringify({ days: state.days, updated: state.updated }));
     }).catch(function (e) {
       if (state.days.length) { state.fromCache = true; }
-      var m = $("dash-msg"); m.hidden = false; m.textContent = e.message + (state.days.length ? " Showing the last saved copy." : "");
-    }).then(function () { body.classList.remove("loading"); $("refresh").disabled = false; renderDash(); setUpdated(); });
+      failed = true; var m = $("dash-msg"); m.hidden = false; m.textContent = e.message + (state.days.length ? " Showing the last saved copy." : "");
+    }).then(function () { body.classList.remove("loading"); $("refresh").disabled = false; if (!failed) lm.hidden = true; renderDash(); setUpdated(); });
   }
 
   function openDash() {
@@ -2353,7 +2354,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     });
   });
   dFrom.value = state.from; dTo.value = state.to; syncChips();
-  $("refresh").addEventListener("click", loadStats);
+  $("refresh").addEventListener("click", function () { loadStats(true); });
   var rt = null;
   window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(function () { if (!views.dash.hidden && state.days.length) renderDash(); }, 150); });
   window.addEventListener("scroll", hideTip, { passive: true });

@@ -870,6 +870,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       </button>
       </div>
     </div>
+    <div class="note info" id="upd-banner" role="status" hidden></div>
     <p class="lede">Choose the day's label PDFs. You get the courier-wise PDFs and the WhatsApp summary. Everything runs on this device and your PDFs are not uploaded.</p>
     <div class="tabs" id="tabs" role="tablist" hidden>
       <button class="tab on" id="tab-labels" type="button" role="tab" aria-selected="true">Labels</button>
@@ -1002,8 +1003,9 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   <div id="search-view" class="stack" hidden>
     <section class="card" aria-labelledby="h-sr">
       <h2 id="h-sr">Search orders</h2>
-      <p class="help">Type the order number or the AWB number. Part of it is enough (at least 5 characters).</p>
-      <div class="field"><label for="sr-q">Order number or AWB</label><input id="sr-q" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="e.g. 3420000000"></div>
+      <p class="help">Type the order number, the AWB number or the customer name. Part of it is enough (at least 5 characters of a number, or 3 letters of a name).</p>
+      <div class="field"><label for="sr-q">Order number, AWB or customer name</label><input id="sr-q" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="e.g. 3420000000 or Asha"></div>
+      <label class="check" style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="sr-arc"> <span>Also search the old archive (slower)</span></label>
       <div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="btn" id="sr-go" type="button">Search</button><button class="btn ghost" id="sr-clear" type="button">Clear</button></div>
       <p class="msg" id="sr-msg" role="status" aria-live="polite"></p>
     </section>
@@ -1104,6 +1106,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     </div>
   </section>
   <section class="card" id="lock-card"></section>
+  <section class="card" id="ver-card"></section>
   <section class="card" aria-labelledby="h-sku">
     <h2 id="h-sku">SKU list</h2>
     <p class="help">Add or edit your categories and SKUs, and choose the order used in the pick list and the PDFs.</p>
@@ -3185,7 +3188,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
 </script>
 <script>
-// Search (standalone page only): find an order by its order number or AWB (part of it is enough).
+// Search (standalone page only): find an order by its order number, AWB or customer name (part of it is enough).
 (function () {
   if (window.claude && window.claude.use) return;
   var SH = window.VaviSheet, btn = document.getElementById("tab-search"), view = document.getElementById("search-view");
@@ -3209,6 +3212,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   function card(o) {
     var c = el("div", "sr-card");
     c.appendChild(el("div", "sr-head", o.orderNo || "(no order number)"));
+    if (o.archived) c.appendChild(el("div", "note info", "From the old archive in your Drive"));
     line(c, "Sent to courier", dmy(o.date) + (o.courier ? " · " + o.courier : ""));
     line(c, "AWB", o.awb, true);
     line(c, "Order date", o.orderDate ? dmy(o.orderDate) : "");
@@ -3221,16 +3225,16 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     return c;
   }
   function run() {
-    var q = input.value.replace(/\s+/g, "");
+    var q = input.value.trim(), compact = q.replace(/\s+/g, "");
     out.textContent = "";
-    if (q.length < 5) { msg.className = "msg bad"; msg.textContent = "Type at least 5 characters of the order number or AWB."; return; }
+    if (compact.length < 5 && !(q.length >= 3 && /[^\d\s_]/.test(q))) { msg.className = "msg bad"; msg.textContent = "Type at least 5 characters of the order number or AWB, or at least 3 letters of the customer name."; return; }
     if (!SH.connected()) { msg.className = "msg bad"; msg.textContent = "Connect your Google Sheet in Settings first."; return; }
-    var my = ++token; go.disabled = true; msg.className = "msg"; msg.textContent = "Searching your sheet …";
-    SH.call("find", { q: q }).then(function (r) {
+    var my = ++token, arc = $("sr-arc").checked; go.disabled = true; msg.className = "msg"; msg.textContent = arc ? "Searching your sheet and the old archive. This can take up to a minute …" : "Searching your sheet …";
+    SH.call("find", { q: q, archive: arc }).then(function (r) {
       if (my !== token) return;
       var n = r.results.length;
-      if (!n) { msg.textContent = "Not found. Check the number. Orders older than a year are kept in the archive sheets in your Drive folder “Meesho Orders Archive”."; return; }
-      msg.textContent = r.total > n ? "Showing the latest " + n + " of " + r.total + " matches. Type more of the number to narrow it down." : n + (n === 1 ? " order found." : " orders found.");
+      if (!n) { msg.textContent = arc ? (r.archiveError || "Not found, even in the old archive. Check the spelling or the number.") : "Not found. Check the spelling or the number. For orders older than a year, tick “Also search the old archive”."; return; }
+      msg.textContent = (r.total > n ? "Showing the latest " + n + " of " + r.total + " matches. Type more to narrow it down." : n + (n === 1 ? " order found." : " orders found.")) + (r.archiveError ? " " + r.archiveError : "");
       r.results.forEach(function (o) { out.appendChild(card(o)); });
     }).catch(function (e) { if (my === token) { msg.className = "msg bad"; msg.textContent = e.message; } })
       .then(function () { if (my === token) go.disabled = false; });
@@ -3239,6 +3243,52 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   input.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); run(); } });
   $("sr-clear").addEventListener("click", function () { input.value = ""; out.textContent = ""; msg.textContent = ""; token++; go.disabled = false; input.focus(); });
   btn.addEventListener("click", function () { setTimeout(function () { if (!view.hidden) input.focus(); }, 50); });
+})();
+
+</script>
+<script>
+// App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
+(function () {
+  if (window.claude && window.claude.use) return;
+  var VAVI_APP_VERSION="27 Oct 2026, 08:38";
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
+  var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";
+  function remote() {
+    if (!/^https?:$/.test(location.protocol)) return Promise.reject(new Error("x"));
+    return fetch(location.pathname, { cache: "reload" }).then(function (r) { if (!r.ok) throw new Error("x"); return r.text(); }).then(function (t) {
+      var m = /VAVI_APP_VERSION\x3d"([^"]+)"/.exec(t); if (!m) throw new Error("x"); return m[1];
+    });
+  }
+  function showBanner() {
+    if (!banner) return;
+    banner.textContent = ""; banner.hidden = !newVer;
+    if (!newVer) return;
+    banner.appendChild(el("span", "", "A new version of the app is ready (" + newVer + "). "));
+    var b = el("button", "btn sm", "Update now"); b.type = "button"; b.addEventListener("click", function () { location.reload(); }); banner.appendChild(b);
+  }
+  function check(manual) {
+    lastCheck = Date.now();
+    return remote().then(function (v) { newVer = v !== VAVI_APP_VERSION ? v : ""; showBanner(); return newVer ? "new" : "same"; })
+      .catch(function () { return manual ? "fail" : "quiet"; });
+  }
+  if (host) {
+    host.appendChild(el("h2", "", "App version"));
+    host.appendChild(el("p", "help", "This phone is using the version built on " + VAVI_APP_VERSION + "."));
+    var st = el("p", "msg", ""); st.setAttribute("role", "status");
+    var btn = el("button", "btn ghost", "Check for update"); btn.type = "button";
+    btn.addEventListener("click", function () {
+      st.className = "msg"; st.textContent = "Checking …";
+      check(true).then(function (r) {
+        if (r === "new") { st.textContent = "A new version is ready. Tap “Update now” at the top of the page."; }
+        else if (r === "same") { st.textContent = "You have the latest version."; }
+        else { st.className = "msg bad"; st.textContent = "Could not check. Are you online?"; }
+      });
+    });
+    host.appendChild(btn); host.appendChild(st);
+  }
+  setTimeout(function () { check(false); }, 4000);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden && Date.now() - lastCheck > 600000) check(false); });
 })();
 
 </script>

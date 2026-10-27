@@ -936,7 +936,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
   <div id="view-dash" class="stack" hidden>
     <div class="filters" id="ranges" role="group" aria-label="Date range">
-      <button class="chip" type="button" data-n="yesterday">Yesterday</button>
+      <button class="chip" type="button" data-n="today">Today</button>
       <button class="chip" type="button" data-n="7">Last 7 days</button>
       <button class="chip" type="button" data-n="30">Last 30 days</button>
       <button class="chip" type="button" data-n="all">Till date</button>
@@ -2023,9 +2023,9 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   });
 
   /* --------------------------------------------------------------- dashboard */
-  var rg0 = lsGet(LS_RANGE) || "7";
+  var rg0 = lsGet(LS_RANGE) || "7"; if (rg0 === "yesterday") rg0 = "today";
   var state = { days: [], range: rg0, from: lsGet(LS_RANGE + "_from") || "", to: lsGet(LS_RANGE + "_to") || "", updated: null, fromCache: false };
-  if (["yesterday", "7", "30", "all", "custom"].indexOf(state.range) < 0) state.range = "7";
+  if (["today", "7", "30", "all", "custom"].indexOf(state.range) < 0) state.range = "7";
   var tip = $("tip");
 
   function showTip(host, lines) {
@@ -2099,9 +2099,9 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     var end = V.latestKey(days), firstAll = days.reduce(function (a, x) { return !a || x.d < a ? x.d : a; }, null);
     function span(a, b) { return Math.round((V.toDate(b) - V.toDate(a)) / 86400000) + 1; }
     var n, label;
-    if (state.range === "yesterday") {
-      var yd = new Date(Date.now() - 86400000), pz = function (x) { return (x < 10 ? "0" : "") + x; };
-      end = yd.getFullYear() + "-" + pz(yd.getMonth() + 1) + "-" + pz(yd.getDate()); n = 1; label = "orders yesterday";
+    if (state.range === "today") {
+      var yd = new Date(), pz = function (x) { return (x < 10 ? "0" : "") + x; };
+      end = yd.getFullYear() + "-" + pz(yd.getMonth() + 1) + "-" + pz(yd.getDate()); n = 1; label = "orders today";
     } else if (state.range === "all") { n = span(firstAll, end); label = "orders till date"; }
     else if (state.range === "custom") {
       var cf = state.from || V.addDays(end, -6), ct = state.to || end;
@@ -2110,7 +2110,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     } else { n = +state.range; label = "orders in the last " + n + " days"; }
     var entries = V.lastDays(days, end, n), s = V.summarize(entries);
     var first = entries[0].d;
-    var rangeText = state.range === "yesterday" ? "Yesterday, " + V.shortDate(end) : state.range === "all" || state.range === "custom" ? V.shortDate(first) + " " + first.slice(0, 4) + " to " + V.shortDate(end) + " " + end.slice(0, 4) : "Last " + n + " days";
+    var rangeText = state.range === "today" ? "Today, " + V.shortDate(end) : state.range === "all" || state.range === "custom" ? V.shortDate(first) + " " + first.slice(0, 4) + " to " + V.shortDate(end) + " " + end.slice(0, 4) : "Last " + n + " days";
 
     $("hero-n").textContent = s.total.toLocaleString("en-IN");
     $("hero-l").textContent = label + (n === 1 ? " (" + V.shortDate(end) + ")" : " (" + V.shortDate(first) + " to " + V.shortDate(end) + ")") + (s.total ? "" : " - none recorded in the sheet yet");
@@ -3250,7 +3250,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="27 Oct 2026, 08:38";
+  var VAVI_APP_VERSION="27 Oct 2026, 09:31";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";

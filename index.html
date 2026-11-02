@@ -243,6 +243,13 @@ h2 .pf-chev { display: inline-block; width: 1.1em; }
 .loyal { border: 1px solid #d9a21b; background: rgba(217, 162, 27, 0.12); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .loyal h2 { margin: 0; }
 .loyal .lc { border-top: 1px solid rgba(217, 162, 27, 0.5); padding-top: 8px; display: flex; flex-direction: column; gap: 2px; }
+.st-badge { display: inline-block; font-family: var(--font-body); font-size: 0.72rem; font-weight: 700; letter-spacing: .02em; padding: 1px 8px; margin-right: 6px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); vertical-align: 1px; }
+.st-paid, .st-shipped { border-color: var(--s3); background: color-mix(in srgb, var(--s3) 16%, var(--surface)); }
+.st-rto, .st-returned { border-color: var(--s2); background: color-mix(in srgb, var(--s2) 16%, var(--surface)); }
+.st-cancelled { border-style: dashed; }
+.st-pending { border-style: dashed; border-color: var(--axis, var(--muted)); color: var(--muted); }
+.rc-pay { font-size: 0.88rem; padding: 6px 8px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--surface); }
+.rc-pay.good { border-color: var(--s3); } .rc-pay.bad { border-color: var(--s2); font-weight: 600; }
 .rc small { color: var(--muted, #5b6b70); overflow-wrap: anywhere; }
 .sku-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .sku-row .muted { font-size: 0.85rem; white-space: nowrap; }
@@ -3562,6 +3569,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     }).then(function () { repBusy = false; });
   }
 
+  function monthShort(m) { var n = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(String(m).slice(5, 7)) - 1]; return n ? n + " " + String(m).slice(0, 4) : String(m); }
+
   function renderPins(P, from, to, suffix) {
     var host = $("pins"); host.textContent = "";
     $("sub-pins").textContent = V.shortDate(from) + " to " + V.shortDate(to) + (suffix || "");
@@ -3591,7 +3600,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       var it = el("details", "rc"), sm = el("summary", "");
       var top = el("div", "top"); top.appendChild(el("span", "", c.name)); top.appendChild(el("span", "", c.orders + " orders · " + rs(c.value)));
       sm.appendChild(top);
-      sm.appendChild(el("small", "", "First " + V.shortDate(c.first) + ", last " + V.shortDate(c.last) + (c.topSku ? " · mostly " + c.topSku : "")));
+      var stt = c.stat || null, back = stt ? (stt.rto || 0) + (stt.returned || 0) : 0;
+      sm.appendChild(el("small", "", "First " + V.shortDate(c.first) + ", last " + V.shortDate(c.last) + (c.topSku ? " · mostly " + c.topSku : "") + (back ? " · " + back + " came back (RTO/return)" : "")));
       it.appendChild(sm);
       var pr = el("div", "rc-profile"), list = c.list || [];
       pr.appendChild(el("small", "", c.address || c.pincode));
@@ -3600,14 +3610,27 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       pr.appendChild(el("div", "", "Ordered " + c.orders + " times from " + V.shortDate(c.first) + " " + c.first.slice(0, 4) + " to " + V.shortDate(c.last) + " " + c.last.slice(0, 4) + ". Total " + rs(c.value) + ", about " + rs(c.value / c.orders) + " per order. COD " + cod + ", Prepaid " + pre + "."));
       var sk = Object.keys(skus).sort(function (x, y) { return skus[y] - skus[x]; });
       pr.appendChild(el("div", "", "Bought: " + sk.map(function (k) { return (k || "(no SKU)") + " × " + skus[k]; }).join(", ")));
+      if (stt) {
+        var fin = (stt.paid || 0) + (stt.shipped || 0) + (stt.rto || 0) + (stt.returned || 0) + (stt.cancelled || 0), ok = (stt.paid || 0) + (stt.shipped || 0);
+        var parts = [];
+        [["paid", "paid"], ["shipped", "shipped (paid)"], ["rto", "RTO"], ["returned", "returned"], ["cancelled", "cancelled"], ["pending", "not updated yet"]].forEach(function (p) { if (stt[p[0]]) parts.push(stt[p[0]] + " " + p[1]); });
+        var verdict = !fin ? "No payment data for these orders yet." : back ? back + " of " + fin + " finished orders came back (RTO or return)." : "All " + fin + " finished orders were paid.";
+        pr.appendChild(el("div", "rc-pay" + (back ? " bad" : fin ? " good" : ""), "Payments: " + parts.join(" · ") + ". " + verdict));
+      }
+      var STL = { paid: "Paid", shipped: "Shipped, paid", rto: "RTO", returned: "Returned", cancelled: "Cancelled", pending: "Not updated yet" };
       list.forEach(function (o) {
-        pr.appendChild(el("div", "rc-line", V.shortDate(o.date) + " " + o.date.slice(0, 4) + " · " + o.sku + (o.qty > 1 ? " × " + o.qty : "") + " · " + rs(o.value) + " · " + o.payment + " · " + o.orderNo));
+        var ln = el("div", "rc-line");
+        if (o.st) ln.appendChild(el("span", "st-badge st-" + o.st, STL[o.st] || o.st));
+        ln.appendChild(document.createTextNode(V.shortDate(o.date) + " " + o.date.slice(0, 4) + " · " + o.sku + (o.qty > 1 ? " × " + o.qty : "") + " · " + rs(o.value) + " · " + o.payment + " · " + o.orderNo));
+        pr.appendChild(ln);
       });
       if (list.length < c.orders) pr.appendChild(el("small", "", "Showing the latest " + list.length + " orders."));
       it.appendChild(pr); rh.appendChild(it);
     });
     if (!R.top.length) rh.appendChild(el("p", "muted", "No customer has ordered twice yet."));
-    $("note-rep").textContent = "All dates. Same name and same pincode count as one customer. Based on " + R.ordersWithDetails + " of your " + R.totalOrders + " orders, because names are saved only for orders sent after the update, so it gets better every day.";
+    var pm = R.paymentMonths || [];
+    $("note-rep").textContent = "All dates. Same name and same pincode count as one customer. Based on " + R.ordersWithDetails + " of your " + R.totalOrders + " orders, because names are saved only for orders sent after the update, so it gets better every day." +
+      (R.paymentMonths ? (pm.length ? " Payment status comes from the payment months you saved in Settlements (" + pm.map(monthShort).join(", ") + (R.paidThrough ? "; latest payment " + V.shortDate(R.paidThrough) : "") + "). An order that is in none of them shows Not updated yet (the payment is not received, or that month is not saved yet)." : " Payment status will appear here once you save a month in Settlements.") : "");
   }
 
   /* ---- every Dashboard card opens and closes with one tap; the choice is remembered ---- */
@@ -4632,7 +4655,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="30 Oct 2026, 10:06";
+  var VAVI_APP_VERSION="02 Nov 2026, 08:23";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";

@@ -248,6 +248,7 @@ h2 .pf-chev { display: inline-block; width: 1.1em; }
 .st-rto, .st-returned { border-color: var(--s2); background: color-mix(in srgb, var(--s2) 16%, var(--surface)); }
 .st-cancelled { border-style: dashed; }
 .st-pending { border-style: dashed; border-color: var(--axis, var(--muted)); color: var(--muted); }
+.rep-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; } .rep-bar .sub { margin: 0; }
 .rc-pay { font-size: 0.88rem; padding: 6px 8px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--surface); }
 .rc-pay.good { border-color: var(--s3); } .rc-pay.bad { border-color: var(--s2); font-weight: 600; }
 .rc small { color: var(--muted, #5b6b70); overflow-wrap: anywhere; }
@@ -2280,7 +2281,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
         <p class="muted" id="note-pins"></p>
       </div></details>
       <details class="card fold" id="f-rep" open><summary><h2 id="h-rep">Repeat customers</h2></summary><div class="fold-body">
-        <p class="sub" id="sub-rep"></p>
+        <div class="rep-bar"><p class="sub" id="sub-rep"></p><button class="btn ghost sm" id="rep-refresh" type="button">Refresh</button></div>
         <div class="stack" id="rep" style="gap:10px"></div>
         <p class="muted" id="note-rep"></p>
       </div></details>
@@ -3555,8 +3556,10 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     }).then(function () { pinBusy = false; if (curRange && (curRange.from !== asked.from || curRange.to !== asked.to) && isOpen("f-pins")) loadPins(); });
   }
 
+  function repBtn(busy) { var b = $("rep-refresh"); if (b) { b.disabled = busy; b.textContent = busy ? "Refreshing …" : "Refresh"; } }
   function loadRep() {
     if (repDone || repBusy) return;
+    repBtn(true);
     var saved = jget(LS_REP);
     if (saved && saved.data) renderRep(saved.data, " (updating …)");
     else { $("sub-rep").textContent = "Loading …"; $("rep").textContent = ""; $("note-rep").textContent = ""; }
@@ -3566,8 +3569,9 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       renderRep(r.repeat, "");
     }).catch(function (e) {
       $("note-rep").textContent = e.message + (saved ? " Showing the last saved copy." : " Update the Google script and tap Refresh if this keeps showing.");
-    }).then(function () { repBusy = false; });
+    }).then(function () { repBusy = false; repBtn(false); });
   }
+  if ($("rep-refresh")) $("rep-refresh").addEventListener("click", function () { if (repBusy) return; repDone = false; loadRep(); });
 
   function monthShort(m) { var n = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(String(m).slice(5, 7)) - 1]; return n ? n + " " + String(m).slice(0, 4) : String(m); }
 
@@ -3630,7 +3634,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     if (!R.top.length) rh.appendChild(el("p", "muted", "No customer has ordered twice yet."));
     var pm = R.paymentMonths || [];
     $("note-rep").textContent = "All dates. Same name and same pincode count as one customer. Based on " + R.ordersWithDetails + " of your " + R.totalOrders + " orders, because names are saved only for orders sent after the update, so it gets better every day." +
-      (R.paymentMonths ? (pm.length ? " Payment status comes from the payment months you saved in Settlements (" + pm.map(monthShort).join(", ") + (R.paidThrough ? "; latest payment " + V.shortDate(R.paidThrough) : "") + "). An order that is in none of them shows Not updated yet (the payment is not received, or that month is not saved yet)." : " Payment status will appear here once you save a month in Settlements.") : "");
+      (R.paymentMonths ? (pm.length ? " Payment status comes from the payment months you saved in Settlements (" + pm.map(monthShort).join(", ") + (R.paidThrough ? "; latest payment " + V.shortDate(R.paidThrough) : "") + ")" + (R.orderedThrough ? ", which cover orders placed up to " + V.shortDate(R.orderedThrough) : "") + ". An order that is in none of them shows Not updated yet (the payment is not received, or that month is not saved yet)." : " Payment status will appear here once you save a month in Settlements.") : "");
   }
 
   /* ---- every Dashboard card opens and closes with one tap; the choice is remembered ---- */
@@ -4655,7 +4659,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="02 Nov 2026, 08:23";
+  var VAVI_APP_VERSION="02 Nov 2026, 08:42";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";

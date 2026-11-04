@@ -194,7 +194,8 @@ pre#summary {
 .td-n { font-size: 3.2rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
 .td-bars { display: flex; align-items: flex-end; gap: 4px; height: 52px; width: 46%; max-width: 170px; } .td-bars i { flex: 1; background: currentColor; opacity: .4; border-radius: 3px; } .td-bars i.now { opacity: 1; }
 .td-pills { display: flex; gap: 6px; flex-wrap: wrap; } .td-pill { background: rgba(255,255,255,.2); border-radius: 999px; padding: 3px 11px; font-size: .85rem; }
-.td-l { font-size: .9rem; opacity: .92; } .td-msg { margin: 0; font-size: .9rem; opacity: .92; }
+.td-l { font-size: .9rem; opacity: .92; } .td-sent { font-weight: 600; }
+.td-msg { margin: 0; font-size: .9rem; opacity: .92; }
 .sec-h { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 6px 4px 0; font-weight: 700; }
 .htiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .htile { appearance: none; text-align: left; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; min-height: 118px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; cursor: pointer; min-width: 0; }
@@ -208,6 +209,8 @@ pre#summary {
 .sr-k { flex: none; width: 108px; color: var(--muted); font-size: .9rem; }
 .sr-v { flex: 1; min-width: 0; word-break: break-word; }
 .pf-lockbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#pf-cmp th, #pf-cmp td { padding: 6px 4px; }
+.pf-pct { display: block; font-size: 0.72rem; font-weight: 600; color: var(--muted); }
 .pf-hidden .pf-s { font-size: 0 !important; user-select: none; -webkit-user-select: none; cursor: pointer; }
 .pf-hidden .pf-s::after { content: "******"; font-size: 16px; letter-spacing: 2px; font-weight: 700; }
 .pf-hidden .stat .pf-s::after { font-size: 26px; }
@@ -2164,6 +2167,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       <div class="td-pills" id="td-pills"></div>
       <div class="td-l" id="td-l1"></div>
       <div class="td-l" id="td-l2"></div>
+      <div class="td-l td-sent" id="td-sent" hidden></div>
       <p class="td-msg" id="td-msg" role="status"></p>
     </section>
     <h2 class="sec-h" id="h-qa">Quick actions</h2>
@@ -2359,8 +2363,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     </section>
     <section class="card" aria-labelledby="h-pfc" id="pf-cmp-card" hidden>
       <h2 id="h-pfc">Orders by month</h2>
-      <p class="help">Delivered, RTO and returns for each saved month. Order counts only.</p>
-      <div class="tablewrap"><table id="pf-cmp"><thead><tr><th>Month</th><th class="n">Delivered</th><th class="n">RTO</th><th class="n">Returns</th></tr></thead><tbody></tbody></table></div>
+      <p class="help">Delivered, RTO and returns for each saved month: order counts, with the share of that month underneath. Back = RTO + returns together (parcels that came back).</p>
+      <div class="tablewrap"><table id="pf-cmp"><thead><tr><th>Month</th><th class="n">Delivered</th><th class="n">RTO</th><th class="n">Returns</th><th class="n">Back</th></tr></thead><tbody></tbody></table></div>
     </section>
     <section class="card">
       <details><summary>How profit is calculated</summary>
@@ -3329,6 +3333,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       if (res.summaryError) t = "Orders are saved. " + t.replace(/^Added[^.]*\./, function (m) { return m; }) + " " + res.summaryError;
       setMsg("send-note", t, res.invalid > 0 || !!res.summaryError);
       lsSet(LS_CACHE, "");
+      if (res.added > 0) { noteSent({ ts: new Date().toISOString(), added: res.added }); drawSent(); }
     }).catch(function (e) { setMsg("send-note", e.message + " Nothing was lost: tap Send to Sheet again.", true); })
       .then(function () { btn.disabled = false; });
   });
@@ -3557,21 +3562,22 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   }
 
   function repBtn(busy) { var b = $("rep-refresh"); if (b) { b.disabled = busy; b.textContent = busy ? "Refreshing …" : "Refresh"; } }
-  function loadRep() {
+  function loadRep(write) {
     if (repDone || repBusy) return;
     repBtn(true);
     var saved = jget(LS_REP);
     if (saved && saved.data) renderRep(saved.data, " (updating …)");
     else { $("sub-rep").textContent = "Loading …"; $("rep").textContent = ""; $("note-rep").textContent = ""; }
     repBusy = true;
-    call("repeat").then(function (r) {
+    call("repeat", write ? { write: true } : {}).then(function (r) {
       lsSet(LS_REP, JSON.stringify({ data: r.repeat })); repDone = true;
       renderRep(r.repeat, "");
+      if (r.sheetRows != null) $("note-rep").textContent += " Also saved to your sheet: tab Repeat Customers (" + r.sheetRows + " customers).";
     }).catch(function (e) {
       $("note-rep").textContent = e.message + (saved ? " Showing the last saved copy." : " Update the Google script and tap Refresh if this keeps showing.");
     }).then(function () { repBusy = false; repBtn(false); });
   }
-  if ($("rep-refresh")) $("rep-refresh").addEventListener("click", function () { if (repBusy) return; repDone = false; loadRep(); });
+  if ($("rep-refresh")) $("rep-refresh").addEventListener("click", function () { if (repBusy) return; repDone = false; loadRep(true); });
 
   function monthShort(m) { var n = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(String(m).slice(5, 7)) - 1]; return n ? n + " " + String(m).slice(0, 4) : String(m); }
 
@@ -3661,7 +3667,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     if (state.days.length) lm.hidden = true; else { lm.hidden = false; lm.textContent = "Loading your orders from the sheet. The first time can take 10 to 20 seconds."; }
     pinKey = ""; repDone = false;
     return call("stats", fresh === true ? { fresh: true } : {}).then(function (res) {
-      state.days = res.days || []; state.updated = Date.now(); state.fromCache = false;
+      state.days = res.days || []; state.updated = Date.now(); state.fromCache = false; noteSent(res.lastSent);
       lsSet(LS_CACHE, JSON.stringify({ days: state.days, updated: state.updated }));
     }).catch(function (e) {
       if (state.days.length) { state.fromCache = true; }
@@ -3713,7 +3719,28 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   /* ------------------------------------------------------------- home page */
   var homeTok = 0;
   function todayKey() { var t = new Date(), pz = function (x) { return (x < 10 ? "0" : "") + x; }; return t.getFullYear() + "-" + pz(t.getMonth() + 1) + "-" + pz(t.getDate()); }
+  /* when orders were last sent to the sheet (kept on this phone and in the sheet, so every phone shows the newest) */
+  function sentOf(x) { return x && x.ts && isFinite(Date.parse(x.ts)) ? { ts: x.ts, added: Number(x.added) || 0 } : null; }
+  function noteSent(x) {
+    var n = sentOf(x); if (!n) return;
+    var o = null; try { o = sentOf(JSON.parse(lsGet("vavi_last_sent") || "null")); } catch (e) {}
+    if (!o || Date.parse(n.ts) > Date.parse(o.ts)) lsSet("vavi_last_sent", JSON.stringify(n));
+  }
+  function sentText(x, now) {
+    var t = new Date(x.ts), pz = function (v) { return (v < 10 ? "0" : "") + v; };
+    var key = function (dt) { return dt.getFullYear() + "-" + pz(dt.getMonth() + 1) + "-" + pz(dt.getDate()); };
+    var yest = new Date(now.getTime() - 86400000), k = key(t);
+    var when = k === key(now) ? "today" : k === key(yest) ? "yesterday" : V.shortDate(k);
+    var hh = t.getHours(), mm = pz(t.getMinutes()), clock = (hh % 12 || 12) + ":" + mm + " " + (hh < 12 ? "am" : "pm");
+    return "Last sent: " + when + " " + clock + " · " + x.added + " new order" + (x.added === 1 ? "" : "s");
+  }
+  function drawSent() {
+    var box = $("td-sent"); if (!box) return;
+    var x = null; try { x = sentOf(JSON.parse(lsGet("vavi_last_sent") || "null")); } catch (e) {}
+    box.hidden = !x; if (x) box.textContent = sentText(x, new Date());
+  }
   function drawHome(note) {
+    drawSent();
     var days = state.days, tk = todayKey(), card = $("today-card");
     $("td-date").textContent = "TODAY · " + V.shortDate(tk).toUpperCase();
     var bars = $("td-bars"), pills = $("td-pills"); bars.textContent = ""; pills.textContent = "";
@@ -3779,12 +3806,12 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     if (!connected()) return;
     call("stats").then(function (res) {
       if (my !== homeTok) return;
-      state.days = res.days || []; state.updated = Date.now(); state.fromCache = false;
+      state.days = res.days || []; state.updated = Date.now(); state.fromCache = false; noteSent(res.lastSent);
       lsSet(LS_CACHE, JSON.stringify({ days: state.days, updated: state.updated }));
       drawHome();
     }).catch(function () { if (my === homeTok) drawHome(state.days.length ? "Showing the last saved numbers. Could not reach the sheet." : "Could not reach the sheet. Check your internet."); });
   }
-  $("td-refresh").addEventListener("click", function () { var my = ++homeTok; $("td-msg").textContent = "Refreshing …"; call("stats", { fresh: true }).then(function (res) { if (my !== homeTok) return; state.days = res.days || []; state.updated = Date.now(); state.fromCache = false; lsSet(LS_CACHE, JSON.stringify({ days: state.days, updated: state.updated })); drawHome(); }).catch(function (e) { drawHome(e.message); }); });
+  $("td-refresh").addEventListener("click", function () { var my = ++homeTok; $("td-msg").textContent = "Refreshing …"; call("stats", { fresh: true }).then(function (res) { if (my !== homeTok) return; state.days = res.days || []; state.updated = Date.now(); state.fromCache = false; noteSent(res.lastSent); lsSet(LS_CACHE, JSON.stringify({ days: state.days, updated: state.updated })); drawHome(); }).catch(function (e) { drawHome(e.message); }); });
   applyLayout();
   show(layout() === "tiles" ? "home" : "labels");
 })();
@@ -4659,7 +4686,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="02 Nov 2026, 08:42";
+  var VAVI_APP_VERSION="04 Nov 2026, 10:45";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";
@@ -5082,7 +5109,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     rows.forEach(function (m) {
       var oc = outcomeFromBreakdown(m.month), tr = el("tr");
       tr.appendChild(el("td", "", monthName(m.month)));
-      [oc && oc.del, oc && oc.rto, oc && oc.ret].forEach(function (b) { tr.appendChild(el("td", "n", b ? int.format(b.n) : "-")); });
+      var parts = [oc && oc.del, oc && oc.rto, oc && oc.ret], tot = parts.reduce(function (a, b) { return a + (b ? b.n : 0); }, 0);
+      parts.forEach(function (b) {
+        var td = el("td", "n", b ? int.format(b.n) : "-");
+        if (b && tot) td.appendChild(el("small", "pf-pct", (Math.round(b.n / tot * 1000) / 10).toFixed(1) + "%"));
+        tr.appendChild(td);
+      });
+      var back = (parts[1] ? parts[1].n : 0) + (parts[2] ? parts[2].n : 0);
+      tr.appendChild(el("td", "n", tot ? (Math.round(back / tot * 1000) / 10).toFixed(1) + "%" : "-"));
       tb.appendChild(tr);
     });
   }

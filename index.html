@@ -4841,7 +4841,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="07 Nov 2026, 22:54";
+  var VAVI_APP_VERSION="07 Nov 2026, 23:26";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";
@@ -5665,7 +5665,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   P.RULES_TABLE.forEach(function (r) { var tr = el("tr"); tr.appendChild(el("td", "", r[0])); tr.appendChild(el("td", "", r[1])); rt.appendChild(tr); });
   window.addEventListener("vavi:profit", loadHistory);
   /* ------------------------------------------------ dispatched vs paid */
-  var dpBusy = false;
+  var dpTok = 0;
   function dpSet(res) {
     var body = $("dp-body"); body.textContent = "";
     var b = res.buckets, shortD = function (k) { var p = k.split("-"); return +p[2] + " " + MON[+p[1] - 1]; };
@@ -5731,19 +5731,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     var card = $("dp-card"); if (!card) return;
     var body = $("dp-body");
     if (!SH.connected()) { $("dp-help").textContent = ""; body.textContent = ""; body.appendChild(el("p", "help", "Connect your sheet first (gear icon, Settings).")); return; }
-    if (dpBusy) return; dpBusy = true;
+    var my = ++dpTok;   // a newer load always replaces an older one, so a stuck request can never freeze the page
     var dc = null; try { dc = JSON.parse(localStorage.getItem("vavi_dp_cache") || "null"); } catch (e) {}
     if (dc && dc.res && !dc.res.empty) {
       dpSet(dc.res);
       var dt = new Date(dc.ts); $("dp-help").textContent += " Showing the saved copy from " + dt.getDate() + " " + MON[dt.getMonth()] + ", " + dt.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }) + ". Updating …";
     }
-    if (!body.firstChild) body.appendChild(el("p", "help", "Checking …")); $("dp-refresh").disabled = true;
-    SH.call("dispatch_paid").then(function (res) {
+    var note = el("p", "help", "Checking …"); if (!body.firstChild) body.appendChild(note);
+    SH.call("dispatch_paid", null, { onRetry: function (n, of, w) { if (my === dpTok) { if (!note.parentNode) { note = el("p", "help", ""); body.insertBefore(note, body.firstChild); } note.textContent = n === 0 ? "Waking the sheet …" : "Slow connection" + (w ? " (" + w + ")" : "") + ". Trying again (" + n + " of " + of + ") …"; } } }).then(function (res) {
+      if (my !== dpTok) return;
       if (res.empty) { $("dp-help").textContent = ""; body.textContent = ""; body.appendChild(el("p", "help", "Save at least one payment month first (open Settlements and upload the Meesho payment file). Then every parcel can be matched with its payment.")); return; }
       try { localStorage.setItem("vavi_dp_cache", JSON.stringify({ ts: Date.now(), res: res })); } catch (e) {}
       dpSet(res);
-    }).catch(function (e) { if (!(dc && dc.res && !dc.res.empty)) body.textContent = ""; body.appendChild(el("div", "note warn", e.message + (dc && dc.res ? " Showing the saved copy." : ""))); if (dc && dc.res) $("dp-help").textContent = $("dp-help").textContent.replace(/ Updating …$/, ""); })
-      .then(function () { dpBusy = false; $("dp-refresh").disabled = false; });
+    }).catch(function (e) { if (my !== dpTok) return; if (note.parentNode) note.parentNode.removeChild(note); if (!(dc && dc.res && !dc.res.empty)) body.textContent = ""; body.appendChild(el("div", "note warn", e.message + (dc && dc.res ? " Showing the saved copy." : ""))); if (dc && dc.res) $("dp-help").textContent = $("dp-help").textContent.replace(/ Updating …$/, ""); })
   }
   if ($("dp-refresh")) $("dp-refresh").addEventListener("click", dpLoad);
   window.addEventListener("vavi:dpaid", dpLoad);

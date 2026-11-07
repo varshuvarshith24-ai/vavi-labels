@@ -246,6 +246,11 @@ h2 .pf-chev { display: inline-block; width: 1.1em; }
 .loyal { border: 1px solid #d9a21b; background: rgba(217, 162, 27, 0.12); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .loyal h2 { margin: 0; }
 .loyal .lc { border-top: 1px solid rgba(217, 162, 27, 0.5); padding-top: 8px; display: flex; flex-direction: column; gap: 2px; }
+.dp-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.dp-tile { border: 1.5px solid var(--line); border-radius: 12px; padding: 8px 10px; background: var(--surface); }
+.dp-tile b { display: block; font-size: 1.25rem; line-height: 1.2; }
+.dp-tile small { color: var(--muted); }
+.dp-tile.warn { border-color: var(--s2); } .dp-tile.good { border-color: var(--s3); }
 .st-badge { display: inline-block; font-family: var(--font-body); font-size: 0.72rem; font-weight: 700; letter-spacing: .02em; padding: 1px 8px; margin-right: 6px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); vertical-align: 1px; }
 .st-paid, .st-shipped { border-color: var(--s3); background: color-mix(in srgb, var(--s3) 16%, var(--surface)); }
 .st-rto, .st-returned { border-color: var(--s2); background: color-mix(in srgb, var(--s2) 16%, var(--surface)); }
@@ -2361,6 +2366,11 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       <p class="help" id="pf-hist-empty">No month saved yet. Your first calculation will appear here.</p>
       <div class="tablewrap" id="pf-hist-wrap" hidden><table id="pf-hist"><thead><tr><th>Month</th><th class="n">Profit</th><th class="n">Profit %</th><th class="n">Settlement</th><th>Best category</th></tr></thead><tbody></tbody></table></div>
     </section>
+    <section class="card" id="dp-card" aria-labelledby="h-dp" hidden>
+      <div class="row"><h2 id="h-dp">Dispatched vs paid</h2><button class="btn ghost sm" id="dp-refresh" type="button">Refresh</button></div>
+      <p class="help" id="dp-help"></p>
+      <div id="dp-body" class="stack" style="gap:12px"></div>
+    </section>
     <section class="card" aria-labelledby="h-pfc" id="pf-cmp-card" hidden>
       <h2 id="h-pfc">Orders by month</h2>
       <p class="help">Delivered, RTO and returns for each saved month: order counts, with the share of that month underneath. Back = RTO + returns together (parcels that came back).</p>
@@ -3252,27 +3262,65 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   // A slow or dropped connection is retried by itself (3 tries) before an error is shown. Every action is safe to repeat:
   // sending twice adds nothing twice, and the lists are only read.
   var TRIES = 3, TRY_SECS = 60, WAITS = [1500, 3500];
-  function once(url, body) {
+  var LS_LOG = "vavi_conn_log", lastOk = 0;
+  // Plain-words reason for a failed attempt (also kept in a small log on this phone, so a pattern can be seen later).
+  function why(e) {
+    var n = e && e.name, m = String((e && e.message) || "");
+    if (n === "AbortError") return "no answer in time";
+    if (n === "SyntaxError" || /JSON|Unexpected/i.test(m)) return "Google sent an error page";
+    if (n === "TypeError" || /Load failed|Failed to fetch|NetworkError/i.test(m)) return "connection dropped";
+    return "unknown";
+  }
+  function logFail(action, n, reason, ms) {
+    try {
+      var a = JSON.parse(lsGet(LS_LOG) || "[]");
+      a.push({ t: new Date().toISOString(), action: action, try: n, why: reason, secs: Math.round(ms / 100) / 10 });
+      lsSet(LS_LOG, JSON.stringify(a.slice(-30)));
+    } catch (x) {}
+  }
+  function once(url, body, secs) {
     var ctl = new AbortController();
-    var timer = setTimeout(function () { ctl.abort(); }, TRY_SECS * 1000);
+    var timer = setTimeout(function () { ctl.abort(); }, (secs || TRY_SECS) * 1000);
     return fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: body, signal: ctl.signal })
       .then(function (r) { return r.json(); })
-      .then(function (j) { clearTimeout(timer); return j; }, function (e) { clearTimeout(timer); throw e; });
+      .then(function (j) { clearTimeout(timer); lastOk = Date.now(); return j; }, function (e) { clearTimeout(timer); throw e; });
+  }
+  // One shared "wake the sheet" step. Every call waits for it, so a sleeping script is woken once, calmly,
+  // instead of several calls fighting each other while it starts up.
+  var wakeP = null;
+  function awake(url, key, opts) {
+    if (Date.now() - lastOk < 90000) return Promise.resolve();
+    if (wakeP) return wakeP;
+    if (opts && opts.onRetry) { try { opts.onRetry(0, 0, "waking the sheet"); } catch (e) {} }
+    var ping = JSON.stringify({ key: key, action: "ping" });
+    function go(n) {
+      var t0 = Date.now();
+      return once(url, ping, 25).catch(function (e) {
+        logFail("wake", n, why(e), Date.now() - t0);
+        if (n >= 4) return;   // give up quietly; the real call below still has its own retries
+        return new Promise(function (r) { setTimeout(r, 1500); }).then(function () { return go(n + 1); });
+      });
+    }
+    wakeP = go(1).then(function () { wakeP = null; }, function () { wakeP = null; });
+    return wakeP;
   }
   function call(action, extra, opts) {
     var url = lsGet(LS_URL), key = lsGet(LS_KEY);
     if (!url || !key) return Promise.reject(new Error("NOT_SET"));
     var body = { key: key, action: action };
     Object.keys(extra || {}).forEach(function (k) { body[k] = extra[k]; });
-    var payload = JSON.stringify(body), tries = (opts && opts.tries) || TRIES;
+    var payload = JSON.stringify(body), tries = (opts && opts.tries) || TRIES, lastWhy = "";
     function attempt(n) {
-      return once(url, payload).then(function (j) { if (n > 1 && j && typeof j === "object") j.retried = true; return j; }, function () {
-        if (n >= tries) throw new Error("Could not reach the sheet. Check your internet and the sheet link, then try again.");
-        if (opts && opts.onRetry) { try { opts.onRetry(n + 1, tries); } catch (e) {} }
+      var t0 = Date.now();
+      return once(url, payload).then(function (j) { if (n > 1 && j && typeof j === "object") j.retried = true; return j; }, function (e) {
+        lastWhy = why(e); logFail(action, n, lastWhy, Date.now() - t0);
+        if (n >= tries) throw new Error("Could not reach the sheet (" + lastWhy + "). Check your internet and the sheet link, then try again.");
+        if (opts && opts.onRetry) { try { opts.onRetry(n + 1, tries, lastWhy); } catch (e2) {} }
         return new Promise(function (res) { setTimeout(res, WAITS[n - 1] || 3500); }).then(function () { return attempt(n + 1); });
       });
     }
-    return attempt(1).then(function (j) {
+    var first = action === "ping" ? Promise.resolve() : awake(url, key, opts);
+    return first.then(function () { return attempt(1); }).then(function (j) {
       if (!j || !j.ok) throw new Error((j && j.error) || "The sheet did not accept that.");
       return j;
     });
@@ -3285,7 +3333,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   setTimeout(warm, 400);
   document.addEventListener("click", function (e) { var t = e.target; if (t && t.closest && t.closest("label[for='files'], #files")) warm(); }, true);
 
-  window.VaviSheet = { call: call, connected: connected };
+  window.VaviSheet = { call: call, connected: connected, log: function () { try { return JSON.parse(lsGet(LS_LOG) || "[]"); } catch (e) { return []; } } };
 
   /* -------------------------------------------------------------- tabs/views */
   var views = { labels: $("view-labels"), dash: $("view-dash"), set: $("sheet-settings"), skus: $("sku-view"), theme: $("theme-view"), profit: $("view-profit"), search: $("search-view"), home: $("view-home"), fraud: $("fraud-view") };
@@ -3354,14 +3402,14 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       return {
         date: (r.invoiceDate ? r.invoiceDate.replace(/\./g, "-") : current.dateStr),
         courier: r.courier, awb: r.awb, orderNo: r.orderNo, sku: r.sku, category: r.category || "",
-        qty: r.qty, payment: r.payment, amount: r.amount, pincode: r.pincode, customerName: r.customerName || "", address: r.customerAddress || "",
+        qty: r.qty, payment: r.payment, amount: r.amount, pincode: r.pincode, customerName: r.customerName || "", address: r.customerAddress || "", size: r.size || "",
         orderDate: r.orderDate ? r.orderDate.replace(/\./g, "-") : ""
       };
     });
     var btn = $("send");
     btn.disabled = true;
     setMsg("send-note", "Sending " + rows.length + " orders …");
-    call("add", { rows: rows }, { onRetry: function (n, of) { setMsg("send-note", "Slow connection. Trying again (" + n + " of " + of + ") …"); } }).then(function (res) {
+    call("add", { rows: rows }, { onRetry: function (n, of, w) { setMsg("send-note", n === 0 ? "Waking the sheet …" : "Slow connection" + (w ? " (" + w + ")" : "") + ". Trying again (" + n + " of " + of + ") …"); } }).then(function (res) {
       var t = "Added " + res.added + " new order" + (res.added === 1 ? "" : "s") + " to the sheet.";
       if (res.skipped) t += " " + res.skipped + " already in the sheet, so not added again.";
       if (res.retried && res.added === 0 && res.skipped > 0) t = "Done. These " + res.skipped + " orders are in the sheet. The connection was slow, so the first try probably saved them before the answer got back.";
@@ -3996,7 +4044,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     function go(frauds) { if (my === token) show(d, frauds); }
     if (cache) { go(cache); return; }
     note("info", "Checking labels against the fraud list …");
-    function retryMsg(n, of) { if (my === token) note("info", "Slow connection. Trying again (" + n + " of " + of + ") …"); }
+    function retryMsg(n, of, w) { if (my === token) note("info", n === 0 ? "Waking the sheet …" : "Slow connection" + (w ? " (" + w + ")" : "") + ". Trying again (" + n + " of " + of + ") …"); }
     SH.call("fraud_list", null, { onRetry: retryMsg }).then(function (r) { cache = r.frauds || []; try { localStorage.setItem("vavi_fraud_cache", JSON.stringify({ ts: Date.now(), frauds: cache })); } catch (x) {} go(cache); })
       .catch(function (e) {
         if (my !== token) return;
@@ -4286,7 +4334,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     if (!SH.connected()) { note("info", "Loyal customer check is off. Connect your sheet in Settings (gear icon) to use it."); return; }
     if (cache && cachedMin === MIN) { show(d, cache); return; }
     note("info", "Checking for loyal customers …");
-    function retryMsg(n, of) { if (my === token) note("info", "Slow connection. Trying again (" + n + " of " + of + ") …"); }
+    function retryMsg(n, of, w) { if (my === token) note("info", n === 0 ? "Waking the sheet …" : "Slow connection" + (w ? " (" + w + ")" : "") + ". Trying again (" + n + " of " + of + ") …"); }
     SH.call("loyal", { min: MIN }, { onRetry: retryMsg }).then(function (r) { cache = r.customers || []; cachedMin = MIN; try { localStorage.setItem("vavi_loyal_cache", JSON.stringify({ ts: Date.now(), min: MIN, customers: cache })); } catch (x) {} if (my === token) show(d, cache); })
       .catch(function (e) {
         if (my !== token) return;
@@ -4772,7 +4820,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="06 Nov 2026, 13:07";
+  var VAVI_APP_VERSION="07 Nov 2026, 22:34";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";
@@ -5001,6 +5049,40 @@ async function parseFile(file){
   return {fileName:file.name,lines,adsTotal:round2(adsTotal),adsRows,months};
 }
 
+
+/* ---------- sizes (saved from the labels in the Orders sheet) ---------- */
+// "75 cm", "75CMS" -> "75cm"; "1 Mtr" / "1 meter" -> "100cm" (so 0.8 Mtr and 80 cm are the same size); anything else: lower case without spaces
+function sizeKey(s){
+  let t=String(s==null?'':s).trim().toLowerCase().replace(/\s+/g,'');
+  if(!t)return '';
+  let m=/^(\d+(?:\.\d+)?)(cms?|centimet(?:er|re)s?)$/.exec(t);
+  if(m)return String(Math.round(parseFloat(m[1])*10)/10)+'cm';
+  m=/^(\d+(?:\.\d+)?)(mtrs?|mts?|m|meters?|metres?)$/.exec(t);
+  if(m)return String(Math.round(parseFloat(m[1])*1000)/10)+'cm';
+  return t;
+}
+// For the lines paid in `month`: per SKU, the sizes found. A SKU is "variant" only when two or more different sizes appear;
+// then lines with no saved size become a separate "No info" row. Fee/claim lines (status BLANK) never need a cost.
+function variantInfo(lines,month){
+  const by=new Map();
+  lines.filter(l=>l.paymentDate.slice(0,7)===month).forEach(l=>{
+    const sk=skey(l.sku);let g=by.get(sk);
+    if(!g){g={sku:l.sku,units:0,lines:0,sizes:new Map(),blank:{units:0,lines:0}};by.set(sk,g);}
+    g.units+=l.qty;g.lines++;
+    if(l.status==='BLANK')return;
+    const k=sizeKey(l.size);
+    if(!k){g.blank.units+=l.qty;g.blank.lines++;return;}
+    let z=g.sizes.get(k);if(!z){z={key:k,label:/^\d+(\.\d+)?cm$/.test(k)?k.slice(0,-2)+' cm':String(l.size).trim().replace(/\s+/g,' '),units:0,lines:0};g.sizes.set(k,z);}
+    z.units+=l.qty;z.lines++;
+  });
+  return [...by.values()].map(g=>{
+    const variant=g.sizes.size>=2;
+    const sizes=[...g.sizes.values()].sort((a,b)=>b.units-a.units||(a.key<b.key?-1:1));
+    if(variant&&g.blank.lines)sizes.push({key:'noinfo',label:'No info',units:g.blank.units,lines:g.blank.lines});
+    return {sku:g.sku,units:g.units,lines:g.lines,variant,sizes:variant?sizes:[]};
+  });
+}
+
 /* ---------- calculation ---------- */
 function classify(l){
   if(l.status==='Return')return l.sale>0?'Return (same payment)':'Return (earlier payment taken back)';
@@ -5039,18 +5121,27 @@ function how(l,kind,c,profit){
 function calculate(o){
   const {month,packing}=o;const costs={};Object.keys(o.costs||{}).forEach(k=>{costs[skey(k)]=num(o.costs[k]);});
   const inMonth=o.lines.filter(l=>l.paymentDate.slice(0,7)===month);
-  const seenMiss={};const missing=inMonth.map(l=>l.sku).filter(s=>{const k=skey(s);if(k in costs||seenMiss[k])return false;seenMiss[k]=1;return true;}).sort();
+  const vinfo=variantInfo(o.lines,month),vmode={},vlabel={};
+  vinfo.forEach(v=>{if(v.variant){vmode[skey(v.sku)]=true;v.sizes.forEach(z=>{vlabel[skey(v.sku)+'::'+z.key]=z.label;});}});
+  // the price a line is calculated with: the SKU's price, or (for a SKU sold in several sizes) the price of its size; fee/claim lines need none
+  const ckeyOf=l=>{const sk=skey(l.sku);if(!vmode[sk])return sk;if(l.status==='BLANK')return null;return sk+'::'+(sizeKey(l.size)||'noinfo');};
+  const nameOf=(l,ck)=>ck.indexOf('::')<0?l.sku:l.sku+' ('+(vlabel[ck]||'No info')+')';
+  const seenMiss={},missing=[];
+  inMonth.forEach(l=>{const ck=ckeyOf(l);if(ck===null||ck in costs||seenMiss[ck])return;seenMiss[ck]=1;missing.push(nameOf(l,ck));});
+  missing.sort();
   if(missing.length){const e=new Error('Missing cost for: '+missing.join(', '));e.missing=missing;throw e;}
-  const rows=inMonth.map(l=>{const unit=costs[skey(l.sku)],cost=unit*l.qty,kind=classify(l);
+  const baseOf={};
+  const rows=inMonth.map(l=>{const ck=ckeyOf(l),unit=ck===null?0:costs[ck],cost=unit*l.qty,kind=classify(l);
     const profit=lineProfit(l,packing,cost),c=components(l,packing,cost);
-    return {subOrder:l.subOrder,orderDate:l.orderDate,paymentDate:l.paymentDate,sku:l.sku,qty:l.qty,status:l.status,kind,settlement:l.settlement,unitCost:unit,cost,profit,
+    const skuLabel=ck===null?l.sku+' · fees & claims':(ck.indexOf('::')>=0)?l.sku+' · '+(vlabel[ck]||'No info'):l.sku;baseOf[skuLabel]=l.sku;
+    return {subOrder:l.subOrder,orderDate:l.orderDate,paymentDate:l.paymentDate,sku:l.sku,skuLabel,size:(ck&&ck.indexOf('::')>=0)?(vlabel[ck]||'No info'):'',qty:l.qty,status:l.status,kind,settlement:l.settlement,unitCost:unit,cost,profit,
       counted:round2(c.counted),packingCharged:round2(c.packing),costEffect:round2(c.costEffect),how:how(l,kind,c,profit)};});
   const sum=(a,f)=>a.reduce((s,x)=>s+f(x),0);
   const settlement=sum(rows,r=>r.settlement),lineP=sum(rows,r=>r.profit),ads=o.adsTotal||0;
   const group=(key,mk)=>{const m=new Map();rows.forEach(r=>{const k=key(r);if(!m.has(k))m.set(k,mk(k));const g=m.get(k);g.lines++;g.settlement+=r.settlement;g.profit+=r.profit;g.units=(g.units||0)+r.qty;});return [...m.values()];};
   const typeSum=new Map();rows.forEach(r=>{const g=typeSum.get(r.kind)||{counted:0,packing:0,costEffect:0};g.counted+=r.counted;g.packing+=r.packingCharged;g.costEffect+=r.costEffect;typeSum.set(r.kind,g);});
   const byType=group(r=>r.kind,k=>({kind:k,lines:0,settlement:0,profit:0})).map(g=>{const t=typeSum.get(g.kind);return {kind:g.kind,lines:g.lines,settlement:round2(g.settlement),profit:round2(g.profit),counted:round2(t.counted),packing:round2(t.packing),costEffect:round2(t.costEffect)};}).sort((a,b)=>a.kind.localeCompare(b.kind));
-  const bySku=group(r=>r.sku,k=>({sku:k,lines:0,units:0,settlement:0,profit:0})).map(g=>({sku:g.sku,lines:g.lines,units:g.units,settlement:round2(g.settlement),profit:round2(g.profit)})).sort((a,b)=>b.profit-a.profit);
+  const bySku=group(r=>r.skuLabel,k=>({sku:k,lines:0,units:0,settlement:0,profit:0})).map(g=>({sku:g.sku,baseSku:baseOf[g.sku]||g.sku,lines:g.lines,units:g.units,settlement:round2(g.settlement),profit:round2(g.profit)})).sort((a,b)=>b.profit-a.profit);
   const ship=rows.filter(r=>r.status==='Shipped'),claims=rows.filter(r=>r.kind==='Claim (ignored)');
   const otherMonths={};Object.keys(o.months||{}).forEach(k=>{if(k!==month)otherMonths[k]=o.months[k];});
   return {month,lines:rows.length,settlement:round2(settlement),lineProfit:round2(lineP),ads:round2(ads),adsRows:o.adsRows||0,profit:round2(lineP-ads),
@@ -5059,7 +5150,7 @@ function calculate(o){
     rows:rows.map(r=>({...r,settlement:round2(r.settlement),cost:round2(r.cost),profit:round2(r.profit)}))};
 }
 
-const api = { RULES: RULES.map(r => r.join(': ')), RULES_TABLE: RULES, parseFile, calculate, skey, round2 };
+const api = { RULES: RULES.map(r => r.join(': ')), RULES_TABLE: RULES, parseFile, calculate, skey, sizeKey, variantInfo, round2 };
 if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.MeeshoProfit = api;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -5077,6 +5168,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   var inr = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), int = new Intl.NumberFormat("en-IN");
   function catPct(g) { return g.settlement ? ((g.profit / g.settlement) * 100).toFixed(2) + "%" : "-"; }
   function pctText(v) { return (+v).toFixed(4) + "%"; }
+  var inr0 = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
   function money(v) { return (v < 0 ? "−" : "") + "₹" + inr.format(Math.abs(v)); }
   var MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   function monthName(m) { var p = m.split("-"); return MON[+p[1] - 1] + " " + p[0]; }
@@ -5247,13 +5339,24 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     return best;
   }
 
+  /* ------------------------------------------------- sizes from the sheet */
+  // The Orders sheet keeps the size printed on each label. Looked up by order number so a SKU sold in several sizes can be priced per size.
+  var varCost = {};
+  function fetchSizes() {
+    if (!SH.connected()) return Promise.resolve({});
+    return SH.call("order_sizes").then(function (r) { return r.sizes || {}; }).catch(function () { return {}; });
+  }
+  function assignSizes(p, map) { p.lines.forEach(function (l) { l.size = map[l.subOrder] || ""; }); }
+  function vkey(sku, z) { return sku + "::" + z.key; }
+
   /* ---------------------------------------------------------------- upload */
   function onFile(f) {
     parsed = null; last = null;
     ["pf-s2", "pf-s3", "pf-res"].forEach(function (i) { $(i).hidden = true; });
     msg("pf-msg", "info", "Reading " + f.name + " …");
     if (typeof DecompressionStream === "undefined") { msg("pf-msg", "bad", "This browser cannot open zip files. Update iOS or Chrome, or choose the .xlsx file inside the zip."); return; }
-    P.parseFile(f).then(function (p) {
+    Promise.all([P.parseFile(f), fetchSizes()]).then(function (res) {
+      var p = res[0]; assignSizes(p, res[1]);
       if (!p.lines.length) throw new Error("No order lines were found in this file.");
       parsed = p;
       var ms = Object.keys(p.months).sort(), sel = $("pf-month"); sel.textContent = "";
@@ -5263,14 +5366,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       $("pf-s2").hidden = false; $("pf-s3").hidden = false;
       var pk = lsGet(LS_PACK); $("pf-pack").value = "";
       $("pf-pack-note").textContent = pk != null ? "Last time you used ₹" + pk + " per packet. Enter this month's figure." : "";
-      current = {}; catCost = {};
+      current = {}; catCost = {}; varCost = {};
       onMonth();
     }).catch(function (e) { msg("pf-msg", "bad", e && e.message ? e.message : String(e)); });
   }
 
+  // SKUs sold in two or more sizes this month are priced per size (not as part of a category)
+  function variantsForMonth() { return P.variantInfo(parsed.lines, $("pf-month").value).filter(function (v) { return v.variant; }).sort(function (a, b) { return b.units - a.units; }); }
   function skusForMonth() {
-    var m = $("pf-month").value, map = {};
-    parsed.lines.filter(function (l) { return l.paymentDate.slice(0, 7) === m; }).forEach(function (l) {
+    var m = $("pf-month").value, map = {}, vk = {};
+    variantsForMonth().forEach(function (v) { vk[key(v.sku)] = 1; });
+    parsed.lines.filter(function (l) { return l.paymentDate.slice(0, 7) === m && !vk[key(l.sku)]; }).forEach(function (l) {
       var k = key(l.sku), g = map[k] || (map[k] = { sku: l.sku, units: 0, lines: 0 }); g.units += l.qty; g.lines++;
     });
     return Object.keys(map).map(function (k) { return map[k]; }).sort(function (a, b) { return b.units - a.units; });
@@ -5291,6 +5397,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     var g = groupsForMonth(), out = {};
     g.cats.forEach(function (c) { c.skus.forEach(function (s) { out[s.sku] = catCost[c.name]; }); });
     g.singles.forEach(function (s) { out[s.sku] = current[key(s.sku)]; });
+    variantsForMonth().forEach(function (v) { v.sizes.forEach(function (z) { out[vkey(v.sku, z)] = varCost[key(vkey(v.sku, z))]; }); });
     return out;
   }
 
@@ -5327,6 +5434,18 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     var haveHistory = Object.keys(history.costs).length || Object.keys(lsGet(LS_COSTS) || {}).length;
     var g = groupsForMonth();
     if (!skuList.length) host.appendChild(el("div", "note info", "You have not made a SKU list yet, so every SKU is priced on its own. Settings, Manage SKUs lets you price a whole category at once."));
+    variantsForMonth().forEach(function (v) {
+      var head = el("div", "note info");
+      head.appendChild(el("b", "", v.sku));
+      head.appendChild(document.createTextNode(" was sold in " + v.sizes.filter(function (z) { return z.key !== "noinfo"; }).length + " sizes this month, so each size has its own price" + (v.sizes.some(function (z) { return z.key === "noinfo"; }) ? ". \u201cNo info\u201d is for lines whose size was not saved (older orders or orders never sent to the sheet)." : ".")));
+      host.appendChild(head);
+      v.sizes.forEach(function (z) {
+        var kk = vkey(v.sku, z), kx = key(kk), pv3 = prevCost(kk, m) || prevCost(v.sku, m), sv3 = savedCost(kk, m);
+        if (sv3 !== null && varCost[kx] === undefined) varCost[kx] = sv3;
+        priceRow(host, v.sku + " \u00b7 " + z.label, int.format(z.units) + " units \u00b7 " + int.format(z.lines) + " lines", sv3, haveHistory,
+          function () { return varCost[kx]; }, function (val) { varCost[kx] = val; }, undefined, pv3);
+      });
+    });
     g.cats.forEach(function (c) {
       var pv = prevCatCost(c.list, m), sv = savedCatCost(c.list, m);
       if (!pv && sv !== null) pv = { cost: sv, month: "" };
@@ -5381,7 +5500,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   function categoryRows(r) {
     var map = skuToCat(), by = {}, order = [];
     r.bySku.forEach(function (s) {
-      var c = map[key(s.sku)] || "Other", g = by[c];
+      var c = map[key(s.baseSku || s.sku)] || "Other", g = by[c];
       if (!g) { g = by[c] = { category: c, lines: 0, units: 0, settlement: 0, profit: 0 }; order.push(c); }
       g.lines += s.lines; g.units += s.units; g.settlement += s.settlement; g.profit += s.profit;
     });
@@ -5476,7 +5595,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       history.categories[r.month] = categoryRows(r).map(function (g) { return { category: g.category, profit: g.profit, units: g.units, settlement: g.settlement, perUnit: g.perUnit }; });
       history.months = history.months.filter(function (m) { return m.month !== r.month; }).concat([{ month: r.month, lines: r.lines, settlement: r.settlement, lineProfit: r.lineProfit, ads: r.ads, profit: r.profit, profitPct: r.profitPct, packing: r.packing }]).sort(function (a, b) { return a.month < b.month ? -1 : 1; });
     history.breakdown = history.breakdown || {}; history.breakdown[r.month] = breakdownRows(r).map(function (x) { return { step: x[1], rule: x[2], lines: x[3], counted: x[4], packing: x[5], cost: x[6], profit: x[7] }; });
-      renderHistory();
+      renderHistory(); dpLoad();
     }).catch(function (e) { n.textContent = e.message + " The result is on screen. Tap Calculate again to retry saving."; n.className = "msg bad"; });
   }
 
@@ -5522,6 +5641,83 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   var rt = $("pf-rules").tBodies[0];
   P.RULES_TABLE.forEach(function (r) { var tr = el("tr"); tr.appendChild(el("td", "", r[0])); tr.appendChild(el("td", "", r[1])); rt.appendChild(tr); });
   window.addEventListener("vavi:profit", loadHistory);
+  /* ------------------------------------------------ dispatched vs paid */
+  var dpBusy = false;
+  function dpSet(res) {
+    var body = $("dp-body"); body.textContent = "";
+    var b = res.buckets, shortD = function (k) { var p = k.split("-"); return +p[2] + " " + MON[+p[1] - 1]; };
+    $("dp-help").textContent = "Every parcel sent to your sheet, matched with the payment months you saved. Counted up to " + shortD(res.asOf) + " (your latest saved payment). Meesho usually pays your orders within " + res.expectedDays + " days of the order date" + (res.lagSample < 30 ? " (a standard guess, there are not enough paid orders yet to measure it)" : " (measured from " + int.format(res.lagSample) + " of your paid orders)") + ". Late = up to " + res.lateDays + " days, overdue = longer.";
+    var back = b.rto.n + b.returned.n, noPay = b.waiting.n + b.late.n + b.overdue.n;
+    var tiles = el("div", "dp-tiles");
+    function tile(label, n, v, cls) { var d = el("div", "dp-tile" + (cls ? " " + cls : "")); d.appendChild(el("b", "", int.format(n))); d.appendChild(el("span", "", label)); if (v !== null) d.appendChild(el("small", "", " · ₹" + inr0.format(v))); tiles.appendChild(d); }
+    tile("Paid", b.paid.n + b.shipped.n, b.paid.v + b.shipped.v, "good");
+    tile("Came back (RTO / returns)", back, b.rto.v + b.returned.v);
+    tile("Waiting, normal", b.waiting.n, b.waiting.v);
+    tile("Too new to be paid", b.notDue.n, b.notDue.v);
+    tile("Late", b.late.n, b.late.v, b.late.n ? "warn" : "");
+    tile("Overdue", b.overdue.n, b.overdue.v, b.overdue.n ? "warn" : "");
+    body.appendChild(tiles);
+    var stuck = b.late.n + b.overdue.n;
+    if (stuck) {
+      var w = el("div", "note warn", int.format(stuck) + " parcels (₹" + inr0.format(b.late.v + b.overdue.v) + " of order value) were sent more than " + res.expectedDays + " days before your latest payment and have no payment line yet. Check these with Meesho.");
+      body.appendChild(w);
+    } else { body.appendChild(el("div", "note info", "Nothing is late. Every parcel old enough to be paid has a payment line.")); }
+    if (res.couriers.length) {
+      var cw = el("div", "tablewrap"), ct = el("table"), ch = el("tr"); ["Courier", "Late", "Overdue", "Order value"].forEach(function (h, i) { ch.appendChild(el("th", i ? "n" : "", h)); });
+      var cth = el("thead"); cth.appendChild(ch); ct.appendChild(cth); var ctb = el("tbody");
+      res.couriers.forEach(function (c) { var tr = el("tr"); tr.appendChild(el("td", "", c.courier)); tr.appendChild(el("td", "n", int.format(c.late))); tr.appendChild(el("td", "n", int.format(c.overdue))); tr.appendChild(el("td", "n", "₹" + inr0.format(Math.round(c.value)))); ctb.appendChild(tr); });
+      ct.appendChild(ctb); cw.appendChild(ct); body.appendChild(cw);
+    }
+    if (res.list.length) {
+      var det = el("details"); det.appendChild(el("summary", "", "Late and overdue parcels (" + int.format(res.listTotal) + ")"));
+      var inner = el("div", "stack"); inner.style.gap = "8px";
+      var btn = el("button", "btn ghost sm", "Copy order numbers"); btn.type = "button"; var cm = el("p", "msg", ""); cm.setAttribute("aria-live", "polite");
+      btn.addEventListener("click", function () {
+        var txt = res.list.map(function (x) { return x.orderNo; }).join("\n");
+        function ok() { cm.textContent = "Copied " + res.list.length + " order numbers."; }
+        try { navigator.clipboard.writeText(txt).then(ok, function () { cm.textContent = "Could not copy."; }); } catch (e) { cm.textContent = "Could not copy."; }
+      });
+      inner.appendChild(btn); inner.appendChild(cm);
+      var lw = el("div", "tablewrap"), lt = el("table"), lh = el("tr"); ["Order", "Sent", "Days", "Value"].forEach(function (h, i) { lh.appendChild(el("th", i > 1 ? "n" : "", h)); });
+      var lth = el("thead"); lth.appendChild(lh); lt.appendChild(lth); var ltb = el("tbody");
+      res.list.forEach(function (x) {
+        var tr = el("tr"); var c1 = el("td", ""); c1.appendChild(el("span", "st-badge", x.level === "overdue" ? "Overdue" : "Late")); c1.appendChild(document.createTextNode(x.orderNo)); c1.appendChild(el("br")); c1.appendChild(el("small", "muted", x.courier + " · " + x.awb)); tr.appendChild(c1);
+        tr.appendChild(el("td", "", shortD(x.dispatch))); tr.appendChild(el("td", "n", String(x.age))); tr.appendChild(el("td", "n", "₹" + inr0.format(x.value))); ltb.appendChild(tr);
+      });
+      lt.appendChild(ltb); lw.appendChild(lt); inner.appendChild(lw);
+      if (res.listTotal > res.list.length) inner.appendChild(el("p", "help", "Showing the oldest " + res.list.length + " of " + int.format(res.listTotal) + "."));
+      det.appendChild(inner); body.appendChild(det);
+    }
+    if (res.byMonth.length) {
+      var mw = el("div", "tablewrap"), mt = el("table"), mh = el("tr"); ["Sent in", "Parcels", "Paid", "Back", "Unpaid"].forEach(function (h, i) { mh.appendChild(el("th", i ? "n" : "", h)); });
+      var mth = el("thead"); mth.appendChild(mh); mt.appendChild(mth); var mtb = el("tbody");
+      mw.title = ""; res.byMonth.slice(0, 6).forEach(function (m) {
+        var tr = el("tr"); tr.appendChild(el("td", "", monthName(m.month))); tr.appendChild(el("td", "n", int.format(m.n)));
+        tr.appendChild(el("td", "n", int.format(m.paid))); tr.appendChild(el("td", "n", int.format(m.rto + m.returned)));
+        tr.appendChild(el("td", "n", int.format(m.noPay))); mtb.appendChild(tr);
+      });
+      mt.appendChild(mtb); mw.appendChild(mt); body.appendChild(el("p", "help", "Unpaid = no payment line yet and old enough to expect one (waiting, late or overdue). Parcels still too new to be paid are not counted here.")); body.appendChild(mw);
+    }
+    if (res.missing && res.missing.n) {
+      var mn = el("div", "note info"); mn.appendChild(document.createTextNode(int.format(res.missing.n) + " orders placed after your sheet started were paid by Meesho but are not in your sheet (settlement "));
+      mn.appendChild(el("span", "pf-s", money(res.missing.amount))); mn.appendChild(document.createTextNode("). Their labels were probably never sent to the sheet."));
+      body.appendChild(mn);
+    }
+  }
+  function dpLoad() {
+    var card = $("dp-card"); if (!card) return;
+    if (!SH.connected()) { card.hidden = true; return; }
+    card.hidden = false; if (dpBusy) return; dpBusy = true;
+    var body = $("dp-body"); if (!body.firstChild) body.appendChild(el("p", "help", "Checking …")); $("dp-refresh").disabled = true;
+    SH.call("dispatch_paid").then(function (res) {
+      if (res.empty) { $("dp-help").textContent = ""; body.textContent = ""; body.appendChild(el("p", "help", "Save at least one payment month first (upload the Meesho payment file above). Then every parcel can be matched with its payment.")); return; }
+      dpSet(res);
+    }).catch(function (e) { body.textContent = ""; body.appendChild(el("div", "note warn", e.message)); })
+      .then(function () { dpBusy = false; $("dp-refresh").disabled = false; });
+  }
+  if ($("dp-refresh")) $("dp-refresh").addEventListener("click", dpLoad);
+  window.addEventListener("vavi:profit", dpLoad);
+
 })();
 
 </script>

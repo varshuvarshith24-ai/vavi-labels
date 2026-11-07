@@ -231,13 +231,19 @@ h2 .pf-chev { display: inline-block; width: 1.1em; }
 #pf-pick { position: relative; }
 #pf-pick input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; font-size: 0; }
 #pf-pick:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
-#view-profit table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-#view-profit td, #view-profit th { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: left; }
-#view-profit td.n, #view-profit th.n { text-align: right; }
-#view-profit tr.total td { font-weight: 700; border-top: 2px solid var(--line); }
+#view-profit table,
+#dp-view table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+#view-profit td, #view-profit th,
+#dp-view td, #dp-view th { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+#view-profit td.n, #view-profit th.n,
+#dp-view td.n, #dp-view th.n { text-align: right; }
+#view-profit tr.total td,
+#dp-view tr.total td { font-weight: 700; border-top: 2px solid var(--line); }
 #view-profit .pf-best { background: var(--accent-soft); color: var(--accent); border-radius: 99px; padding: 1px 8px; font-size: 0.75rem; font-weight: 600; }
-#view-profit .neg { color: var(--bad-ink); }
-#view-profit .tablewrap { overflow-x: auto; }
+#view-profit .neg,
+#dp-view .neg { color: var(--bad-ink); }
+#view-profit .tablewrap,
+#dp-view .tablewrap { overflow-x: auto; }
 #view-profit textarea { width: 100%; min-height: 84px; font: 0.85rem var(--font-mono); background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
 .rc > summary { cursor: pointer; list-style: none; display: flex; flex-direction: column; align-items: stretch; gap: 2px; min-height: 44px; justify-content: center; font-weight: 400; }
 .rc > summary::-webkit-details-marker { display: none; }
@@ -2162,6 +2168,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       <button class="tab on" id="tab-labels" type="button" role="tab" aria-selected="true">Labels</button>
       <button class="tab" id="tab-dash" type="button" role="tab" aria-selected="false">Dashboard</button>
       <button class="tab" id="tab-profit" type="button" role="tab" aria-selected="false" hidden>Settlements</button>
+      <button class="tab" id="tab-dpaid" type="button" role="tab" aria-selected="false" hidden>Dispatched vs paid</button>
     </div>
   </header>
 
@@ -2366,11 +2373,6 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       <p class="help" id="pf-hist-empty">No month saved yet. Your first calculation will appear here.</p>
       <div class="tablewrap" id="pf-hist-wrap" hidden><table id="pf-hist"><thead><tr><th>Month</th><th class="n">Profit</th><th class="n">Profit %</th><th class="n">Settlement</th><th>Best category</th></tr></thead><tbody></tbody></table></div>
     </section>
-    <section class="card" id="dp-card" aria-labelledby="h-dp" hidden>
-      <div class="row"><h2 id="h-dp">Dispatched vs paid</h2><button class="btn ghost sm" id="dp-refresh" type="button">Refresh</button></div>
-      <p class="help" id="dp-help"></p>
-      <div id="dp-body" class="stack" style="gap:12px"></div>
-    </section>
     <section class="card" aria-labelledby="h-pfc" id="pf-cmp-card" hidden>
       <h2 id="h-pfc">Orders by month</h2>
       <p class="help">Delivered, RTO and returns for each saved month: order counts, with the share of that month underneath. Back = RTO + returns together (parcels that came back).</p>
@@ -2382,6 +2384,14 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
         <div class="tablewrap"><table id="pf-rules"><thead><tr><th>Line</th><th>Profit</th></tr></thead><tbody></tbody></table></div>
         <p class="help">Monthly profit = sum of line profits − ads cost (Ads Cost sheet, including GST, deducted once). GST payable, TCS/TDS credits and fixed expenses are not included.</p></div>
       </details>
+    </section>
+  </div>
+
+  <div id="dp-view" class="stack" hidden>
+    <section class="card" id="dp-card" aria-labelledby="h-dp">
+      <div class="row"><h2 id="h-dp">Dispatched vs paid</h2><button class="btn ghost sm" id="dp-refresh" type="button">Refresh</button></div>
+      <p class="help" id="dp-help"></p>
+      <div id="dp-body" class="stack" style="gap:12px"></div>
     </section>
   </div>
 
@@ -3336,12 +3346,12 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   window.VaviSheet = { call: call, connected: connected, log: function () { try { return JSON.parse(lsGet(LS_LOG) || "[]"); } catch (e) { return []; } } };
 
   /* -------------------------------------------------------------- tabs/views */
-  var views = { labels: $("view-labels"), dash: $("view-dash"), set: $("sheet-settings"), skus: $("sku-view"), theme: $("theme-view"), profit: $("view-profit"), search: $("search-view"), home: $("view-home"), fraud: $("fraud-view") };
-  var tabs = { labels: $("tab-labels"), dash: $("tab-dash"), profit: $("tab-profit"), set: $("tab-set"), search: $("tab-search") };
-  tabs.set.hidden = false; tabs.profit.hidden = false; tabs.search.hidden = false;   // the old tab row stays hidden: the Home page replaces it
+  var views = { labels: $("view-labels"), dash: $("view-dash"), set: $("sheet-settings"), skus: $("sku-view"), theme: $("theme-view"), profit: $("view-profit"), dpaid: $("dp-view"), search: $("search-view"), home: $("view-home"), fraud: $("fraud-view") };
+  var tabs = { labels: $("tab-labels"), dash: $("tab-dash"), profit: $("tab-profit"), dpaid: $("tab-dpaid"), set: $("tab-set"), search: $("tab-search") };
+  tabs.set.hidden = false; tabs.profit.hidden = false; tabs.dpaid.hidden = false; tabs.search.hidden = false;   // the old tab row stays hidden: the Home page replaces it
   var lastView = "labels", curView = "labels";
   function layout() { return lsGet("vavi_layout") === "default" ? "default" : "tiles"; }
-  var BACKPAGES = { labels: 1, dash: 1, profit: 1, fraud: 1, search: 1 };
+  var BACKPAGES = { labels: 1, dash: 1, profit: 1, dpaid: 1, fraud: 1, search: 1 };
   function chrome(name) {
     var tiles = layout() === "tiles";
     $("tabs").hidden = tiles;
@@ -3361,6 +3371,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     if (name === "home") renderHome();
     if (name === "dash") openDash();
     if (name === "profit") window.dispatchEvent(new CustomEvent("vavi:profit"));
+    if (name === "dpaid") window.dispatchEvent(new CustomEvent("vavi:dpaid"));
     if (name === "set") { $("set-url").value = lsGet(LS_URL); $("set-key").value = lsGet(LS_KEY); }
     window.scrollTo(0, 0);
   }
@@ -3386,7 +3397,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       .catch(function (e) { setMsg("set-msg", e.message, true); });
   });
   $("set-clear").addEventListener("click", function () {
-    lsSet(LS_URL, ""); lsSet(LS_KEY, ""); lsSet(LS_CACHE, "");
+    lsSet(LS_URL, ""); lsSet(LS_KEY, ""); lsSet(LS_CACHE, ""); lsSet("vavi_profit_cache", ""); lsSet("vavi_dp_cache", "");
     $("set-url").value = ""; $("set-key").value = "";
     setMsg("set-msg", "Disconnected. The link and key were removed from this phone.");
   });
@@ -3416,7 +3427,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       if (res.invalid) t += " " + res.invalid + " could not be read and were left out.";
       if (res.summaryError) t = "Orders are saved. " + t.replace(/^Added[^.]*\./, function (m) { return m; }) + " " + res.summaryError;
       setMsg("send-note", t, res.invalid > 0 || !!res.summaryError);
-      lsSet(LS_CACHE, "");
+      // The saved Dashboard/Home numbers are kept (an older copy is better than a long wait when the app opens).
+      // After a send they are refreshed quietly in the background below, so the next open is instant and current.
       if (res.added > 0) {
         noteSent({ ts: new Date().toISOString(), added: res.added }); drawSent();
         // Orders are already saved. Now refresh the Repeat Customers tab straight away (a background rebuild in the sheet is the safety net).
@@ -3425,7 +3437,10 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
           setMsg("send-note", t + " Repeat Customers tab is up to date" + (r.sheetRows ? " (" + r.sheetRows + " customers)." : "."), res.invalid > 0 || !!res.summaryError);
         }).catch(function () {
           setMsg("send-note", t + " The Repeat Customers tab will update by itself in about a minute.", res.invalid > 0 || !!res.summaryError);
-        });
+        }).then(function () { return call("stats", { fresh: true }, { tries: 2 }); }).then(function (s) {
+          state.days = s.days || []; state.updated = Date.now(); state.fromCache = false; noteSent(s.lastSent);
+          lsSet(LS_CACHE, JSON.stringify({ days: state.days, updated: state.updated }));
+        }).catch(function () {});
       }
     }).catch(function (e) { setMsg("send-note", e.message + " Nothing was lost: tap Send to Sheet again.", true); })
       .then(function () { btn.disabled = false; });
@@ -3857,13 +3872,19 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     labels: { name: "Labels", sub: "Add PDFs, pick list, send to sheet", go: "labels", ic: G('<path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8z"/><circle cx="7" cy="7" r="1.4"/>') },
     dash: { name: "Dashboard", sub: "Orders and trends", go: "dash", ic: G('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>') },
     profit: { name: "Settlements", sub: "Monthly payments", go: "profit", ic: G('<path d="M6 4h12M6 9h12M6 4c6 0 8 2 8 5s-3 5-8 5l8 6"/>') },
+    dpaid: { name: "Dispatched vs paid", sub: "Sent parcels and their payment", go: "dpaid", ic: G('<path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/>') },
     fraud: { name: "Report fraud", sub: "Add and check customers", go: "fraud", ic: G('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>') },
     search: { name: "Search", sub: "Order, AWB, customer", go: "search", ic: G('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/>') },
     skus: { name: "Manage SKUs", sub: "Categories and order", go: "skus", ic: G('<path d="M21 16V8l-9-5-9 5v8l9 5 9-5z"/><path d="M3.3 7L12 12l8.7-5M12 22V12"/>') }
   };
-  var HOME_DEF = { tiles: ["labels", "dash", "profit", "fraud"], today: { couriers: true, value: true, week: true, bars: true } };
+  var HOME_DEF = { tiles: ["labels", "dash", "profit", "dpaid", "fraud"], today: { couriers: true, value: true, week: true, bars: true } };
   function getHome() {
     var c = null; try { c = JSON.parse(lsGet("vavi_home") || "null"); } catch (e) {}
+    // One time: a home page saved before "Dispatched vs paid" existed gets the new tile added after Settlements.
+    if (c && Array.isArray(c.tiles) && !lsGet("vavi_home_dp")) {
+      lsSet("vavi_home_dp", "1");
+      if (c.tiles.indexOf("dpaid") < 0) { var pi = c.tiles.indexOf("profit"); c.tiles.splice(pi < 0 ? c.tiles.length : pi + 1, 0, "dpaid"); setHome(c); }
+    }
     var out = { tiles: HOME_DEF.tiles.slice(), today: { couriers: true, value: true, week: true, bars: true } };
     if (c && Array.isArray(c.tiles)) { var t = c.tiles.filter(function (k, i) { return TILES[k] && c.tiles.indexOf(k) === i; }); if (t.length) out.tiles = t; }
     if (c && c.today) Object.keys(out.today).forEach(function (k) { if (c.today[k] === false) out.today[k] = false; });
@@ -4820,7 +4841,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="07 Nov 2026, 22:34";
+  var VAVI_APP_VERSION="07 Nov 2026, 22:54";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";
@@ -5187,8 +5208,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   function loadHistory() {
     skuList = readCachedList();
     if (!SH.connected()) { renderHistory(); return; }
+    // Show the last saved months straight away; the sheet answer replaces them a moment later.
+    try { var hc = JSON.parse(localStorage.getItem("vavi_profit_cache") || "null"); if (hc && hc.months && !history.months.length) { history = hc; renderHistory(); } } catch (e) {}
     SH.call("sku_get").then(function (r) { if (r && r.categories && r.categories.length) skuList = r.categories; if (parsed) buildSkus(); }).catch(function () { /* the saved copy on this phone is used */ });
-    SH.call("profit_get").then(function (r) { history = { months: r.months || [], costs: r.costs || {}, categories: r.categories || {}, breakdown: r.breakdown || {} }; renderHistory(); if (parsed) buildSkus(); })
+    SH.call("profit_get").then(function (r) { history = { months: r.months || [], costs: r.costs || {}, categories: r.categories || {}, breakdown: r.breakdown || {} }; try { localStorage.setItem("vavi_profit_cache", JSON.stringify(history)); } catch (e) {} renderHistory(); if (parsed) buildSkus(); })
       .catch(function (e) { $("pf-hist-msg").textContent = e.message + " Showing what is saved on this phone."; renderHistory(); });
   }
   // delivered / RTO / returns (both kinds of return together), from rows of {kind, lines, counted, profit}
@@ -5646,7 +5669,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   function dpSet(res) {
     var body = $("dp-body"); body.textContent = "";
     var b = res.buckets, shortD = function (k) { var p = k.split("-"); return +p[2] + " " + MON[+p[1] - 1]; };
-    $("dp-help").textContent = "Every parcel sent to your sheet, matched with the payment months you saved. Counted up to " + shortD(res.asOf) + " (your latest saved payment). Meesho usually pays your orders within " + res.expectedDays + " days of the order date" + (res.lagSample < 30 ? " (a standard guess, there are not enough paid orders yet to measure it)" : " (measured from " + int.format(res.lagSample) + " of your paid orders)") + ". Late = up to " + res.lateDays + " days, overdue = longer.";
+    $("dp-help").textContent = "Every parcel sent to your sheet, matched with the payment months you saved. Counted up to " + shortD(res.asOf) + " (your latest saved payment). Meesho usually pays your orders within " + res.expectedDays + " days of the order date" + (res.lagSample < 30 ? " (a standard guess, there are not enough paid orders yet to measure it)" : " (measured from " + int.format(res.lagSample) + " of your paid orders)") + ". Late = up to " + res.lateDays + " days, overdue = longer. The numbers are exact only for months in which every day\u2019s labels were sent to the sheet.";
     var back = b.rto.n + b.returned.n, noPay = b.waiting.n + b.late.n + b.overdue.n;
     var tiles = el("div", "dp-tiles");
     function tile(label, n, v, cls) { var d = el("div", "dp-tile" + (cls ? " " + cls : "")); d.appendChild(el("b", "", int.format(n))); d.appendChild(el("span", "", label)); if (v !== null) d.appendChild(el("small", "", " · ₹" + inr0.format(v))); tiles.appendChild(d); }
@@ -5700,23 +5723,30 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     }
     if (res.missing && res.missing.n) {
       var mn = el("div", "note info"); mn.appendChild(document.createTextNode(int.format(res.missing.n) + " orders placed after your sheet started were paid by Meesho but are not in your sheet (settlement "));
-      mn.appendChild(el("span", "pf-s", money(res.missing.amount))); mn.appendChild(document.createTextNode("). Their labels were probably never sent to the sheet."));
+      mn.appendChild(document.createTextNode(money(res.missing.amount))); mn.appendChild(document.createTextNode("). Their labels were probably never sent to the sheet."));
       body.appendChild(mn);
     }
   }
   function dpLoad() {
     var card = $("dp-card"); if (!card) return;
-    if (!SH.connected()) { card.hidden = true; return; }
-    card.hidden = false; if (dpBusy) return; dpBusy = true;
-    var body = $("dp-body"); if (!body.firstChild) body.appendChild(el("p", "help", "Checking …")); $("dp-refresh").disabled = true;
+    var body = $("dp-body");
+    if (!SH.connected()) { $("dp-help").textContent = ""; body.textContent = ""; body.appendChild(el("p", "help", "Connect your sheet first (gear icon, Settings).")); return; }
+    if (dpBusy) return; dpBusy = true;
+    var dc = null; try { dc = JSON.parse(localStorage.getItem("vavi_dp_cache") || "null"); } catch (e) {}
+    if (dc && dc.res && !dc.res.empty) {
+      dpSet(dc.res);
+      var dt = new Date(dc.ts); $("dp-help").textContent += " Showing the saved copy from " + dt.getDate() + " " + MON[dt.getMonth()] + ", " + dt.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }) + ". Updating …";
+    }
+    if (!body.firstChild) body.appendChild(el("p", "help", "Checking …")); $("dp-refresh").disabled = true;
     SH.call("dispatch_paid").then(function (res) {
-      if (res.empty) { $("dp-help").textContent = ""; body.textContent = ""; body.appendChild(el("p", "help", "Save at least one payment month first (upload the Meesho payment file above). Then every parcel can be matched with its payment.")); return; }
+      if (res.empty) { $("dp-help").textContent = ""; body.textContent = ""; body.appendChild(el("p", "help", "Save at least one payment month first (open Settlements and upload the Meesho payment file). Then every parcel can be matched with its payment.")); return; }
+      try { localStorage.setItem("vavi_dp_cache", JSON.stringify({ ts: Date.now(), res: res })); } catch (e) {}
       dpSet(res);
-    }).catch(function (e) { body.textContent = ""; body.appendChild(el("div", "note warn", e.message)); })
+    }).catch(function (e) { if (!(dc && dc.res && !dc.res.empty)) body.textContent = ""; body.appendChild(el("div", "note warn", e.message + (dc && dc.res ? " Showing the saved copy." : ""))); if (dc && dc.res) $("dp-help").textContent = $("dp-help").textContent.replace(/ Updating …$/, ""); })
       .then(function () { dpBusy = false; $("dp-refresh").disabled = false; });
   }
   if ($("dp-refresh")) $("dp-refresh").addEventListener("click", dpLoad);
-  window.addEventListener("vavi:profit", dpLoad);
+  window.addEventListener("vavi:dpaid", dpLoad);
 
 })();
 

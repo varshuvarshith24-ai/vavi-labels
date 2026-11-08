@@ -256,6 +256,9 @@ h2 .pf-chev { display: inline-block; width: 1.1em; }
 .dp-tile { border: 1.5px solid var(--line); border-radius: 12px; padding: 8px 10px; background: var(--surface); }
 .dp-tile b { display: block; font-size: 1.25rem; line-height: 1.2; }
 .dp-tile small { color: var(--muted); }
+.dp-tile.tap { cursor: pointer; } .dp-tile.tap:focus-visible, .dp-tile.on { outline: 2.5px solid var(--ink); outline-offset: 1px; }
+.dp-hint { display: block; font-style: normal; font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+.dp-panel { border: 1.5px solid var(--line); border-radius: 12px; padding: 10px; background: var(--surface); display: flex; flex-direction: column; gap: 8px; } .dp-panel h3 { margin: 0; font-size: 1rem; }
 .dp-tile.warn { border-color: var(--s2); } .dp-tile.good { border-color: var(--s3); }
 .st-badge { display: inline-block; font-family: var(--font-body); font-size: 0.72rem; font-weight: 700; letter-spacing: .02em; padding: 1px 8px; margin-right: 6px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); vertical-align: 1px; }
 .st-paid, .st-shipped { border-color: var(--s3); background: color-mix(in srgb, var(--s3) 16%, var(--surface)); }
@@ -2391,6 +2394,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     <section class="card" id="dp-card" aria-labelledby="h-dp">
       <div class="row"><h2 id="h-dp">Dispatched vs paid</h2><button class="btn ghost sm" id="dp-refresh" type="button">Refresh</button></div>
       <p class="help" id="dp-help"></p>
+      <label class="help" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">Count parcels sent from <input type="date" id="dp-from" style="font:inherit;padding:4px 8px"></label>
       <div id="dp-body" class="stack" style="gap:12px"></div>
     </section>
   </div>
@@ -3425,6 +3429,11 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       if (res.skipped) t += " " + res.skipped + " already in the sheet, so not added again.";
       if (res.retried && res.added === 0 && res.skipped > 0) t = "Done. These " + res.skipped + " orders are in the sheet. The connection was slow, so the first try probably saved them before the answer got back.";
       if (res.invalid) t += " " + res.invalid + " could not be read and were left out.";
+      if (res.timing && res.timing.total != null) {
+        var sec = function (ms) { return (Math.round(ms / 100) / 10).toFixed(1); };
+        t += " (sheet took " + sec(res.timing.total) + " s: checking " + sec(res.timing.check || 0) + ", saving " + sec(res.timing.save || 0) + ")";
+        try { var tl = JSON.parse(lsGet("vavi_send_times") || "[]"); tl.push({ t: new Date().toISOString(), n: res.added, ms: res.timing }); lsSet("vavi_send_times", JSON.stringify(tl.slice(-20))); } catch (e) {}
+      }
       if (res.summaryError) t = "Orders are saved. " + t.replace(/^Added[^.]*\./, function (m) { return m; }) + " " + res.summaryError;
       setMsg("send-note", t, res.invalid > 0 || !!res.summaryError);
       // The saved Dashboard/Home numbers are kept (an older copy is better than a long wait when the app opens).
@@ -4841,7 +4850,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="07 Nov 2026, 23:26";
+  var VAVI_APP_VERSION="08 Nov 2026, 10:21";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";
@@ -5665,21 +5674,58 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   P.RULES_TABLE.forEach(function (r) { var tr = el("tr"); tr.appendChild(el("td", "", r[0])); tr.appendChild(el("td", "", r[1])); rt.appendChild(tr); });
   window.addEventListener("vavi:profit", loadHistory);
   /* ------------------------------------------------ dispatched vs paid */
-  var dpTok = 0;
+  var dpTok = 0, DP_FROM = "2026-11-01";
+  function dpFrom() { var v = ""; try { v = localStorage.getItem("vavi_dp_from") || ""; } catch (e) {} return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : DP_FROM; }
   function dpSet(res) {
     var body = $("dp-body"); body.textContent = "";
     var b = res.buckets, shortD = function (k) { var p = k.split("-"); return +p[2] + " " + MON[+p[1] - 1]; };
-    $("dp-help").textContent = "Every parcel sent to your sheet, matched with the payment months you saved. Counted up to " + shortD(res.asOf) + " (your latest saved payment). Meesho usually pays your orders within " + res.expectedDays + " days of the order date" + (res.lagSample < 30 ? " (a standard guess, there are not enough paid orders yet to measure it)" : " (measured from " + int.format(res.lagSample) + " of your paid orders)") + ". Late = up to " + res.lateDays + " days, overdue = longer. The numbers are exact only for months in which every day\u2019s labels were sent to the sheet.";
+    $("dp-help").textContent = "Every parcel sent to your sheet from " + shortD(res.from || dpFrom()) + ", matched with the payment months you saved. Counted up to " + shortD(res.asOf) + " (your latest saved payment). Meesho usually pays your orders within " + res.expectedDays + " days of the order date" + (res.lagSample < 30 ? " (a standard guess, there are not enough paid orders yet to measure it)" : " (measured from " + int.format(res.lagSample) + " of your paid orders)") + ". Late = up to " + res.lateDays + " days, overdue = longer. The numbers are exact only for months in which every day\u2019s labels were sent to the sheet.";
     var back = b.rto.n + b.returned.n, noPay = b.waiting.n + b.late.n + b.overdue.n;
     var tiles = el("div", "dp-tiles");
-    function tile(label, n, v, cls) { var d = el("div", "dp-tile" + (cls ? " " + cls : "")); d.appendChild(el("b", "", int.format(n))); d.appendChild(el("span", "", label)); if (v !== null) d.appendChild(el("small", "", " · ₹" + inr0.format(v))); tiles.appendChild(d); }
+    var panel = el("div", "dp-panel"); panel.hidden = true; var openKey = "", tileEls = {};
+    var LBL = { back: "Came back (RTO / returns)", waiting: "Waiting, normal", notDue: "Too new to be paid", late: "Late", overdue: "Overdue", noPay3: "No payment after 3 months" };
+    function showList(key) {
+      var L = res.lists && res.lists[key]; panel.textContent = ""; if (!L) return;
+      panel.appendChild(el("h3", "", LBL[key] + " (" + int.format(L.total) + ")"));
+      var btn = el("button", "btn ghost sm", "Copy all order numbers"); btn.type = "button"; var cm = el("p", "msg", ""); cm.setAttribute("aria-live", "polite");
+      btn.addEventListener("click", function () {
+        var txt = L.all.join("\n");
+        function ok() { cm.textContent = "Copied " + L.all.length + " order numbers" + (L.total > L.all.length ? " (the oldest " + L.all.length + " of " + int.format(L.total) + ")." : "."); }
+        try { navigator.clipboard.writeText(txt).then(ok, function () { cm.textContent = "Could not copy."; }); } catch (e) { cm.textContent = "Could not copy."; }
+      });
+      panel.appendChild(btn); panel.appendChild(cm);
+      var lw = el("div", "tablewrap"), lt = el("table"), lh = el("tr"); ["Order", "Sent", "Days", "Value"].forEach(function (h, i) { lh.appendChild(el("th", i > 1 ? "n" : "", h)); });
+      var lth = el("thead"); lth.appendChild(lh); lt.appendChild(lth); var ltb = el("tbody");
+      L.items.forEach(function (x) {
+        var tr = el("tr"), c1 = el("td", "");
+        if (key === "back") c1.appendChild(el("span", "st-badge", x.level === "rto" ? "RTO" : "Return"));
+        c1.appendChild(document.createTextNode(x.orderNo)); c1.appendChild(el("br")); c1.appendChild(el("small", "muted", x.courier + " · " + x.awb)); tr.appendChild(c1);
+        tr.appendChild(el("td", "", shortD(x.dispatch))); tr.appendChild(el("td", "n", String(x.days))); tr.appendChild(el("td", "n", "₹" + inr0.format(x.value))); ltb.appendChild(tr);
+      });
+      lt.appendChild(ltb); lw.appendChild(lt); panel.appendChild(lw);
+      if (L.total > L.items.length) panel.appendChild(el("p", "help", "Showing the oldest " + L.items.length + " of " + int.format(L.total) + "."));
+    }
+    function toggle(key) {
+      var was = openKey === key; openKey = was ? "" : key;
+      Object.keys(tileEls).forEach(function (k) { tileEls[k].classList.toggle("on", k === openKey); tileEls[k].setAttribute("aria-expanded", k === openKey ? "true" : "false"); });
+      panel.hidden = was; if (!was) showList(key);
+    }
+    function tile(label, n, v, cls, key) {
+      var d = el("div", "dp-tile" + (cls ? " " + cls : "")); d.appendChild(el("b", "", int.format(n))); d.appendChild(el("span", "", label)); if (v !== null) d.appendChild(el("small", "", " · ₹" + inr0.format(v)));
+      if (key && res.lists && res.lists[key] && res.lists[key].total) {
+        d.classList.add("tap"); d.tabIndex = 0; d.setAttribute("role", "button"); d.setAttribute("aria-expanded", "false"); d.appendChild(el("i", "dp-hint", "Tap for order numbers ▾")); tileEls[key] = d;
+        d.addEventListener("click", function () { toggle(key); }); d.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(key); } });
+      }
+      tiles.appendChild(d);
+    }
     tile("Paid", b.paid.n + b.shipped.n, b.paid.v + b.shipped.v, "good");
-    tile("Came back (RTO / returns)", back, b.rto.v + b.returned.v);
-    tile("Waiting, normal", b.waiting.n, b.waiting.v);
-    tile("Too new to be paid", b.notDue.n, b.notDue.v);
-    tile("Late", b.late.n, b.late.v, b.late.n ? "warn" : "");
-    tile("Overdue", b.overdue.n, b.overdue.v, b.overdue.n ? "warn" : "");
-    body.appendChild(tiles);
+    tile(LBL.back, back, b.rto.v + b.returned.v, "", "back");
+    tile(LBL.waiting, b.waiting.n, b.waiting.v, "", "waiting");
+    tile(LBL.notDue, b.notDue.n, b.notDue.v, "", "notDue");
+    tile("Late", b.late.n, b.late.v, b.late.n ? "warn" : "", "late");
+    tile("Overdue", b.overdue.n, b.overdue.v, b.overdue.n ? "warn" : "", "overdue");
+    tile(LBL.noPay3, b.noPay3 ? b.noPay3.n : 0, b.noPay3 ? b.noPay3.v : 0, "", "noPay3");
+    body.appendChild(tiles); body.appendChild(panel);
     var stuck = b.late.n + b.overdue.n;
     if (stuck) {
       var w = el("div", "note warn", int.format(stuck) + " parcels (₹" + inr0.format(b.late.v + b.overdue.v) + " of order value) were sent more than " + res.expectedDays + " days before your latest payment and have no payment line yet. Check these with Meesho.");
@@ -5691,7 +5737,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       res.couriers.forEach(function (c) { var tr = el("tr"); tr.appendChild(el("td", "", c.courier)); tr.appendChild(el("td", "n", int.format(c.late))); tr.appendChild(el("td", "n", int.format(c.overdue))); tr.appendChild(el("td", "n", "₹" + inr0.format(Math.round(c.value)))); ctb.appendChild(tr); });
       ct.appendChild(ctb); cw.appendChild(ct); body.appendChild(cw);
     }
-    if (res.list.length) {
+    if (!res.lists && res.list.length) {
       var det = el("details"); det.appendChild(el("summary", "", "Late and overdue parcels (" + int.format(res.listTotal) + ")"));
       var inner = el("div", "stack"); inner.style.gap = "8px";
       var btn = el("button", "btn ghost sm", "Copy order numbers"); btn.type = "button"; var cm = el("p", "msg", ""); cm.setAttribute("aria-live", "polite");
@@ -5712,14 +5758,14 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       det.appendChild(inner); body.appendChild(det);
     }
     if (res.byMonth.length) {
-      var mw = el("div", "tablewrap"), mt = el("table"), mh = el("tr"); ["Sent in", "Parcels", "Paid", "Back", "Unpaid"].forEach(function (h, i) { mh.appendChild(el("th", i ? "n" : "", h)); });
+      var mw = el("div", "tablewrap"), mt = el("table"), mh = el("tr"); ["Sent in", "Parcels", "Paid", "Back", "Unpaid", "No pay 3m"].forEach(function (h, i) { mh.appendChild(el("th", i ? "n" : "", h)); });
       var mth = el("thead"); mth.appendChild(mh); mt.appendChild(mth); var mtb = el("tbody");
       mw.title = ""; res.byMonth.slice(0, 6).forEach(function (m) {
         var tr = el("tr"); tr.appendChild(el("td", "", monthName(m.month))); tr.appendChild(el("td", "n", int.format(m.n)));
         tr.appendChild(el("td", "n", int.format(m.paid))); tr.appendChild(el("td", "n", int.format(m.rto + m.returned)));
-        tr.appendChild(el("td", "n", int.format(m.noPay))); mtb.appendChild(tr);
+        tr.appendChild(el("td", "n", int.format(m.noPay))); tr.appendChild(el("td", "n", int.format(m.noPay3 || 0))); mtb.appendChild(tr);
       });
-      mt.appendChild(mtb); mw.appendChild(mt); body.appendChild(el("p", "help", "Unpaid = no payment line yet and old enough to expect one (waiting, late or overdue). Parcels still too new to be paid are not counted here.")); body.appendChild(mw);
+      mt.appendChild(mtb); mw.appendChild(mt); body.appendChild(el("p", "help", "Unpaid = no payment line yet and old enough to expect one (waiting, late or overdue). No pay 3m = no payment line in the month sent or the 2 months after (most likely cancelled before dispatch). Parcels still too new to be paid are not counted here.")); body.appendChild(mw);
     }
     if (res.missing && res.missing.n) {
       var mn = el("div", "note info"); mn.appendChild(document.createTextNode(int.format(res.missing.n) + " orders placed after your sheet started were paid by Meesho but are not in your sheet (settlement "));
@@ -5727,25 +5773,29 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
       body.appendChild(mn);
     }
   }
-  function dpLoad() {
+  function dpLoad(manual) {
+    manual = manual === true;
     var card = $("dp-card"); if (!card) return;
     var body = $("dp-body");
     if (!SH.connected()) { $("dp-help").textContent = ""; body.textContent = ""; body.appendChild(el("p", "help", "Connect your sheet first (gear icon, Settings).")); return; }
     var my = ++dpTok;   // a newer load always replaces an older one, so a stuck request can never freeze the page
     var dc = null; try { dc = JSON.parse(localStorage.getItem("vavi_dp_cache") || "null"); } catch (e) {}
+    if (dc && dc.from !== dpFrom()) dc = null;
     if (dc && dc.res && !dc.res.empty) {
       dpSet(dc.res);
       var dt = new Date(dc.ts); $("dp-help").textContent += " Showing the saved copy from " + dt.getDate() + " " + MON[dt.getMonth()] + ", " + dt.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }) + ". Updating …";
     }
     var note = el("p", "help", "Checking …"); if (!body.firstChild) body.appendChild(note);
-    SH.call("dispatch_paid", null, { onRetry: function (n, of, w) { if (my === dpTok) { if (!note.parentNode) { note = el("p", "help", ""); body.insertBefore(note, body.firstChild); } note.textContent = n === 0 ? "Waking the sheet …" : "Slow connection" + (w ? " (" + w + ")" : "") + ". Trying again (" + n + " of " + of + ") …"; } } }).then(function (res) {
+    SH.call("dispatch_paid", { from: dpFrom(), write: !!manual }, { onRetry: function (n, of, w) { if (my === dpTok) { if (!note.parentNode) { note = el("p", "help", ""); body.insertBefore(note, body.firstChild); } note.textContent = n === 0 ? "Waking the sheet …" : "Slow connection" + (w ? " (" + w + ")" : "") + ". Trying again (" + n + " of " + of + ") …"; } } }).then(function (res) {
       if (my !== dpTok) return;
       if (res.empty) { $("dp-help").textContent = ""; body.textContent = ""; body.appendChild(el("p", "help", "Save at least one payment month first (open Settlements and upload the Meesho payment file). Then every parcel can be matched with its payment.")); return; }
-      try { localStorage.setItem("vavi_dp_cache", JSON.stringify({ ts: Date.now(), res: res })); } catch (e) {}
+      try { localStorage.setItem("vavi_dp_cache", JSON.stringify({ ts: Date.now(), from: dpFrom(), res: res })); } catch (e) {}
       dpSet(res);
+      if (res.followUpRows != null) $("dp-help").textContent += " The Payment Follow-up tab in your sheet was updated (" + res.followUpRows + " parcels).";
     }).catch(function (e) { if (my !== dpTok) return; if (note.parentNode) note.parentNode.removeChild(note); if (!(dc && dc.res && !dc.res.empty)) body.textContent = ""; body.appendChild(el("div", "note warn", e.message + (dc && dc.res ? " Showing the saved copy." : ""))); if (dc && dc.res) $("dp-help").textContent = $("dp-help").textContent.replace(/ Updating …$/, ""); })
   }
-  if ($("dp-refresh")) $("dp-refresh").addEventListener("click", dpLoad);
+  if ($("dp-from")) { $("dp-from").value = dpFrom(); $("dp-from").addEventListener("change", function () { var v = $("dp-from").value; if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { try { localStorage.setItem("vavi_dp_from", v); } catch (e) {} dpLoad(); } }); }
+  if ($("dp-refresh")) $("dp-refresh").addEventListener("click", function () { dpLoad(true); });
   window.addEventListener("vavi:dpaid", dpLoad);
 
 })();

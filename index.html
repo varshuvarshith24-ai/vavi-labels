@@ -4820,6 +4820,12 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     line(c, "Category", o.category);
     line(c, "Quantity", String(o.qty));
     line(c, "Payment", (o.payment || "-") + " · ₹" + inr.format(o.value));
+    if (o.st) {
+      var STL = { paid: "Paid", shipped: "Shipped, paid", rto: "RTO", returned: "Returned", cancelled: "Cancelled", pending: "Not updated yet" };
+      var sl = el("div", "sr-line"); sl.appendChild(el("span", "sr-k", "Payment status"));
+      var sv = el("span", "sr-v"); sv.appendChild(el("span", "st-badge st-" + o.st, STL[o.st] || o.st));
+      if (o.sm) sv.appendChild(document.createTextNode(" " + o.sm)); sl.appendChild(sv); c.appendChild(sl);
+    }
     line(c, "Customer", o.name);
     if (o.address) line(c, "Address", o.address, true); else line(c, "Pincode", o.pincode);
     return c;
@@ -4850,7 +4856,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="08 Nov 2026, 10:21";
+  var VAVI_APP_VERSION="08 Nov 2026, 16:22";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";

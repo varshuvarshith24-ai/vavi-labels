@@ -228,9 +228,9 @@ h2 .pf-chev { display: inline-block; width: 1.1em; }
 .pf-chip { display: inline-block; font-size: 0.8rem; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--muted); }
 .pf-chip.new { background: var(--warn-bg); color: var(--warn-ink); }
 .pf-chip.miss { background: var(--bad-bg); color: var(--bad-ink); }
-#pf-pick { position: relative; }
-#pf-pick input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; font-size: 0; }
-#pf-pick:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+#pf-pick, #of-pick, #dp-of-pick { position: relative; }
+#pf-pick input, #of-pick input, #dp-of-pick input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; font-size: 0; }
+#pf-pick:focus-within, #of-pick:focus-within, #dp-of-pick:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
 #view-profit table,
 #dp-view table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 #view-profit td, #view-profit th,
@@ -2330,6 +2330,9 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       <p class="help">Upload the monthly Meesho payment zip (or the .xlsx inside it), enter the month's packing cost and SKU prices, and get the profit. The file is read on this phone and is not uploaded. The result is saved to your Google Sheet.</p>
       <label class="btn wide" id="pf-pick"><span>Choose the Meesho payment file</span><input id="pf-file" type="file" accept=".zip,.xlsx"></label>
       <div id="pf-msg" role="status" aria-live="polite"></div>
+      <p class="help" style="margin-top:14px"><b>Optional, for accurate results:</b> also add the Meesho <b>Orders</b> file (CSV). It tells the tool the size of every order, so SKUs sold in two sizes are priced per size. Download it from the Meesho supplier panel (Orders, choose the month, CSV). It is saved in your sheet, so later months can use it too.</p>
+      <label class="btn ghost wide" id="of-pick"><span>Add the Meesho Orders file (optional)</span><input id="of-file" type="file" accept=".csv,text/csv"></label>
+      <div id="of-msg" role="status" aria-live="polite"></div>
     </section>
     <section class="card" id="pf-s2" hidden>
       <h2>Month and packing</h2>
@@ -2396,6 +2399,9 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       <p class="help" id="dp-help"></p>
       <label class="help" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">Count parcels sent from <input type="date" id="dp-from" style="font:inherit;padding:4px 8px"></label>
       <div id="dp-body" class="stack" style="gap:12px"></div>
+      <p class="help" style="margin-top:6px"><b>Optional, for accurate results:</b> add the Meesho <b>Orders</b> file (CSV). Orders it marks Cancelled or RTO are then counted correctly even before a payment line exists.</p>
+      <label class="btn ghost wide" id="dp-of-pick"><span>Add the Meesho Orders file (optional)</span><input id="dp-of-file" type="file" accept=".csv,text/csv"></label>
+      <div id="dp-of-msg" role="status" aria-live="polite"></div>
     </section>
   </div>
 
@@ -4856,7 +4862,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="08 Nov 2026, 16:22";
+  var VAVI_APP_VERSION="09 Nov 2026, 17:58";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";
@@ -5186,7 +5192,44 @@ function calculate(o){
     rows:rows.map(r=>({...r,settlement:round2(r.settlement),cost:round2(r.cost),profit:round2(r.profit)}))};
 }
 
-const api = { RULES: RULES.map(r => r.join(': ')), RULES_TABLE: RULES, parseFile, calculate, skey, sizeKey, variantInfo, round2 };
+/* ---------- Meesho "Orders" download (CSV): size, status and state of every Sub Order No ---------- */
+function csvRows(text){
+  const rows=[];let row=[],f='',q=false;
+  text=String(text||'').replace(/^\uFEFF/,'');
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"')q=true;
+    else if(c===','){row.push(f);f='';}
+    else if(c==='\n'||c==='\r'){ if(c==='\r'&&text[i+1]==='\n')i++; row.push(f);f=''; if(row.length>1||row[0]!=='')rows.push(row); row=[]; }
+    else f+=c;
+  }
+  if(f!==''||row.length){row.push(f);if(row.length>1||row[0]!=='')rows.push(row);}
+  return rows;
+}
+function parseOrdersCsv(text){
+  const all=csvRows(text);
+  if(!all.length)throw new Error('The file is empty.');
+  const head=all[0].map(h=>String(h).trim().toLowerCase());
+  const col=n=>head.indexOf(n);
+  const iNo=col('sub order no'),iSt=col('reason for credit entry'),iSku=col('sku'),iSz=col('size'),iDt=col('order date'),iState=col('customer state');
+  if(iNo<0||iSku<0||iSz<0)throw new Error('This does not look like the Meesho Orders file. It needs the columns Sub Order No, SKU and Size. Download "Orders" from the Meesho supplier panel as CSV.');
+  const rows=[],counts={},seen={};
+  for(let r=1;r<all.length;r++){
+    const v=all[r],no=String(v[iNo]||'').trim();
+    if(!no)continue;
+    let d=String(iDt>=0?v[iDt]||'':'').trim();
+    const m=/^(\d{4}-\d{2}-\d{2})/.exec(d); d=m?m[1]:'';
+    const st=String(iSt>=0?v[iSt]||'':'').trim().toUpperCase();
+    const row=[no,d,String(v[iSku]||'').trim(),String(v[iSz]||'').trim(),st,String(iState>=0?v[iState]||'':'').trim()];
+    if(seen[no]!==undefined)rows[seen[no]]=row; else {seen[no]=rows.length;rows.push(row);}
+    counts[st||'(none)']=(counts[st||'(none)']||0)+1;
+  }
+  if(!rows.length)throw new Error('No orders were found in this file.');
+  return {rows,counts};
+}
+
+const api = { RULES: RULES.map(r => r.join(': ')), RULES_TABLE: RULES, parseFile, calculate, parseOrdersCsv, skey, sizeKey, variantInfo, round2 };
 if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.MeeshoProfit = api;
 })(typeof window !== 'undefined' ? window : globalThis);
 
@@ -5386,6 +5429,27 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   }
   function assignSizes(p, map) { p.lines.forEach(function (l) { l.size = map[l.subOrder] || ""; }); }
   function vkey(sku, z) { return sku + "::" + z.key; }
+
+  /* ------------------------------------------- Meesho Orders file (CSV): sizes + status, saved in the sheet */
+  function uploadOrders(file, msgId, done) {
+    var box = $(msgId);
+    function say(kind, text) { box.className = "msg" + (kind === "bad" ? " bad" : kind === "ok" ? " ok" : ""); box.textContent = text; }
+    say("", "Reading " + file.name + " …");
+    var rd = file.text ? file.text() : new Promise(function (res, rej) { var fr = new FileReader(); fr.onload = function () { res(fr.result); }; fr.onerror = function () { rej(new Error("Could not read the file.")); }; fr.readAsText(file); });
+    rd.then(function (txt) {
+      var r = P.parseOrdersCsv(txt), rows = r.rows, map = {};
+      rows.forEach(function (x) { if (x[3]) map[x[0]] = x[3]; });
+      var parts = Object.keys(r.counts).sort().map(function (k) { return int.format(r.counts[k]) + " " + k.toLowerCase().replace(/_/g, " "); }).join(", ");
+      if (!SH.connected()) { say("ok", "Read " + int.format(rows.length) + " orders (" + parts + "). Your sheet is not connected, so this is used now but not saved."); return done(map, rows); }
+      var CH = 1500, n = 0, added = 0;
+      function next() {
+        if (n >= rows.length) { say("ok", "Saved " + int.format(rows.length) + " orders in your sheet (Order Info tab): " + parts + "."); return done(map, rows); }
+        say("", "Saving to your sheet … " + int.format(Math.min(n + CH, rows.length)) + " of " + int.format(rows.length));
+        return SH.call("orderinfo_save", { rows: rows.slice(n, n + CH) }, { tries: 3 }).then(function (x) { added += x.added || 0; n += CH; return next(); });
+      }
+      return next();
+    }).catch(function (e) { say("bad", (e && e.message ? e.message : String(e)) + " Nothing was changed."); });
+  }
 
   /* ---------------------------------------------------------------- upload */
   function onFile(f) {
@@ -5674,6 +5738,17 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
 
   /* ------------------------------------------------------------------ wiring */
   $("pf-file").addEventListener("change", function (e) { if (e.target.files[0]) onFile(e.target.files[0]); e.target.value = ""; });
+  $("of-file").addEventListener("change", function (e) {
+    var f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    uploadOrders(f, "of-msg", function (map) {
+      if (!parsed) { $("of-msg").textContent += " Now add the payment file above."; return; }
+      return fetchSizes().then(function (m) { Object.keys(map).forEach(function (k) { m[k] = map[k]; }); assignSizes(parsed, m); varCost = {}; onMonth(); $("of-msg").textContent += " Sizes were applied to this month, check the prices below."; });
+    });
+  });
+  if ($("dp-of-file")) $("dp-of-file").addEventListener("change", function (e) {
+    var f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    uploadOrders(f, "dp-of-msg", function () { try { localStorage.removeItem("vavi_dp_cache"); } catch (x) {} dpLoad(false); });
+  });
   $("pf-month").addEventListener("change", onMonth);
   $("pf-pack").addEventListener("input", refresh);
   var rt = $("pf-rules").tBodies[0];

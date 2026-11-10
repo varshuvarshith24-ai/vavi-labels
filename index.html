@@ -2550,7 +2550,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     var sku = "", size = "", color = "", orderNo = "", qty = 1;
     var flat = lines.join(" ");
     // SKU names can contain spaces ("BOOK FOLD 5pc"), so look for the size ("1 Mtr") first
-    var pm0 = /SKU\s+Size\s+Qty\s+Color\s+Order No\.?\s+(.+?)\s+([\d.]+\s*(?:Mtrs?|Meters?))\s+(\d+)\s+(.+?)\s+(\d{12,}_\d+)/i.exec(flat) ||
+    var pm0 = /SKU\s+Size\s+Qty\s+Color\s+Order No\.?\s+(.+?)\s+([\d.]+\s*(?:Mtrs?|Meters?)|(?:Free|One|Onesize)\s*Size)\s+(\d+)\s+(.+?)\s+(\d{12,}_\d+)/i.exec(flat) ||
       /SKU\s+Size\s+Qty\s+Color\s+Order No\.?\s+(.+?)\s+(\S+)\s+(\d+)\s+(.+?)\s+(\d{12,}_\d+)/.exec(flat);
     if (pm0) { sku = pm0[1].trim(); size = pm0[2].trim(); qty = parseInt(pm0[3], 10); color = pm0[4].trim(); orderNo = pm0[5]; }
 
@@ -4828,7 +4828,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="09 Nov 2026, 23:33";
+  var VAVI_APP_VERSION="10 Nov 2026, 17:27";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";

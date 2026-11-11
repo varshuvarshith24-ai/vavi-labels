@@ -2291,7 +2291,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       </div></details>
       <details class="card fold" id="f-ret"><summary><h2>Customers who return orders</h2></summary><div class="fold-body">
         <div class="rep-bar"><p class="sub" id="sub-ret"></p><button class="btn ghost sm" id="ret-refresh" type="button">Refresh</button></div>
-        <label class="muted" style="display:flex;gap:8px;align-items:center">Show customers with at least <select id="ret-min"><option value="2">2</option><option value="3">3</option><option value="5">5</option></select> RTO / returned orders</label>
+        <label class="muted" style="display:flex;gap:8px;align-items:center">Show customers with at least <select id="ret-min"><option value="2">2</option><option value="3">3</option><option value="5">5</option></select> returned orders (RTO is not counted)</label>
         <div class="stack" id="ret" style="gap:10px"></div>
         <p class="muted" id="note-ret"></p>
       </div></details>
@@ -3705,14 +3705,14 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   if ($("ret-min")) $("ret-min").addEventListener("change", function () { if (retBusy) return; retDone = false; loadRet(); });
   function renderRet(R, suffix) {
     var rh = $("ret"); rh.textContent = ""; $("note-ret").textContent = "";
-    $("sub-ret").textContent = R.listed + " customer" + (R.listed === 1 ? "" : "s") + " with " + R.min + " or more RTO / returned orders" + (suffix || "");
+    $("sub-ret").textContent = R.listed + " customer" + (R.listed === 1 ? "" : "s") + " with " + R.min + " or more returned orders (RTO not counted)" + (suffix || "");
     var CONF = { strong: "Match: strong (same name and address)", likely: "Match: likely (spelling differs, address matches)", weak: "Match: weak (no address saved, name + pincode only)" };
     var STL = { paid: "Paid", shipped: "Shipped, paid", rto: "RTO", returned: "Returned", cancelled: "Cancelled", pending: "Not updated yet" };
     R.top.forEach(function (c) {
       var it = el("details", "rc"), sm = el("summary", "");
-      var top = el("div", "top"); top.appendChild(el("span", "", c.name)); top.appendChild(el("span", "", (c.rto + c.returned) + " back of " + c.orders));
+      var top = el("div", "top"); top.appendChild(el("span", "", c.name)); top.appendChild(el("span", "", c.returned + " returned of " + c.orders));
       sm.appendChild(top);
-      sm.appendChild(el("small", "", c.rto + " RTO · " + c.returned + " returned · " + c.paid + " paid · " + c.pct + "% came back · " + rs(c.lost) + " in returned orders"));
+      sm.appendChild(el("small", "", c.returned + " returned · " + c.paid + " paid · " + c.pct + "% returned · " + rs(c.lost) + " in returned orders"));
       it.appendChild(sm);
       var pr = el("div", "rc-profile");
       pr.appendChild(el("small", "", c.address || c.pincode));
@@ -4887,7 +4887,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="11 Nov 2026, 09:45";
+  var VAVI_APP_VERSION="11 Nov 2026, 10:06";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";

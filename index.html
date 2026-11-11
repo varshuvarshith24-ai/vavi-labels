@@ -2289,6 +2289,12 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
         <div class="stack" id="rep" style="gap:10px"></div>
         <p class="muted" id="note-rep"></p>
       </div></details>
+      <details class="card fold" id="f-ret"><summary><h2>Customers who return orders</h2></summary><div class="fold-body">
+        <div class="rep-bar"><p class="sub" id="sub-ret"></p><button class="btn ghost sm" id="ret-refresh" type="button">Refresh</button></div>
+        <label class="muted" style="display:flex;gap:8px;align-items:center">Show customers with at least <select id="ret-min"><option value="2">2</option><option value="3">3</option><option value="5">5</option></select> RTO / returned orders</label>
+        <div class="stack" id="ret" style="gap:10px"></div>
+        <p class="muted" id="note-ret"></p>
+      </div></details>
       <details class="card fold" id="f-table"><summary><h2>Daily table</h2></summary><div class="fold-body">
           <div class="tablewrap"><table id="dash-table"></table></div>
         </div></details>
@@ -3626,8 +3632,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
   /* ---- top pincodes (selected range) and repeat customers (all orders with saved customer details) ----
      Loaded only when their card is open, shown at once from the last saved copy, then refreshed in the background. */
-  var LS_PINS = "vavi_ins_pins", LS_REP = "vavi_ins_rep";
-  var pinKey = "", repDone = false, pinBusy = false, repBusy = false, curRange = null;
+  var LS_PINS = "vavi_ins_pins", LS_REP = "vavi_ins_rep", LS_RET = "vavi_ins_ret";
+  var pinKey = "", repDone = false, retDone = false, retBusy = false, pinBusy = false, repBusy = false, curRange = null;
   function jget(k) { try { return JSON.parse(lsGet(k) || "null"); } catch (e) { return null; } }
   function isOpen(id) { var n = $(id); return !!(n && n.open); }
 
@@ -3636,6 +3642,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     if (!connected()) return;
     if (isOpen("f-pins")) loadPins();
     if (isOpen("f-rep")) loadRep();
+    if (isOpen("f-ret")) loadRet();
   }
 
   function loadPins() {
@@ -3673,6 +3680,58 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     }).then(function () { repBusy = false; repBtn(false); });
   }
   if ($("rep-refresh")) $("rep-refresh").addEventListener("click", function () { if (repBusy) return; repDone = false; loadRep(true); });
+
+  /* ---- customers who send orders back (matched on name + address + pincode together) ---- */
+  function retMin() { var s = $("ret-min"); return s ? Number(s.value) || 2 : 2; }
+  function retBtn(busy) { var b = $("ret-refresh"); if (b) { b.disabled = busy; b.textContent = busy ? "Refreshing …" : "Refresh"; } }
+  function loadRet(write) {
+    if (retDone || retBusy) return;
+    retBtn(true);
+    var min = retMin(), saved = jget(LS_RET);
+    if (saved && saved.min === min && saved.data) renderRet(saved.data, " (updating …)");
+    else { $("sub-ret").textContent = "Loading …"; $("ret").textContent = ""; $("note-ret").textContent = ""; }
+    retBusy = true;
+    call("returners", write ? { min: min, write: true } : { min: min }).then(function (r) {
+      lsSet(LS_RET, JSON.stringify({ min: min, data: r.returners })); retDone = true;
+      renderRet(r.returners, "");
+      if (r.sheetRows != null) $("note-ret").textContent += " Also saved to your sheet: tab Returns Customers (" + r.sheetRows + " customers with 2 or more).";
+      if (r.sheetBusy) $("note-ret").textContent += " The sheet tab was busy and not updated this time; it refreshes by itself after the next Send to Sheet.";
+    }).catch(function (e) {
+      $("note-ret").textContent = e.message + (saved ? " Showing the last saved copy." : " Update the Google script and tap Refresh if this keeps showing.");
+    }).then(function () { retBusy = false; retBtn(false); });
+  }
+  if ($("ret-refresh")) $("ret-refresh").addEventListener("click", function () { if (retBusy) return; retDone = false; loadRet(true); });
+  if ($("f-ret")) $("f-ret").addEventListener("toggle", function () { if (this.open && connected()) loadRet(); });
+  if ($("ret-min")) $("ret-min").addEventListener("change", function () { if (retBusy) return; retDone = false; loadRet(); });
+  function renderRet(R, suffix) {
+    var rh = $("ret"); rh.textContent = ""; $("note-ret").textContent = "";
+    $("sub-ret").textContent = R.listed + " customer" + (R.listed === 1 ? "" : "s") + " with " + R.min + " or more RTO / returned orders" + (suffix || "");
+    var CONF = { strong: "Match: strong (same name and address)", likely: "Match: likely (spelling differs, address matches)", weak: "Match: weak (no address saved, name + pincode only)" };
+    var STL = { paid: "Paid", shipped: "Shipped, paid", rto: "RTO", returned: "Returned", cancelled: "Cancelled", pending: "Not updated yet" };
+    R.top.forEach(function (c) {
+      var it = el("details", "rc"), sm = el("summary", "");
+      var top = el("div", "top"); top.appendChild(el("span", "", c.name)); top.appendChild(el("span", "", (c.rto + c.returned) + " back of " + c.orders));
+      sm.appendChild(top);
+      sm.appendChild(el("small", "", c.rto + " RTO · " + c.returned + " returned · " + c.paid + " paid · " + c.pct + "% came back · " + rs(c.lost) + " in returned orders"));
+      it.appendChild(sm);
+      var pr = el("div", "rc-profile");
+      pr.appendChild(el("small", "", c.address || c.pincode));
+      pr.appendChild(el("div", "rc-pay" + (c.conf === "weak" ? "" : " bad"), CONF[c.conf] || c.conf));
+      if (c.names && c.names.length) pr.appendChild(el("small", "", "Name also written as: " + c.names.join(" / ")));
+      pr.appendChild(el("div", "", "First order " + V.shortDate(c.first) + " " + c.first.slice(0, 4) + ", latest " + V.shortDate(c.last) + " " + c.last.slice(0, 4) + "."));
+      (c.list || []).forEach(function (o) {
+        var ln = el("div", "rc-line");
+        if (o.st) ln.appendChild(el("span", "st-badge st-" + o.st, STL[o.st] || o.st));
+        ln.appendChild(document.createTextNode(V.shortDate(o.date) + " " + o.date.slice(0, 4) + " · " + o.sku + (o.qty > 1 ? " × " + o.qty : "") + " · " + rs(o.value) + " · " + o.payment + " · " + o.orderNo));
+        pr.appendChild(ln);
+      });
+      if (c.list.length < c.orders) pr.appendChild(el("small", "", "Showing the latest " + c.list.length + " orders."));
+      it.appendChild(pr); rh.appendChild(it);
+    });
+    if (!R.top.length) rh.appendChild(el("p", "muted", "No customer has " + R.min + " or more returned orders yet. This fills in as you save payment months in Settlements."));
+    var pm = R.paymentMonths || [];
+    $("note-ret").textContent = "People are matched on name spelling, full address and pincode together; two people with the same name and pincode but different addresses stay separate. Treat this as a list to review, not proof." + (pm.length ? " Status comes from the payment months you saved (" + pm.map(monthShort).join(", ") + ")." : " No payment months are saved yet, so no returns can be counted.") + " Names are saved only for orders sent after 20 Oct.";
+  }
 
   function monthShort(m) { var n = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(String(m).slice(5, 7)) - 1]; return n ? n + " " + String(m).slice(0, 4) : String(m); }
 
@@ -3740,7 +3799,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
   /* ---- every Dashboard card opens and closes with one tap; the choice is remembered ---- */
   var LS_FOLD = "vavi_dash_folds", folds = jget(LS_FOLD) || {};
-  var CLOSED_BY_DEFAULT = { "f-pins": 1, "f-rep": 1, "f-table": 1 };
+  var CLOSED_BY_DEFAULT = { "f-pins": 1, "f-rep": 1, "f-ret": 1, "f-table": 1 };
   Array.prototype.slice.call(document.querySelectorAll("#dash-body details.fold")).forEach(function (n) {
     var saved = folds[n.id];
     n.open = saved === undefined ? !CLOSED_BY_DEFAULT[n.id] : !!saved;
@@ -3760,7 +3819,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     var body = $("dash-body"); body.classList.add("loading"); $("refresh").disabled = true;
     var failed = false, lm = $("dash-msg");
     if (state.days.length) lm.hidden = true; else { lm.hidden = false; lm.textContent = "Loading your orders from the sheet. The first time can take 10 to 20 seconds."; }
-    pinKey = ""; repDone = false;
+    pinKey = ""; repDone = false; retDone = false;
     return call("stats", fresh === true ? { fresh: true } : {}).then(function (res) {
       state.days = res.days || []; state.updated = Date.now(); state.fromCache = false; noteSent(res.lastSent);
       lsSet(LS_CACHE, JSON.stringify({ days: state.days, updated: state.updated }));
@@ -4828,7 +4887,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="10 Nov 2026, 17:27";
+  var VAVI_APP_VERSION="11 Nov 2026, 09:45";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";

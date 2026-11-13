@@ -268,6 +268,10 @@ h2 .pf-chev { display: inline-block; width: 1.1em; }
 .fm-col { border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-size: 0.8rem; line-height: 1.35; overflow-wrap: anywhere; display: flex; flex-direction: column; gap: 4px; }
 .fm-col h4 { margin: 0; font: 600 0.7rem var(--font-body); text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
 .fm-left { background: rgba(214, 69, 65, 0.13); border-color: rgba(214, 69, 65, 0.55); }
+.fm-left-ret { background: rgba(240, 170, 20, 0.17); border-color: rgba(220, 150, 20, 0.7); }
+.fm-ret { border-color: rgba(220, 150, 20, 0.7); }
+.fm-hist { border: 1px dashed var(--line); border-radius: 8px; padding: 8px; font-size: 0.82rem; display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
+.fm-hl { line-height: 1.4; }
 .fm-col mark { background: rgba(240, 170, 20, 0.4); color: inherit; border-radius: 2px; padding: 0 1px; }
 .fm-name { font-weight: 600; }
 .fm-reason { font-weight: 600; }
@@ -2407,7 +2411,9 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     <div class="stack" style="gap:10px">
       <div class="field"><label for="pref-loyal">Loyal customer: highlight after this many earlier orders</label><input id="pref-loyal" type="text" inputmode="numeric" autocomplete="off"></div>
       <div class="field"><label for="pref-fraud">Fraud check: show a label when it matches a fraud record by at least this percent</label><input id="pref-fraud" type="text" inputmode="numeric" autocomplete="off"></div>
-      <p class="help">Standard values are 10 orders and 70%. A higher percentage means fewer, surer fraud matches. A lower one shows more possible matches.</p>
+      <div class="field"><label for="pref-retmin">High-returns check: flag a customer with at least this many returned orders</label><input id="pref-retmin" type="text" inputmode="numeric" autocomplete="off"></div>
+      <div class="field"><label for="pref-retpct">...and at least this percent of their finished orders returned</label><input id="pref-retpct" type="text" inputmode="numeric" autocomplete="off"></div>
+      <p class="help">Standard values are 10 orders and 70%. A higher percentage means fewer, surer fraud matches. A lower one shows more possible matches. High returns standard: 2 returned orders and 20%. RTO is not counted.</p>
       <div class="row" style="justify-content:flex-start;gap:8px"><button class="btn" id="pref-save" type="button">Save</button><button class="btn ghost" id="pref-reset" type="button">Reset to standard</button></div>
       <p class="msg" id="pref-msg" role="status"></p>
     </div>
@@ -2933,7 +2939,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     S.removed = {};
     awbs.forEach(function (a) { S.removed[a] = true; });
     setStatus("Updating the PDFs and summary …");
-    try { await rebuild(); setStatus(current.rows.length + " labels in the PDFs. " + current.removedCount + " left out as possible fraud."); }
+    try { await rebuild(); setStatus(current.rows.length + " labels in the PDFs. " + current.removedCount + " left out after the fraud and returns review."); }
     catch (err) { setStatus("Could not update the PDFs. " + (err && err.message ? err.message : ""), true); }
   });
 
@@ -3044,7 +3050,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     } else {
       notes.appendChild(el("div", "note info", "No customer from Vizianagaram."));
     }
-    if (c.removedCount) notes.appendChild(el("div", "note warn", c.removedCount + " label" + (c.removedCount === 1 ? " was" : "s were") + " left out as possible fraud. They are not in the PDFs, the summary or the sheet."));
+    if (c.removedCount) notes.appendChild(el("div", "note warn", c.removedCount + " label" + (c.removedCount === 1 ? " was" : "s were") + " left out after the fraud and returns review. They are not in the PDFs, the summary or the sheet."));
     if (c.dups.length) notes.appendChild(el("div", "note warn", c.dups.length + " repeated label" + (c.dups.length === 1 ? " was" : "s were") + " ignored because the same AWB appeared twice in these PDFs."));
     var uncat = {};
     c.rows.forEach(function (r) { if (!r.category) uncat[r.sku || "(no SKU)"] = 1; });
@@ -3694,7 +3700,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     call("returners", write ? { min: min, write: true } : { min: min }).then(function (r) {
       lsSet(LS_RET, JSON.stringify({ min: min, data: r.returners })); retDone = true;
       renderRet(r.returners, "");
-      if (r.sheetRows != null) $("note-ret").textContent += " Also saved to your sheet: tab Returns Customers (" + r.sheetRows + " customers with 2 or more).";
+      if (r.sheetRows != null) $("note-ret").textContent += " Also saved in your Fraud tab as type High returns (" + r.sheetRows + " customers).";
       if (r.sheetBusy) $("note-ret").textContent += " The sheet tab was busy and not updated this time; it refreshes by itself after the next Send to Sheet.";
     }).catch(function (e) {
       $("note-ret").textContent = e.message + (saved ? " Showing the last saved copy." : " Update the Google script and tap Refresh if this keeps showing.");
@@ -4028,7 +4034,30 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   /* ------------------------------------------------------------ fraud review */
   var cache = null, token = 0, lastD = null;
   function threshold() { var n = parseInt(localStorage.getItem("vavi_fraud_pct"), 10); return n >= 50 && n <= 100 ? n : 70; }
+  function lsn(k, lo, hi, def) { var n; try { n = parseInt(localStorage.getItem(k), 10); } catch (x) {} return n >= lo && n <= hi ? n : def; }
+  function retMin() { return lsn("vavi_ret_min", 2, 50, 2); }
+  function retPct() { return lsn("vavi_ret_pct", 0, 100, 20); }
+  var STL = { paid: "Paid", shipped: "Shipped, paid", rto: "RTO", returned: "Returned", cancelled: "Cancelled", pending: "Not updated yet" };
+  function dshort(k) { var p = String(k || "").split("-"); return p.length === 3 ? p[2] + "-" + p[1] + "-" + p[0] : k || "-"; }
   var card = $("fraud-card");
+
+  // "Customer history": every past order of this customer and what happened to it, so you can judge for yourself
+  function historyPanel(f, btn) {
+    var panel = el("div", "fm-hist"); panel.textContent = "Loading this customer's orders …";
+    SH.call("customer_history", { orderNo: f.orderNo, name: f.name, address: f.address, pincode: f.pincode }).then(function (h) {
+      panel.textContent = "";
+      if (!h.found) { panel.textContent = "No orders found for this customer in your sheet (older orders may be in the archive)."; return; }
+      panel.appendChild(el("div", "fm-name", h.name + " · " + h.orders + " orders: " + h.paid + " paid, " + h.returned + " returned" + (h.rto ? ", " + h.rto + " RTO" : "") + (h.pending ? ", " + h.pending + " not updated yet" : "")));
+      if (h.names && h.names.length) panel.appendChild(el("small", "", "Name also written as: " + h.names.join(" / ")));
+      h.list.forEach(function (o) {
+        var ln = el("div", "fm-hl"); if (o.st) ln.appendChild(el("span", "st-badge st-" + o.st, STL[o.st] || o.st));
+        ln.appendChild(document.createTextNode(" " + dshort(o.date) + " · " + (o.sku || "") + (o.qty > 1 ? " × " + o.qty : "") + " · " + rs(o.value) + " · " + (o.payment || "") + " · " + o.orderNo)); panel.appendChild(ln);
+      });
+      if (h.orders > h.list.length) panel.appendChild(el("small", "", "Showing the latest " + h.list.length + " orders."));
+      if (h.paymentMonths && h.paymentMonths.length) panel.appendChild(el("small", "", "Status comes from your saved payment months (" + h.paymentMonths.join(", ") + ")."));
+    }).catch(function (e) { panel.textContent = e.message; });
+    return panel;
+  }
 
   function note(cls, text, retry) {
     card.hidden = false; card.textContent = ""; var n = el("div", "note " + cls, text); card.appendChild(n);
@@ -4052,27 +4081,37 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     return c;
   }
 
-  function show(d, frauds) {
+  function show(d, all) {
+    // fraud lines always count; high-return lines count only when they pass your two limits (Settings)
+    var mr = retMin(), mp = retPct();
+    var frauds = all.filter(function (x) { return x.type !== "returns" || (x.returned >= mr && x.pct >= mp); });
     var matches = F.findMatches(d.allRows, frauds, threshold());
-    if (!frauds.length) { card.hidden = true; card.textContent = ""; return; }
-    if (!matches.length) { note("info", "Fraud check: no label matches the fraud list (" + frauds.length + " saved " + (frauds.length === 1 ? "record" : "records") + " checked).", true); return; }
+    if (!all.length) { card.hidden = true; card.textContent = ""; return; }
+    if (!matches.length) { note("info", "Fraud and returns check: no label matches your list (" + frauds.length + " saved " + (frauds.length === 1 ? "record" : "records") + " checked)." , true); return; }
+    var nf = matches.filter(function (m) { return m.fraud.type !== "returns"; }).length, nr = matches.length - nf;
     card.hidden = false; card.textContent = "";
-    var box = el("section", "card"); box.style.borderColor = "rgba(214, 69, 65, 0.6)";
-    box.appendChild(el("h2", "", "Fraud review: " + matches.length + (matches.length === 1 ? " possible match" : " possible matches")));
-    box.appendChild(el("p", "help", "Left: saved in your fraud list (red). Right: the label in this PDF. Tick the orders you will NOT send, then tap the button. Highlighted words are the ones that matched."));
+    var box = el("section", "card"); box.style.borderColor = nf ? "rgba(214, 69, 65, 0.6)" : "rgba(220, 150, 20, 0.7)";
+    box.appendChild(el("h2", "", "Fraud and returns review: " + matches.length + (matches.length === 1 ? " possible match" : " possible matches")));
+    box.appendChild(el("p", "help", (nf ? nf + " fraud (red)" : "") + (nf && nr ? " and " : "") + (nr ? nr + " high returns (amber)" : "") + ". Left: saved in your list. Right: the label in this PDF. Tick the orders you will NOT send, then tap the button. For high-return customers, tap Customer history to see all their past orders and decide. Highlighted words are the ones that matched."));
     var checks = [];
     matches.forEach(function (m) {
-      var item = el("div", "fm");
+      var isRet = m.fraud.type === "returns";
+      var item = el("div", "fm" + (isRet ? " fm-ret" : ""));
       var head = el("label", "fm-head");
       var cb = el("input"); cb.type = "checkbox"; cb.checked = !!d.removed[m.row.awb]; cb.setAttribute("data-awb", m.row.awb);
       checks.push(cb); head.appendChild(cb);
-      var t = el("span"); t.appendChild(el("b", "", m.pct + "% match")); t.appendChild(document.createTextNode(" · " + m.row.courier + " · " + (m.row.sku || "") + " · AWB " + m.row.awb));
+      var t = el("span"); t.appendChild(el("b", "", m.pct + "% match")); t.appendChild(document.createTextNode(isRet ? " · HIGH RETURNS" : " · FRAUD")); t.appendChild(document.createTextNode(" · " + m.row.courier + " · " + (m.row.sku || "") + " · AWB " + m.row.awb));
       head.appendChild(t); item.appendChild(head);
       var cols = el("div", "fm-cols");
-      var reason = el("div", "fm-reason", "Reason: " + (m.fraud.reason || "–"));
-      cols.appendChild(col("fm-left", "In fraud list", m.fraud.name, m.fraud.address, m.matchA, reason));
+      var reason = el("div", "fm-reason", isRet ? (m.fraud.returned + " returned of " + m.fraud.orders + " orders (" + m.fraud.pct + "%)") : "Reason: " + (m.fraud.reason || "–"));
+      cols.appendChild(col(isRet ? "fm-left fm-left-ret" : "fm-left", isRet ? "High returns (your database)" : "In fraud list", m.fraud.name, m.fraud.address, m.matchA, reason));
       cols.appendChild(col("fm-right", "In this PDF", m.row.customerName, m.row.customerAddress, m.matchB, null));
       item.appendChild(cols);
+      if (isRet) {
+        var hb = el("button", "btn sm ghost", "Customer history"); hb.type = "button"; var hp = null;
+        hb.addEventListener("click", function () { if (hp) { hp.remove(); hp = null; hb.textContent = "Customer history"; return; } hp = historyPanel(m.fraud, hb); item.appendChild(hp); hb.textContent = "Hide customer history"; });
+        item.appendChild(hb);
+      }
       box.appendChild(item);
     });
     var apply = el("button", "btn"); apply.type = "button";
@@ -4423,18 +4462,25 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   var inL = document.getElementById("pref-loyal"), inF = document.getElementById("pref-fraud"), msg = document.getElementById("pref-msg");
   if (!inL || !inF) return;
   function say(t, bad) { msg.textContent = t; msg.className = "msg" + (bad ? " bad" : ""); }
-  function fill() { inL.value = getMin(); inF.value = getPct(); }
+  var inRM = document.getElementById("pref-retmin"), inRP = document.getElementById("pref-retpct");
+  function getRM() { var n = parseInt(lsGet("vavi_ret_min"), 10); return n >= 2 && n <= 50 ? n : 2; }
+  function getRP() { var n = parseInt(lsGet("vavi_ret_pct"), 10); return n >= 0 && n <= 100 ? n : 20; }
+  function fill() { inL.value = getMin(); inF.value = getPct(); if (inRM) inRM.value = getRM(); if (inRP) inRP.value = getRP(); }
   document.getElementById("pref-save").addEventListener("click", function () {
     var l = String(inL.value).trim(), f = String(inF.value).trim();
     var okL = /^\d+$/.test(l) && +l >= 2 && +l <= 1000, okF = /^\d+$/.test(f) && +f >= 50 && +f <= 100;
     if (!okL) { say("Loyal customer orders must be a whole number from 2 to 1000. Nothing was changed.", true); return; }
     if (!okF) { say("Fraud match percentage must be a whole number from 50 to 100. Nothing was changed.", true); return; }
+    var rm = inRM ? String(inRM.value).trim() : "2", rp = inRP ? String(inRP.value).trim() : "20";
+    if (!(/^\d+$/.test(rm) && +rm >= 2 && +rm <= 50)) { say("High-returns count must be a whole number from 2 to 50. Nothing was changed.", true); return; }
+    if (!(/^\d+$/.test(rp) && +rp <= 100)) { say("High-returns percent must be a whole number from 0 to 100. Nothing was changed.", true); return; }
     lsSet("vavi_loyal_min", +l === DEF_MIN ? "" : l); lsSet("vavi_fraud_pct", +f === DEF_PCT ? "" : f);
-    say("Saved. Loyal customers: " + l + " or more earlier orders. Fraud match: " + f + "% or more.");
+    lsSet("vavi_ret_min", +rm === 2 ? "" : rm); lsSet("vavi_ret_pct", +rp === 20 ? "" : rp);
+    say("Saved. Loyal customers: " + l + " or more earlier orders. Fraud match: " + f + "% or more. High returns: " + rm + " or more returned orders and " + rp + "% or more.");
     window.dispatchEvent(new CustomEvent("vavi:prefs"));
   });
   document.getElementById("pref-reset").addEventListener("click", function () {
-    lsSet("vavi_loyal_min", ""); lsSet("vavi_fraud_pct", ""); fill(); say("Back to the standard values (10 orders, 70%).");
+    lsSet("vavi_loyal_min", ""); lsSet("vavi_fraud_pct", ""); lsSet("vavi_ret_min", ""); lsSet("vavi_ret_pct", ""); fill(); say("Back to the standard values (10 orders, 70%, high returns 2 and 20%).");
     window.dispatchEvent(new CustomEvent("vavi:prefs"));
   });
   document.getElementById("tab-set").addEventListener("click", fill);
@@ -4887,7 +4933,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="11 Nov 2026, 10:06";
+  var VAVI_APP_VERSION="13 Nov 2026, 00:48";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";

@@ -194,7 +194,7 @@ pre#summary {
 .td-n { font-size: 3.2rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
 .td-bars { display: flex; align-items: flex-end; gap: 4px; height: 52px; width: 46%; max-width: 170px; } .td-bars i { flex: 1; background: currentColor; opacity: .4; border-radius: 3px; } .td-bars i.now { opacity: 1; }
 .td-pills { display: flex; gap: 6px; flex-wrap: wrap; } .td-pill { background: rgba(255,255,255,.2); border-radius: 999px; padding: 3px 11px; font-size: .85rem; }
-.td-l { font-size: .9rem; opacity: .92; } .td-sent { font-weight: 600; }
+.td-l { font-size: .9rem; opacity: .92; } .td-sent { font-weight: 600; } .td-upd { font-size: .8rem; opacity: .75; }
 .td-msg { margin: 0; font-size: .9rem; opacity: .92; }
 .sec-h { font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 6px 4px 0; font-weight: 700; }
 .htiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -2172,6 +2172,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       <div class="td-l" id="td-l1"></div>
       <div class="td-l" id="td-l2"></div>
       <div class="td-l td-sent" id="td-sent" hidden></div>
+      <div class="td-l td-upd" id="td-upd" hidden></div>
       <p class="td-msg" id="td-msg" role="status"></p>
     </section>
     <h2 class="sec-h" id="h-qa">Quick actions</h2>
@@ -3427,13 +3428,21 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
         // Orders are already saved. Now refresh the Repeat Customers tab straight away (a background rebuild in the sheet is the safety net).
         setMsg("send-note", t + " Updating the Repeat Customers tab …", res.invalid > 0 || !!res.summaryError);
         call("repeat", { write: true }, { tries: 2 }).then(function (r) {
+          if (r.repeat) { repAt = Date.now(); lsSet(LS_REP, JSON.stringify({ data: r.repeat, at: repAt })); repDone = true; if (isOpen("f-rep")) renderRep(r.repeat, ""); }
           setMsg("send-note", t + " Repeat Customers tab is up to date" + (r.sheetRows ? " (" + r.sheetRows + " customers)." : "."), res.invalid > 0 || !!res.summaryError);
         }).catch(function () {
           setMsg("send-note", t + " The Repeat Customers tab will update by itself in about a minute.", res.invalid > 0 || !!res.summaryError);
         }).then(function () { return call("stats", { fresh: true }, { tries: 2 }); }).then(function (s) {
           state.days = s.days || []; state.updated = Date.now(); state.fromCache = false; noteSent(s.lastSent);
           lsSet(LS_CACHE, JSON.stringify({ days: state.days, updated: state.updated }));
-        }).catch(function () {});
+          drawHome(); setUpdated();
+        }).catch(function () {}).then(function () {
+          // the cards and the Labels checks are refreshed quietly too, so nothing waits for you to open it
+          var mn = retMin();
+          return call("returners", { min: mn }, { tries: 2 }).then(function (x) { retAt = Date.now(); lsSet(LS_RET, JSON.stringify({ min: mn, data: x.returners, at: retAt })); retDone = true; if (isOpen("f-ret")) renderRet(x.returners, ""); }).catch(function () {});
+        }).then(function () {
+          try { if (window.VaviWarmLists) window.VaviWarmLists(); } catch (e) {}
+        });
       }
     }).catch(function (e) { setMsg("send-note", e.message + " Nothing was lost: tap Send to Sheet again.", true); })
       .then(function () { btn.disabled = false; });
@@ -3649,11 +3658,11 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     if (repDone || repBusy) return;
     repBtn(true);
     var saved = jget(LS_REP);
-    if (saved && saved.data) renderRep(saved.data, " (updating …)");
+    if (saved && saved.data) { repAt = saved.at || 0; renderRep(saved.data, " (saved copy from " + (stampOf(saved.at) || "an earlier visit") + ", updating …)"); }
     else { $("sub-rep").textContent = "Loading …"; $("rep").textContent = ""; $("note-rep").textContent = ""; }
     repBusy = true;
     call("repeat", write ? { write: true } : {}).then(function (r) {
-      lsSet(LS_REP, JSON.stringify({ data: r.repeat })); repDone = true;
+      repAt = Date.now(); lsSet(LS_REP, JSON.stringify({ data: r.repeat, at: repAt })); repDone = true;
       renderRep(r.repeat, "");
       if (r.sheetRows != null) $("note-rep").textContent += " Also saved to your sheet: tab Repeat Customers (" + r.sheetRows + " customers).";
     }).catch(function (e) {
@@ -3669,11 +3678,11 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     if (retDone || retBusy) return;
     retBtn(true);
     var min = retMin(), saved = jget(LS_RET);
-    if (saved && saved.min === min && saved.data) renderRet(saved.data, " (updating …)");
+    if (saved && saved.min === min && saved.data) { retAt = saved.at || 0; renderRet(saved.data, " (saved copy from " + (stampOf(saved.at) || "an earlier visit") + ", updating …)"); }
     else { $("sub-ret").textContent = "Loading …"; $("ret").textContent = ""; $("note-ret").textContent = ""; }
     retBusy = true;
     call("returners", write ? { min: min, write: true } : { min: min }).then(function (r) {
-      lsSet(LS_RET, JSON.stringify({ min: min, data: r.returners })); retDone = true;
+      retAt = Date.now(); lsSet(LS_RET, JSON.stringify({ min: min, data: r.returners, at: retAt })); retDone = true;
       renderRet(r.returners, "");
       if (r.sheetRows != null) $("note-ret").textContent += " Also saved in your Fraud tab as type High returns (" + r.sheetRows + " customers).";
       if (r.sheetBusy) $("note-ret").textContent += " The sheet tab was busy and not updated this time; it refreshes by itself after the next Send to Sheet.";
@@ -3686,7 +3695,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   if ($("ret-min")) $("ret-min").addEventListener("change", function () { if (retBusy) return; retDone = false; loadRet(); });
   function renderRet(R, suffix) {
     var rh = $("ret"); rh.textContent = ""; $("note-ret").textContent = "";
-    $("sub-ret").textContent = R.listed + " customer" + (R.listed === 1 ? "" : "s") + " with " + R.min + " or more returned orders (RTO not counted)" + (suffix || "");
+    $("sub-ret").textContent = R.listed + " customer" + (R.listed === 1 ? "" : "s") + " with " + R.min + " or more returned orders (RTO not counted)" + (suffix || (retAt ? " · updated " + stampOf(retAt) : ""));
     var CONF = { strong: "Match: strong (same name and address)", likely: "Match: likely (spelling differs, address matches)", weak: "Match: weak (no address saved, name + pincode only)" };
     var STL = { paid: "Paid", shipped: "Shipped, paid", rto: "RTO", returned: "Returned", cancelled: "Cancelled", pending: "Not updated yet" };
     R.top.forEach(function (c) {
@@ -3723,7 +3732,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       return;
     }
     var pct = R.ordersWithDetails ? Math.round(100 * R.ordersFromRepeat / R.ordersWithDetails) : 0;
-    $("sub-rep").textContent = R.repeatCustomers + " of " + R.customers + " customers ordered more than once (" + pct + "% of orders)" + (suffix || "");
+    $("sub-rep").textContent = R.repeatCustomers + " of " + R.customers + " customers ordered more than once (" + pct + "% of orders)" + (suffix || (repAt ? " · updated " + stampOf(repAt) : ""));
     R.top.forEach(function (c) {
       var it = el("details", "rc"), sm = el("summary", "");
       var top = el("div", "top"); top.appendChild(el("span", "", c.name)); top.appendChild(el("span", "", c.orders + " orders · " + rs(c.value)));
@@ -3779,6 +3788,11 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     $("updated").textContent = (state.fromCache ? "Saved copy from " : "Updated ") + t + " · " + d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
   }
 
+  function stampOf(ts) {
+    if (!ts) return "";
+    var x = new Date(ts); return x.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }) + ", " + x.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  }
+  var repAt = 0, retAt = 0;
   function loadStats(fresh) {
     var body = $("dash-body"); body.classList.add("loading"); $("refresh").disabled = true;
     var failed = false, lm = $("dash-msg");
@@ -3875,6 +3889,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     $("td-l1").textContent = td.total ? "Order value " + rs(td.sales || 0) + " · COD " + (td.cod || 0) + " · Prepaid " + (td.prepaid || 0) : "";
     $("td-l2").textContent = "7-day average " + s.avg + (s.best ? " · best day " + s.best.total + " (" + V.shortDate(s.best.d) + ")" : "");
     $("td-msg").textContent = note || (td.total ? "" : "No orders sent to the sheet yet today. Send today's labels from Labels.");
+    var up = $("td-upd"); if (up) { up.hidden = !state.updated; up.textContent = state.updated ? (state.fromCache ? "Saved copy from " : "Updated ") + stampOf(state.updated) : ""; }
   }
   /* tiles and Today card options (the pencil in Settings > Layout edits these) */
   var G = function (p) { return '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + p + "</svg>"; };
@@ -3996,6 +4011,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   function retMin() { return lsn("vavi_ret_min", 2, 50, 2); }
   var STL = { paid: "Paid", shipped: "Shipped, paid", rto: "RTO", returned: "Returned", cancelled: "Cancelled", pending: "Not updated yet" };
   function dshort(k) { var p = String(k || "").split("-"); return p.length === 3 ? p[2] + "-" + p[1] + "-" + p[0] : k || "-"; }
+  var cacheAt = 0;
+  function atText() { return cacheAt ? " List fetched from the sheet at " + new Date(cacheAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }) + "." : ""; }
   var card = $("fraud-card");
 
   // "Customer history": every past order of this customer and what happened to it, so you can judge for yourself
@@ -4045,7 +4062,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     var matches = F.findMatches(d.allRows, frauds, threshold());
     var nFraudRecs = all.filter(function (x) { return x.type !== "returns"; }).length, nRetRecs = frauds.length - nFraudRecs;
     var what = "the fraud list (" + nFraudRecs + " saved) or customers who returned " + mr + " or more orders (" + nRetRecs + " saved)";
-    if (!matches.length) { note("info", "Fraud and returns check done: no label matches " + what + ".", true); return; }
+    if (!matches.length) { note("info", "Fraud and returns check done: no label matches " + what + "." + atText(), true); return; }
     var nf = matches.filter(function (m) { return m.fraud.type !== "returns"; }).length, nr = matches.length - nf;
     card.hidden = false; card.textContent = "";
     var box = el("section", "card"); box.style.borderColor = nf ? "rgba(214, 69, 65, 0.6)" : "rgba(220, 150, 20, 0.7)";
@@ -4094,6 +4111,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     card.appendChild(box);
   }
 
+  window.VaviWarmFraud = function () { if (!SH.connected()) return; SH.call("fraud_list", null, { tries: 2 }).then(function (r) { cache = r.frauds || []; cacheAt = Date.now(); try { localStorage.setItem("vavi_fraud_cache", JSON.stringify({ ts: Date.now(), frauds: cache })); } catch (x) {} }).catch(function () {}); };
   function onResults(d) {
     if (!d || !d.allRows) return;
     lastD = d;
@@ -4103,7 +4121,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     if (cache) { go(cache); return; }
     note("info", "Checking labels against the fraud list …");
     function retryMsg(n, of, w) { if (my === token) note("info", n === 0 ? "Waking the sheet …" : "Slow connection" + (w ? " (" + w + ")" : "") + ". Trying again (" + n + " of " + of + ") …"); }
-    SH.call("fraud_list", null, { onRetry: retryMsg }).then(function (r) { cache = r.frauds || []; try { localStorage.setItem("vavi_fraud_cache", JSON.stringify({ ts: Date.now(), frauds: cache })); } catch (x) {} go(cache); })
+    SH.call("fraud_list", null, { onRetry: retryMsg }).then(function (r) { cache = r.frauds || []; cacheAt = Date.now(); try { localStorage.setItem("vavi_fraud_cache", JSON.stringify({ ts: Date.now(), frauds: cache })); } catch (x) {} go(cache); })
       .catch(function (e) {
         if (my !== token) return;
         var old = null; try { old = JSON.parse(localStorage.getItem("vavi_fraud_cache") || "null"); } catch (x) {}
@@ -4366,7 +4384,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       var prev = c.orderNos.filter(function (o) { return !upload[o]; }).length + (c.archived || 0);   // orders from before these labels
       if (prev >= MIN) hits.push({ c: c, prev: prev, rows: rows });
     });
-    if (!hits.length) { note("info", "Loyal customer check done: no customer in these labels has ordered " + MIN + " or more times before.", true); return; }
+    if (!hits.length) { note("info", "Loyal customer check done: no customer in these labels has ordered " + MIN + " or more times before." + atText(), true); return; }
     card.hidden = false; card.textContent = "";
     var box = el("section", "loyal");
     box.appendChild(el("h2", "", "Loyal customers: " + hits.length + (hits.length === 1 ? " order" : " customers") + " in these labels"));
@@ -4385,6 +4403,14 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     card.appendChild(box);
   }
 
+  var cacheAt = 0;
+  function atText() { return cacheAt ? " List fetched from the sheet at " + new Date(cacheAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }) + "." : ""; }
+  window.VaviWarmLists = function () {
+    if (!SH.connected()) return;
+    try { if (window.VaviWarmFraud) window.VaviWarmFraud(); } catch (e) {}
+    var MIN = getMin();
+    SH.call("loyal", { min: MIN }, { tries: 2 }).then(function (r) { cache = r.customers || []; cachedMin = MIN; cacheAt = Date.now(); try { localStorage.setItem("vavi_loyal_cache", JSON.stringify({ ts: Date.now(), min: MIN, customers: cache })); } catch (x) {} }).catch(function () {});
+  };
   function onResults(d) {
     if (!d || !d.allRows) return;
     lastD = d;
@@ -4393,7 +4419,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     if (cache && cachedMin === MIN) { show(d, cache); return; }
     note("info", "Checking for loyal customers …");
     function retryMsg(n, of, w) { if (my === token) note("info", n === 0 ? "Waking the sheet …" : "Slow connection" + (w ? " (" + w + ")" : "") + ". Trying again (" + n + " of " + of + ") …"); }
-    SH.call("loyal", { min: MIN }, { onRetry: retryMsg }).then(function (r) { cache = r.customers || []; cachedMin = MIN; try { localStorage.setItem("vavi_loyal_cache", JSON.stringify({ ts: Date.now(), min: MIN, customers: cache })); } catch (x) {} if (my === token) show(d, cache); })
+    SH.call("loyal", { min: MIN }, { onRetry: retryMsg }).then(function (r) { cache = r.customers || []; cachedMin = MIN; cacheAt = Date.now(); try { localStorage.setItem("vavi_loyal_cache", JSON.stringify({ ts: Date.now(), min: MIN, customers: cache })); } catch (x) {} if (my === token) show(d, cache); })
       .catch(function (e) {
         if (my !== token) return;
         var old = null; try { old = JSON.parse(lsGet("vavi_loyal_cache") || "null"); } catch (x) {}
@@ -4889,7 +4915,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="14 Nov 2026, 09:49";
+  var VAVI_APP_VERSION="14 Nov 2026, 18:39";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";
@@ -5290,14 +5316,19 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   function msg(id, kind, text) { var n = $(id); n.textContent = ""; if (text) n.appendChild(el("div", "note " + kind, text)); }
 
   /* ------------------------------------------------ saved months and costs */
+  function stampHist(at, cached) {
+    var m = $("pf-hist-msg"); if (!m || !at) return;
+    var x = new Date(at), s = x.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }) + ", " + x.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+    m.textContent = cached ? "Saved copy from " + s + ", updating …" : "Updated " + s + ".";
+  }
   function loadHistory() {
     skuList = readCachedList();
     if (!SH.connected()) { renderHistory(); return; }
     // Show the last saved months straight away; the sheet answer replaces them a moment later.
-    try { var hc = JSON.parse(localStorage.getItem("vavi_profit_cache") || "null"); if (hc && hc.months && !history.months.length) { history = hc; renderHistory(); } } catch (e) {}
+    try { var hc = JSON.parse(localStorage.getItem("vavi_profit_cache") || "null"); if (hc && hc.months && !history.months.length) { history = hc; renderHistory(); stampHist(hc.at, true); } } catch (e) {}
     SH.call("sku_get").then(function (r) { if (r && r.categories && r.categories.length) skuList = r.categories; if (parsed) buildSkus(); }).catch(function () { /* the saved copy on this phone is used */ });
-    SH.call("profit_get").then(function (r) { history = { months: r.months || [], costs: r.costs || {}, categories: r.categories || {}, breakdown: r.breakdown || {} }; try { localStorage.setItem("vavi_profit_cache", JSON.stringify(history)); } catch (e) {} renderHistory(); if (parsed) buildSkus(); })
-      .catch(function (e) { $("pf-hist-msg").textContent = e.message + " Showing what is saved on this phone."; renderHistory(); });
+    SH.call("profit_get").then(function (r) { history = { months: r.months || [], costs: r.costs || {}, categories: r.categories || {}, breakdown: r.breakdown || {}, at: Date.now() }; try { localStorage.setItem("vavi_profit_cache", JSON.stringify(history)); } catch (e) {} renderHistory(); stampHist(history.at, false); if (parsed) buildSkus(); })
+      .catch(function (e) { $("pf-hist-msg").textContent = e.message + " Showing what is saved on this phone" + (history.at ? " (copy from " + new Date(history.at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }) + ")." : "."); renderHistory(); });
   }
   // delivered / RTO / returns (both kinds of return together), from rows of {kind, lines, counted, profit}
   function outcomes(list) {

@@ -2283,17 +2283,12 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
         <div class="stack" id="states" style="gap:10px"></div>
         <p class="muted" id="note-states">State is worked out from the delivery pincode, so a few border areas may land in a neighbouring state.</p>
       </div></details>
-      <details class="card fold" id="f-pins" open><summary><h2 id="h-pins">Top pincodes</h2></summary><div class="fold-body">
-        <p class="sub" id="sub-pins"></p>
-        <div class="stack" id="pins" style="gap:10px"></div>
-        <p class="muted" id="note-pins"></p>
-      </div></details>
       <details class="card fold" id="f-rep" open><summary><h2 id="h-rep">Repeat customers</h2></summary><div class="fold-body">
         <div class="rep-bar"><p class="sub" id="sub-rep"></p><button class="btn ghost sm" id="rep-refresh" type="button">Refresh</button></div>
         <div class="stack" id="rep" style="gap:10px"></div>
         <p class="muted" id="note-rep"></p>
       </div></details>
-      <details class="card fold" id="f-ret"><summary><h2>Customers who return orders</h2></summary><div class="fold-body">
+      <details class="card fold" id="f-ret"><summary><h2>Frequent returners</h2></summary><div class="fold-body">
         <div class="rep-bar"><p class="sub" id="sub-ret"></p><button class="btn ghost sm" id="ret-refresh" type="button">Refresh</button></div>
         <label class="muted" style="display:flex;gap:8px;align-items:center">Show customers with at least <select id="ret-min"><option value="2">2</option><option value="3">3</option><option value="5">5</option></select> returned orders (RTO is not counted)</label>
         <div class="stack" id="ret" style="gap:10px"></div>
@@ -2411,9 +2406,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     <div class="stack" style="gap:10px">
       <div class="field"><label for="pref-loyal">Loyal customer: highlight after this many earlier orders</label><input id="pref-loyal" type="text" inputmode="numeric" autocomplete="off"></div>
       <div class="field"><label for="pref-fraud">Fraud check: show a label when it matches a fraud record by at least this percent</label><input id="pref-fraud" type="text" inputmode="numeric" autocomplete="off"></div>
-      <div class="field"><label for="pref-retmin">High-returns check: flag a customer with at least this many returned orders</label><input id="pref-retmin" type="text" inputmode="numeric" autocomplete="off"></div>
-      <div class="field"><label for="pref-retpct">...and at least this percent of their finished orders returned</label><input id="pref-retpct" type="text" inputmode="numeric" autocomplete="off"></div>
-      <p class="help">Standard values are 10 orders and 70%. A higher percentage means fewer, surer fraud matches. A lower one shows more possible matches. High returns standard: 2 returned orders and 20%. RTO is not counted.</p>
+      <div class="field"><label for="pref-retmin">High-returns check: flag a customer who has returned at least this many orders</label><input id="pref-retmin" type="text" inputmode="numeric" autocomplete="off"></div>
+      <p class="help">Standard values are 10 orders and 70%. A higher percentage means fewer, surer fraud matches. A lower one shows more possible matches. High returns standard: 2 returned orders. RTO is not counted.</p>
       <div class="row" style="justify-content:flex-start;gap:8px"><button class="btn" id="pref-save" type="button">Save</button><button class="btn ghost" id="pref-reset" type="button">Reset to standard</button></div>
       <p class="msg" id="pref-msg" role="status"></p>
     </div>
@@ -3638,35 +3632,16 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
   /* ---- top pincodes (selected range) and repeat customers (all orders with saved customer details) ----
      Loaded only when their card is open, shown at once from the last saved copy, then refreshed in the background. */
-  var LS_PINS = "vavi_ins_pins", LS_REP = "vavi_ins_rep", LS_RET = "vavi_ins_ret";
-  var pinKey = "", repDone = false, retDone = false, retBusy = false, pinBusy = false, repBusy = false, curRange = null;
+  var LS_REP = "vavi_ins_rep", LS_RET = "vavi_ins_ret";
+  var repDone = false, retDone = false, retBusy = false, repBusy = false, curRange = null;
   function jget(k) { try { return JSON.parse(lsGet(k) || "null"); } catch (e) { return null; } }
   function isOpen(id) { var n = $(id); return !!(n && n.open); }
 
   function loadInsights(from, to) {
     curRange = { from: from, to: to };
     if (!connected()) return;
-    if (isOpen("f-pins")) loadPins();
     if (isOpen("f-rep")) loadRep();
     if (isOpen("f-ret")) loadRet();
-  }
-
-  function loadPins() {
-    if (!curRange || pinBusy) return;
-    var k = curRange.from + "|" + curRange.to;
-    if (k === pinKey) return;
-    var saved = jget(LS_PINS);
-    if (saved && saved.key === k) { renderPins(saved.data, curRange.from, curRange.to, ""); pinKey = k; return; }
-    if (saved && saved.data) renderPins(saved.data, saved.from, saved.to, " (older dates, updating …)");
-    else { $("sub-pins").textContent = "Loading …"; $("pins").textContent = ""; $("note-pins").textContent = ""; }
-    pinBusy = true; var asked = curRange;
-    call("pincodes", { from: asked.from, to: asked.to }).then(function (r) {
-      lsSet(LS_PINS, JSON.stringify({ key: asked.from + "|" + asked.to, from: asked.from, to: asked.to, data: r.pincodes }));
-      pinKey = asked.from + "|" + asked.to;
-      if (curRange && curRange.from === asked.from && curRange.to === asked.to) renderPins(r.pincodes, asked.from, asked.to, "");
-    }).catch(function (e) {
-      $("note-pins").textContent = e.message + " Update the Google script and tap Refresh if this keeps showing.";
-    }).then(function () { pinBusy = false; if (curRange && (curRange.from !== asked.from || curRange.to !== asked.to) && isOpen("f-pins")) loadPins(); });
   }
 
   function repBtn(busy) { var b = $("rep-refresh"); if (b) { b.disabled = busy; b.textContent = busy ? "Refreshing …" : "Refresh"; } }
@@ -3741,23 +3716,6 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
   function monthShort(m) { var n = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(String(m).slice(5, 7)) - 1]; return n ? n + " " + String(m).slice(0, 4) : String(m); }
 
-  function renderPins(P, from, to, suffix) {
-    var host = $("pins"); host.textContent = "";
-    $("sub-pins").textContent = V.shortDate(from) + " to " + V.shortDate(to) + (suffix || "");
-    var max = P.top.length ? P.top[0].orders : 0;
-    P.top.forEach(function (p) {
-      var row = el("div", "hb st");
-      var wrap = el("span", ""); wrap.style.cssText = "display:flex;flex-direction:column;min-width:0;flex:1";
-      wrap.appendChild(el("span", "hb-l", p.pincode));
-      var sm = el("small", "", (p.place ? p.place + ", " : "") + p.state); sm.style.cssText = "color:var(--muted,#5b6b70);overflow-wrap:anywhere"; wrap.appendChild(sm);
-      var tr = el("span", "hb-t"), f = el("span", "hb-f"); f.style.width = (max ? 100 * p.orders / max : 0) + "%"; tr.appendChild(f);
-      var v = el("b", "hb-v", String(p.orders)); v.appendChild(el("small", "", " " + Math.round(100 * p.orders / P.orders) + "%"));
-      row.appendChild(wrap); row.appendChild(tr); row.appendChild(v); host.appendChild(row);
-    });
-    if (!P.top.length) host.appendChild(el("p", "muted", "No orders with a pincode in this range."));
-    $("note-pins").textContent = P.top.length ? "Top " + P.top.length + " of " + P.distinct + " pincodes. The town shown comes from the saved delivery address, so older orders may show only the state." : "";
-  }
-
   function renderRep(R, suffix) {
     var rh = $("rep"); rh.textContent = ""; $("note-rep").textContent = "";
     if (!R.customers) {
@@ -3805,7 +3763,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
   /* ---- every Dashboard card opens and closes with one tap; the choice is remembered ---- */
   var LS_FOLD = "vavi_dash_folds", folds = jget(LS_FOLD) || {};
-  var CLOSED_BY_DEFAULT = { "f-pins": 1, "f-rep": 1, "f-ret": 1, "f-table": 1 };
+  var CLOSED_BY_DEFAULT = { "f-rep": 1, "f-ret": 1, "f-table": 1 };
   Array.prototype.slice.call(document.querySelectorAll("#dash-body details.fold")).forEach(function (n) {
     var saved = folds[n.id];
     n.open = saved === undefined ? !CLOSED_BY_DEFAULT[n.id] : !!saved;
@@ -3825,7 +3783,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     var body = $("dash-body"); body.classList.add("loading"); $("refresh").disabled = true;
     var failed = false, lm = $("dash-msg");
     if (state.days.length) lm.hidden = true; else { lm.hidden = false; lm.textContent = "Loading your orders from the sheet. The first time can take 10 to 20 seconds."; }
-    pinKey = ""; repDone = false; retDone = false;
+    repDone = false; retDone = false;
     return call("stats", fresh === true ? { fresh: true } : {}).then(function (res) {
       state.days = res.days || []; state.updated = Date.now(); state.fromCache = false; noteSent(res.lastSent);
       lsSet(LS_CACHE, JSON.stringify({ days: state.days, updated: state.updated }));
@@ -4036,7 +3994,6 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   function threshold() { var n = parseInt(localStorage.getItem("vavi_fraud_pct"), 10); return n >= 50 && n <= 100 ? n : 70; }
   function lsn(k, lo, hi, def) { var n; try { n = parseInt(localStorage.getItem(k), 10); } catch (x) {} return n >= lo && n <= hi ? n : def; }
   function retMin() { return lsn("vavi_ret_min", 2, 50, 2); }
-  function retPct() { return lsn("vavi_ret_pct", 0, 100, 20); }
   var STL = { paid: "Paid", shipped: "Shipped, paid", rto: "RTO", returned: "Returned", cancelled: "Cancelled", pending: "Not updated yet" };
   function dshort(k) { var p = String(k || "").split("-"); return p.length === 3 ? p[2] + "-" + p[1] + "-" + p[0] : k || "-"; }
   var card = $("fraud-card");
@@ -4082,12 +4039,13 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   }
 
   function show(d, all) {
-    // fraud lines always count; high-return lines count only when they pass your two limits (Settings)
-    var mr = retMin(), mp = retPct();
-    var frauds = all.filter(function (x) { return x.type !== "returns" || (x.returned >= mr && x.pct >= mp); });
+    // fraud lines always count; high-return lines count when the customer has at least the returned-orders number from Settings
+    var mr = retMin();
+    var frauds = all.filter(function (x) { return x.type !== "returns" || x.returned >= mr; });
     var matches = F.findMatches(d.allRows, frauds, threshold());
-    if (!all.length) { card.hidden = true; card.textContent = ""; return; }
-    if (!matches.length) { note("info", "Fraud and returns check: no label matches your list (" + frauds.length + " saved " + (frauds.length === 1 ? "record" : "records") + " checked)." , true); return; }
+    var nFraudRecs = all.filter(function (x) { return x.type !== "returns"; }).length, nRetRecs = frauds.length - nFraudRecs;
+    var what = "the fraud list (" + nFraudRecs + " saved) or customers who returned " + mr + " or more orders (" + nRetRecs + " saved)";
+    if (!matches.length) { note("info", "Fraud and returns check done: no label matches " + what + ".", true); return; }
     var nf = matches.filter(function (m) { return m.fraud.type !== "returns"; }).length, nr = matches.length - nf;
     card.hidden = false; card.textContent = "";
     var box = el("section", "card"); box.style.borderColor = nf ? "rgba(214, 69, 65, 0.6)" : "rgba(220, 150, 20, 0.7)";
@@ -4462,25 +4420,23 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   var inL = document.getElementById("pref-loyal"), inF = document.getElementById("pref-fraud"), msg = document.getElementById("pref-msg");
   if (!inL || !inF) return;
   function say(t, bad) { msg.textContent = t; msg.className = "msg" + (bad ? " bad" : ""); }
-  var inRM = document.getElementById("pref-retmin"), inRP = document.getElementById("pref-retpct");
+  var inRM = document.getElementById("pref-retmin"), inRP = null;
   function getRM() { var n = parseInt(lsGet("vavi_ret_min"), 10); return n >= 2 && n <= 50 ? n : 2; }
-  function getRP() { var n = parseInt(lsGet("vavi_ret_pct"), 10); return n >= 0 && n <= 100 ? n : 20; }
-  function fill() { inL.value = getMin(); inF.value = getPct(); if (inRM) inRM.value = getRM(); if (inRP) inRP.value = getRP(); }
+  function fill() { inL.value = getMin(); inF.value = getPct(); if (inRM) inRM.value = getRM(); }
   document.getElementById("pref-save").addEventListener("click", function () {
     var l = String(inL.value).trim(), f = String(inF.value).trim();
     var okL = /^\d+$/.test(l) && +l >= 2 && +l <= 1000, okF = /^\d+$/.test(f) && +f >= 50 && +f <= 100;
     if (!okL) { say("Loyal customer orders must be a whole number from 2 to 1000. Nothing was changed.", true); return; }
     if (!okF) { say("Fraud match percentage must be a whole number from 50 to 100. Nothing was changed.", true); return; }
-    var rm = inRM ? String(inRM.value).trim() : "2", rp = inRP ? String(inRP.value).trim() : "20";
+    var rm = inRM ? String(inRM.value).trim() : "2";
     if (!(/^\d+$/.test(rm) && +rm >= 2 && +rm <= 50)) { say("High-returns count must be a whole number from 2 to 50. Nothing was changed.", true); return; }
-    if (!(/^\d+$/.test(rp) && +rp <= 100)) { say("High-returns percent must be a whole number from 0 to 100. Nothing was changed.", true); return; }
     lsSet("vavi_loyal_min", +l === DEF_MIN ? "" : l); lsSet("vavi_fraud_pct", +f === DEF_PCT ? "" : f);
-    lsSet("vavi_ret_min", +rm === 2 ? "" : rm); lsSet("vavi_ret_pct", +rp === 20 ? "" : rp);
-    say("Saved. Loyal customers: " + l + " or more earlier orders. Fraud match: " + f + "% or more. High returns: " + rm + " or more returned orders and " + rp + "% or more.");
+    lsSet("vavi_ret_min", +rm === 2 ? "" : rm);
+    say("Saved. Loyal customers: " + l + " or more earlier orders. Fraud match: " + f + "% or more. High returns: " + rm + " or more returned orders.");
     window.dispatchEvent(new CustomEvent("vavi:prefs"));
   });
   document.getElementById("pref-reset").addEventListener("click", function () {
-    lsSet("vavi_loyal_min", ""); lsSet("vavi_fraud_pct", ""); lsSet("vavi_ret_min", ""); lsSet("vavi_ret_pct", ""); fill(); say("Back to the standard values (10 orders, 70%, high returns 2 and 20%).");
+    lsSet("vavi_loyal_min", ""); lsSet("vavi_fraud_pct", ""); lsSet("vavi_ret_min", ""); fill(); say("Back to the standard values (10 orders, 70%, high returns 2).");
     window.dispatchEvent(new CustomEvent("vavi:prefs"));
   });
   document.getElementById("tab-set").addEventListener("click", fill);
@@ -4933,7 +4889,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="13 Nov 2026, 00:48";
+  var VAVI_APP_VERSION="14 Nov 2026, 09:49";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";

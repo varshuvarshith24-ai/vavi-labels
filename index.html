@@ -270,7 +270,8 @@ h2 .pf-chev { display: inline-block; width: 1.1em; }
 .fm-left { background: rgba(214, 69, 65, 0.13); border-color: rgba(214, 69, 65, 0.55); }
 .fm-left-ret { background: rgba(240, 170, 20, 0.17); border-color: rgba(220, 150, 20, 0.7); }
 .fm-ret { border-color: rgba(220, 150, 20, 0.7); }
-.fm-hist { border: 1px dashed var(--line); border-radius: 8px; padding: 8px; font-size: 0.82rem; display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
+.fm-hist-btn { margin-top: 8px; }
+.fm-hist { margin-top: 8px; border: 1px dashed var(--line); border-radius: 8px; padding: 8px; font-size: 0.82rem; display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
 .fm-hl { line-height: 1.4; }
 .fm-col mark { background: rgba(240, 170, 20, 0.4); color: inherit; border-radius: 2px; padding: 0 1px; }
 .fm-name { font-weight: 600; }
@@ -3040,6 +3041,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
         cb.type = "button";
         cb.addEventListener("click", function () { copyText(r.customer, body, cb, "Copy address"); });
         n.appendChild(cb);
+        if (window.VaviHistoryButton) n.appendChild(window.VaviHistoryButton(n, { orderNo: r.orderNo, name: r.customerName, address: r.customerAddress, pincode: r.pincode }));
       });
       notes.appendChild(n);
     } else {
@@ -3427,8 +3429,12 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
         noteSent({ ts: new Date().toISOString(), added: res.added }); drawSent();
         // Orders are already saved. Now refresh the Repeat Customers tab straight away (a background rebuild in the sheet is the safety net).
         setMsg("send-note", t + " Updating the Repeat Customers tab …", res.invalid > 0 || !!res.summaryError);
-        call("repeat", { write: true }, { tries: 2 }).then(function (r) {
+        var mn = retMin(), lmin = window.VaviLoyalMin ? window.VaviLoyalMin() : 10;
+        call("refresh_all", { write: true, min: mn, loyalMin: lmin }, { tries: 2 }).then(function (r) {
+          // one read of the sheet fed all of these
           if (r.repeat) { repAt = Date.now(); lsSet(LS_REP, JSON.stringify({ data: r.repeat, at: repAt })); repDone = true; if (isOpen("f-rep")) renderRep(r.repeat, ""); }
+          if (r.returners) { retAt = Date.now(); lsSet(LS_RET, JSON.stringify({ min: mn, data: r.returners, at: retAt })); retDone = true; if (isOpen("f-ret")) renderRet(r.returners, ""); }
+          if (r.loyal && window.VaviSetLoyal) window.VaviSetLoyal(lmin, r.loyal.customers);
           setMsg("send-note", t + " Repeat Customers tab is up to date" + (r.sheetRows ? " (" + r.sheetRows + " customers)." : "."), res.invalid > 0 || !!res.summaryError);
         }).catch(function () {
           setMsg("send-note", t + " The Repeat Customers tab will update by itself in about a minute.", res.invalid > 0 || !!res.summaryError);
@@ -3437,11 +3443,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
           lsSet(LS_CACHE, JSON.stringify({ days: state.days, updated: state.updated }));
           drawHome(); setUpdated();
         }).catch(function () {}).then(function () {
-          // the cards and the Labels checks are refreshed quietly too, so nothing waits for you to open it
-          var mn = retMin();
-          return call("returners", { min: mn }, { tries: 2 }).then(function (x) { retAt = Date.now(); lsSet(LS_RET, JSON.stringify({ min: mn, data: x.returners, at: retAt })); retDone = true; if (isOpen("f-ret")) renderRet(x.returners, ""); }).catch(function () {});
-        }).then(function () {
-          try { if (window.VaviWarmLists) window.VaviWarmLists(); } catch (e) {}
+          try { if (window.VaviWarmFraud) window.VaviWarmFraud(); } catch (e) {}   // only the small fraud list is left to fetch
         });
       }
     }).catch(function (e) { setMsg("send-note", e.message + " Nothing was lost: tap Send to Sheet again.", true); })
@@ -4022,6 +4024,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       panel.textContent = "";
       if (!h.found) { panel.textContent = "No orders found for this customer in your sheet (older orders may be in the archive)."; return; }
       panel.appendChild(el("div", "fm-name", h.name + " · " + h.orders + " orders: " + h.paid + " paid, " + h.returned + " returned" + (h.rto ? ", " + h.rto + " RTO" : "") + (h.pending ? ", " + h.pending + " not updated yet" : "")));
+      if (h.address) panel.appendChild(el("small", "", "Address: " + h.address + (h.pincode ? " – " + h.pincode : "")));
       if (h.names && h.names.length) panel.appendChild(el("small", "", "Name also written as: " + h.names.join(" / ")));
       h.list.forEach(function (o) {
         var ln = el("div", "fm-hl"); if (o.st) ln.appendChild(el("span", "st-badge st-" + o.st, STL[o.st] || o.st));
@@ -4032,6 +4035,17 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     }).catch(function (e) { panel.textContent = e.message; });
     return panel;
   }
+
+  // One shared button: "Customer history" under any finding or search result. f = {orderNo, name, address, pincode}
+  function historyButton(host, f, cls) {
+    var hp = null, hb = el("button", "btn sm ghost fm-hist-btn " + (cls || ""), "Customer history"); hb.type = "button";
+    hb.addEventListener("click", function () {
+      if (hp) { hp.remove(); hp = null; hb.textContent = "Customer history"; return; }
+      hp = historyPanel(f, hb); host.appendChild(hp); hb.textContent = "Hide customer history";
+    });
+    return hb;
+  }
+  window.VaviHistoryButton = historyButton;
 
   function note(cls, text, retry) {
     card.hidden = false; card.textContent = ""; var n = el("div", "note " + cls, text); card.appendChild(n);
@@ -4082,11 +4096,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       cols.appendChild(col(isRet ? "fm-left fm-left-ret" : "fm-left", isRet ? "High returns (your database)" : "In fraud list", m.fraud.name, m.fraud.address, m.matchA, reason));
       cols.appendChild(col("fm-right", "In this PDF", m.row.customerName, m.row.customerAddress, m.matchB, null));
       item.appendChild(cols);
-      if (isRet) {
-        var hb = el("button", "btn sm ghost", "Customer history"); hb.type = "button"; var hp = null;
-        hb.addEventListener("click", function () { if (hp) { hp.remove(); hp = null; hb.textContent = "Customer history"; return; } hp = historyPanel(m.fraud, hb); item.appendChild(hp); hb.textContent = "Hide customer history"; });
-        item.appendChild(hb);
-      }
+      item.appendChild(historyButton(item, m.fraud));
       box.appendChild(item);
     });
     var apply = el("button", "btn"); apply.type = "button";
@@ -4395,6 +4405,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       it.appendChild(top);
       it.appendChild(el("small", "", "Earlier total " + rs(h.c.value) + " · first order " + h.c.first.split("-").reverse().join("-") + " · pincode " + h.c.pincode));
       h.rows.forEach(function (r) { it.appendChild(el("small", "", "In these labels: " + r.courier + " · " + (r.sku || "") + " · AWB " + r.awb)); });
+      if (window.VaviHistoryButton) it.appendChild(window.VaviHistoryButton(it, { orderNo: (h.c.orderNos || [])[0], name: h.c.name, pincode: h.c.pincode }));
       box.appendChild(it);
     });
     var again = el("button", "btn sm ghost", "Check again"); again.type = "button"; again.style.marginTop = "8px";
@@ -4405,6 +4416,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
   var cacheAt = 0;
   function atText() { return cacheAt ? " List fetched from the sheet at " + new Date(cacheAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }) + "." : ""; }
+  window.VaviLoyalMin = function () { return getMin(); };
+  window.VaviSetLoyal = function (min, customers) { cache = customers || []; cachedMin = min; cacheAt = Date.now(); try { localStorage.setItem("vavi_loyal_cache", JSON.stringify({ ts: Date.now(), min: min, customers: cache })); } catch (x) {} };
   window.VaviWarmLists = function () {
     if (!SH.connected()) return;
     try { if (window.VaviWarmFraud) window.VaviWarmFraud(); } catch (e) {}
@@ -4887,6 +4900,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     }
     line(c, "Customer", o.name);
     if (o.address) line(c, "Address", o.address, true); else line(c, "Pincode", o.pincode);
+    if (!o.archived && o.name && window.VaviHistoryButton) c.appendChild(window.VaviHistoryButton(c, { orderNo: o.orderNo, name: o.name, address: o.address, pincode: o.pincode }));
     return c;
   }
   function run() {
@@ -4915,7 +4929,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="14 Nov 2026, 18:39";
+  var VAVI_APP_VERSION="15 Nov 2026, 10:10";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";

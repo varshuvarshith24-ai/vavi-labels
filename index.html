@@ -270,6 +270,11 @@ h2 .pf-chev { display: inline-block; width: 1.1em; }
 .fm-left { background: rgba(214, 69, 65, 0.13); border-color: rgba(214, 69, 65, 0.55); }
 .fm-left-ret { background: rgba(240, 170, 20, 0.17); border-color: rgba(220, 150, 20, 0.7); }
 .fm-ret { border-color: rgba(220, 150, 20, 0.7); }
+/* readable boxes: results always sit on a solid panel, even on themes with a patterned background */
+.loyal, .loyal .lc, .fm, .fm-hist, .sr-card, .fm-col { background-color: var(--surface) !important; color: var(--ink) !important; }
+.loyal .lc, .fm, .fm-hist { border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+.loyal .lc { gap: 4px; }
+.fm-hist { font-size: 0.9rem; line-height: 1.45; }
 .fm-hist-btn { margin-top: 8px; }
 .fm-hist { margin-top: 8px; border: 1px dashed var(--line); border-radius: 8px; padding: 8px; font-size: 0.82rem; display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
 .fm-hl { line-height: 1.4; }
@@ -4024,7 +4029,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       panel.textContent = "";
       if (!h.found) { panel.textContent = "No orders found for this customer in your sheet (older orders may be in the archive)."; return; }
       panel.appendChild(el("div", "fm-name", h.name + " · " + h.orders + " orders: " + h.paid + " paid, " + h.returned + " returned" + (h.rto ? ", " + h.rto + " RTO" : "") + (h.pending ? ", " + h.pending + " not updated yet" : "")));
-      if (h.address) panel.appendChild(el("small", "", "Address: " + h.address + (h.pincode ? " – " + h.pincode : "")));
+      if (h.address) panel.appendChild(el("small", "", "Address: " + h.address + (h.pincode && h.address.indexOf(h.pincode) < 0 ? " – " + h.pincode : "")));
       if (h.names && h.names.length) panel.appendChild(el("small", "", "Name also written as: " + h.names.join(" / ")));
       h.list.forEach(function (o) {
         var ln = el("div", "fm-hl"); if (o.st) ln.appendChild(el("span", "st-badge st-" + o.st, STL[o.st] || o.st));
@@ -4929,7 +4934,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="15 Nov 2026, 10:10";
+  var VAVI_APP_VERSION="15 Nov 2026, 18:04";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";

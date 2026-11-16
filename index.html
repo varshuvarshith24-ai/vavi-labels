@@ -2138,6 +2138,16 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 .ed-sel { font: 400 1rem var(--font-body); min-height: 48px; width: 100%; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 0 10px; }
 .th-seg { flex-wrap: wrap; }
 .th-opt:focus-visible, .th-segb:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.dc-row { background-color: var(--surface) !important; color: var(--ink) !important; border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 5px; overflow-wrap: anywhere; }
+.dc-fraud { border-color: #d64541; }
+.dc-top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.dc-n { font-weight: 600; white-space: nowrap; }
+.dc-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.dc-tag { font-size: 0.78rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; background: var(--surface); }
+.dc-t-fraud { color: #c0312d; } .dc-t-ret { color: #a86a00; } .dc-t-viz { color: #6b3fb5; } .dc-t-loy { color: #1d7a45; } .dc-t-multi { color: #0b6b72; }
+.dc-addr { font-size: 0.9rem; } .dc-prod { font-size: 0.9rem; font-weight: 600; } .dc-nos { opacity: 0.75; }
+@media (prefers-color-scheme: dark) { .dc-t-fraud { color: #ff8a86; } .dc-t-ret { color: #ffc258; } .dc-t-viz { color: #c4a3ff; } .dc-t-loy { color: #6fdc9c; } .dc-t-multi { color: #6fd8df; } }
+:root[data-theme="dark"] .dc-t-fraud { color: #ff8a86; } :root[data-theme="dark"] .dc-t-ret { color: #ffc258; } :root[data-theme="dark"] .dc-t-viz { color: #c4a3ff; } :root[data-theme="dark"] .dc-t-loy { color: #6fdc9c; } :root[data-theme="dark"] .dc-t-multi { color: #6fd8df; }
 </style>
 </head>
 <body>
@@ -2289,6 +2299,13 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
         <p class="sub" id="sub-states"></p>
         <div class="stack" id="states" style="gap:10px"></div>
         <p class="muted" id="note-states">State is worked out from the delivery pincode, so a few border areas may land in a neighbouring state.</p>
+      </div></details>
+      <details class="card fold" id="f-today" open><summary><h2>Today's customers</h2></summary><div class="fold-body">
+        <div class="rep-bar"><p class="sub" id="dc-sub"></p><button class="btn ghost sm" id="dc-refresh" type="button">Refresh</button></div>
+        <label class="muted" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">Day <input type="date" id="dc-date"> (pick any earlier day to see that day)</label>
+        <label class="muted" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="dc-only"> Show only customers with a tag or 2+ orders</label>
+        <p class="sub" id="dc-sum"></p>
+        <div class="stack" id="dc-list" style="gap:10px"></div>
       </div></details>
       <details class="card fold" id="f-rep" open><summary><h2 id="h-rep">Repeat customers</h2></summary><div class="fold-body">
         <div class="rep-bar"><p class="sub" id="sub-rep"></p><button class="btn ghost sm" id="rep-refresh" type="button">Refresh</button></div>
@@ -5848,5 +5865,89 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
 })();
 </script>
 
+<script>
+(function () {
+  var SH = window.VaviSheet, host = document.getElementById("dc-list"), card = document.getElementById("f-today");
+  if (!SH || !host || !card) return;
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function today() { var d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
+  function dmy(k) { var p = String(k).split("-"); return p.length === 3 ? p[2] + "-" + p[1] + "-" + p[0] : k; }
+  function num(k, lo, hi, def) { var n = parseInt(ls(k), 10); return n >= lo && n <= hi ? n : def; }
+  var dateIn = document.getElementById("dc-date"), sub = document.getElementById("dc-sub"), sumEl = document.getElementById("dc-sum"), onlyIn = document.getElementById("dc-only"), btn = document.getElementById("dc-refresh");
+  dateIn.value = today(); dateIn.max = today();
+  var data = null, tagData = { frauds: [], loyal: [], loyalMin: 10, ok: false }, at = 0, busy = false;
+
+  function tagsFor(c) {
+    var t = [];
+    if (/vizianagaram|vijayanagaram|vizianagram|vijayanagram/i.test(c.address)) t.push({ cls: "dc-t-viz", text: "Vizianagaram" });
+    if (window.VaviFraud && tagData.frauds.length) {
+      var th = num("vavi_fraud_pct", 50, 100, 70), mr = num("vavi_ret_min", 2, 50, 2);
+      var fr = tagData.frauds.filter(function (x) { return x.type !== "returns" || x.returned >= mr; });
+      var m = window.VaviFraud.findMatches([{ awb: "x", customerName: c.name, customerAddress: c.address }], fr, th)[0];
+      if (m) t.unshift(m.fraud.type === "returns" ? { cls: "dc-t-ret", text: "High returns · " + m.pct + "% match (" + m.fraud.returned + " returned)" } : { cls: "dc-t-fraud", text: "Fraud list · " + m.pct + "% match" });
+    }
+    var mine = {}; c.orders.forEach(function (o) { mine[o.orderNo] = 1; });
+    tagData.loyal.forEach(function (l) {
+      if (t.some(function (x) { return x.cls === "dc-t-loy"; })) return;
+      var inDay = (l.orderNos || []).filter(function (n) { return mine[n]; }).length;
+      if (inDay && l.orders - inDay >= tagData.loyalMin) t.push({ cls: "dc-t-loy", text: "Loyal · " + (l.orders - inDay) + " other orders" });
+    });
+    if (c.count >= 2) t.push({ cls: "dc-t-multi", text: c.count + " orders today" });
+    return t;
+  }
+
+  function render() {
+    host.textContent = "";
+    if (!data) return;
+    var isToday = data.date === today(), word = isToday ? "today" : "on " + dmy(data.date);
+    var list = data.customers.map(function (c) { return { c: c, tags: tagsFor(c) }; });
+    var multi = list.filter(function (x) { return x.c.count >= 2; }).length, tagged = list.filter(function (x) { return x.tags.some(function (t) { return t.cls !== "dc-t-multi"; }); }).length;
+    sumEl.textContent = list.length + " customers · " + data.namedOrders + " sub orders " + word + " · " + multi + " with 2 or more orders · " + tagged + " with a tag" + (data.unnamed ? " · " + data.unnamed + " orders have no name saved" : "");
+    var shown = onlyIn.checked ? list.filter(function (x) { return x.tags.length; }) : list;
+    if (!shown.length) host.appendChild(el("p", "muted", onlyIn.checked ? "No customer needs attention " + word + "." : "No orders " + word + " in the sheet yet."));
+    shown.forEach(function (x) {
+      var c = x.c, row = el("div", "dc-row" + (x.tags.some(function (t) { return t.cls === "dc-t-fraud"; }) ? " dc-fraud" : ""));
+      var top = el("div", "dc-top"); top.appendChild(el("b", "", c.name)); top.appendChild(el("span", "dc-n", c.count + (c.count === 1 ? " sub order" : " sub orders"))); row.appendChild(top);
+      if (x.tags.length) { var tg = el("div", "dc-tags"); x.tags.forEach(function (t) { tg.appendChild(el("span", "dc-tag " + t.cls, t.text)); }); row.appendChild(tg); }
+      row.appendChild(el("div", "dc-addr", c.address + (c.address.indexOf(c.pincode) < 0 ? " – " + c.pincode : "")));
+      if (c.names && c.names.length) row.appendChild(el("small", "", "Name also written as: " + c.names.join(" / ")));
+      row.appendChild(el("div", "dc-prod", Object.keys(c.skus).map(function (k) { return k + " × " + c.skus[k]; }).join(" · ") + " · Rs " + Math.round(c.value).toLocaleString("en-IN")));
+      row.appendChild(el("small", "dc-nos", c.orders.map(function (o) { return o.orderNo; }).join(", ")));
+      if (window.VaviHistoryButton) row.appendChild(window.VaviHistoryButton(row, { orderNo: c.orders[0] && c.orders[0].orderNo, name: c.name, address: c.address, pincode: c.pincode }));
+      host.appendChild(row);
+    });
+    sub.textContent = "Orders sent to the courier " + word + ". Last updated " + new Date(at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }) + ".";
+  }
+
+  function load(force) {
+    if (!SH.connected()) { sub.textContent = "Connect your Google Sheet in Settings first."; return; }
+    var date = dateIn.value || today(), key = "vavi_daycust_" + date;
+    if (!force) { try { var sv = JSON.parse(ls(key) || "null"); if (sv && sv.data) { data = sv.data; at = sv.at; tagData = sv.tags || tagData; render(); } } catch (e) {} }
+    if (busy) return; busy = true; btn.disabled = true; if (!data || data.date !== date) { host.textContent = "Loading …"; data = null; }
+    var lmin = window.VaviLoyalMin ? window.VaviLoyalMin() : 10;
+    Promise.all([
+      SH.call("day_customers", { date: date }, { tries: 2 }),
+      SH.call("fraud_list", null, { tries: 2 }).catch(function () { return null; }),
+      SH.call("loyal", { min: lmin }, { tries: 2 }).catch(function () { return null; })
+    ]).then(function (r) {
+      data = r[0]; at = Date.now();
+      if (r[1]) tagData.frauds = r[1].frauds || []; if (r[2]) { tagData.loyal = r[2].customers || []; tagData.loyalMin = lmin; }
+      lsSet(key, JSON.stringify({ data: data, at: at, tags: { frauds: tagData.frauds, loyal: tagData.loyal.slice(0, 300), loyalMin: tagData.loyalMin } }));
+      render();
+    }).catch(function (e) { if (!data) host.textContent = ""; sub.textContent = e.message + " Tap Refresh to try again."; })
+      .then(function () { busy = false; btn.disabled = false; });
+  }
+  btn.addEventListener("click", function () { load(true); });
+  dateIn.addEventListener("change", function () { data = null; load(false); });
+  onlyIn.addEventListener("change", render);
+  card.addEventListener("toggle", function () { if (card.open) load(false); });
+  if (card.open) setTimeout(function () { load(false); }, 400);
+  // refresh quietly after Send to Sheet (the app calls this when its background refresh finishes)
+  var prev = window.VaviWarmFraud;
+  window.VaviWarmFraud = function () { try { if (prev) prev.apply(this, arguments); } catch (e) {} if (dateIn.value === today() && card.open) load(true); };
+})();
+</script>
 </body>
 </html>

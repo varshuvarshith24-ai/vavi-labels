@@ -2524,9 +2524,20 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     });
     CFG = { map: map, catIdx: catIdx, skuIdx: skuIdx, names: names };
   }
-  function categorize(sku, size, desc) {
+  // Spoon orders ("...+Spoon", or just "Spoon" anywhere in the SKU or its category) are kept apart: always last, own block in the summary.
+  var SPOON_RE = /spoon/i;
+  function isSpoon(sku, category) { return SPOON_RE.test(String(sku || "")) || SPOON_RE.test(String(category || "")); }
+  function baseCategorize(sku, size, desc) {
     if (CFG) return CFG.map[skuKey(sku)] || null;
     return getCategory(sku, size, desc);
+  }
+  function categorize(sku, size, desc) {
+    var c = baseCategorize(sku, size, desc);
+    if (c && !CFG && SPOON_RE.test(String(sku || "")) && !SPOON_RE.test(c)) return c + " + Spoon";   // built-in rules read the size, so say "+ Spoon" in the name
+    if (c || !SPOON_RE.test(String(sku || ""))) return c;
+    // a spoon SKU you have not listed yet: file it under its plain item + " + Spoon" so it never mixes with the plain orders
+    var plain = String(sku).replace(/\s*\+?\s*spoon\s*/ig, "").trim(), b = plain ? baseCategorize(plain, size, desc) : null;
+    return (b ? b.replace(/\s*\+\s*spoon$/i, "") + " + Spoon" : "Spoon – other");
   }
   function categoryOrder() { return CFG ? CFG.names.slice() : CATEGORY_ORDER.slice(); }
   function recategorize(rows) { rows.forEach(function (r) { r.category = categorize(r.sku, r.size, r.desc); }); }
@@ -2618,6 +2629,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   function catRank(cat) {
     var order = CFG ? CFG.names : CATEGORY_ORDER;
     var i = order.indexOf(cat);
+    if (SPOON_RE.test(String(cat || ""))) return 5000 + (i >= 0 ? i : order.length);
     return i >= 0 ? i : order.length;
   }
   // position of a SKU inside its category (owner's order when a list is set)
@@ -2657,6 +2669,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
   function sortForPdf(rows) {
     return rows.map(function (r, i) { return { r: r, i: i }; }).sort(function (a, b) {
+      var sa0 = isSpoon(a.r.sku, a.r.category) ? 1 : 0, sb0 = isSpoon(b.r.sku, b.r.category) ? 1 : 0;
+      if (sa0 !== sb0) return sa0 - sb0;
       var ra = catRank(a.r.category), rb = catRank(b.r.category);
       if (ra !== rb) return ra - rb;
       var ca = a.r.category || "", cb = b.r.category || "";
@@ -2676,23 +2690,34 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     out.push("📅 Date: " + dateStr);
     out.push("🧾 *Total Orders: " + rows.length + "*");
     cg.order.forEach(function (c) { out.push("   • " + c + ": " + cg.map[c].length); });
+    var spoonAll = rows.filter(function (r) { return isSpoon(r.sku, r.category); }).length;
+    if (spoonAll) out.push("🥄 Spoon orders: " + spoonAll + " (included above)");
     out.push("");
     cg.order.forEach(function (c) {
       var rs = cg.map[c];
       out.push("🚚 *" + c.toUpperCase() + " – " + rs.length + "*");
       out.push("📋 SKU-wise count");
-      var bc = groupBy(rs, function (r) { return r.category || ("Other (" + r.sku + ")"); });
-      bc.order.sort(function (a, b) {
-        var d = catRank(a) - catRank(b);
-        return d || (a < b ? -1 : 1);
-      });
-      bc.order.forEach(function (cat) {
-        var items = bc.map[cat];
-        out.push("*" + cat + " – " + items.length + "*");
-        var sc = groupBy(items, function (r) { return r.sku; });
-        sc.order.sort(function (x, y) { return (skuRank(x) - skuRank(y)) || (x < y ? -1 : x > y ? 1 : 0); });
-        sc.order.forEach(function (s) { out.push("  " + s + " – " + sc.map[s].length); });
-      });
+      var plainRows = rs.filter(function (r) { return !isSpoon(r.sku, r.category); }), spoonRows = rs.filter(function (r) { return isSpoon(r.sku, r.category); });
+      var block = function (list) {
+        var bc = groupBy(list, function (r) { return r.category || ("Other (" + r.sku + ")"); });
+        bc.order.sort(function (a, b) {
+          var d = catRank(a) - catRank(b);
+          return d || (a < b ? -1 : 1);
+        });
+        bc.order.forEach(function (cat) {
+          var items = bc.map[cat];
+          out.push("*" + cat + " – " + items.length + "*");
+          var sc = groupBy(items, function (r) { return r.sku; });
+          sc.order.sort(function (x, y) { return (skuRank(x) - skuRank(y)) || (x < y ? -1 : x > y ? 1 : 0); });
+          sc.order.forEach(function (s) { out.push("  " + s + " – " + sc.map[s].length); });
+        });
+      };
+      block(plainRows);
+      if (spoonRows.length) {
+        out.push("");
+        out.push("🥄 *SPOON ORDERS – " + spoonRows.length + "*");
+        block(spoonRows);
+      }
       out.push("");
     });
     out.push("🔁 *Multi-Qty Orders*");
@@ -2737,7 +2762,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     linesFromItems: linesFromItems, parseLabel: parseLabel, getCategory: getCategory,
     buildSummary: buildSummary, buildCsv: buildCsv, dedupe: dedupe, stats: stats,
     manifestDate: manifestDate, courierGroups: courierGroups, sortForPdf: sortForPdf,
-    setSkuConfig: setSkuConfig, categoryOrder: categoryOrder, recategorize: recategorize,
+    setSkuConfig: setSkuConfig, isSpoon: isSpoon, listed: function (sku) { return !CFG || CFG.map[skuKey(sku)] !== undefined; }, categoryOrder: categoryOrder, recategorize: recategorize,
     CATEGORY_ORDER: CATEGORY_ORDER
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
@@ -3072,8 +3097,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     if (c.removedCount) notes.appendChild(el("div", "note warn", c.removedCount + " label" + (c.removedCount === 1 ? " was" : "s were") + " left out after the fraud and returns review. They are not in the PDFs, the summary or the sheet."));
     if (c.dups.length) notes.appendChild(el("div", "note warn", c.dups.length + " repeated label" + (c.dups.length === 1 ? " was" : "s were") + " ignored because the same AWB appeared twice in these PDFs."));
     var uncat = {};
-    c.rows.forEach(function (r) { if (!r.category) uncat[r.sku || "(no SKU)"] = 1; });
-    if (Object.keys(uncat).length) notes.appendChild(el("div", "note warn", "Not in your SKU list (shown as Other, last in the summary and PDFs): " + Object.keys(uncat).join(", ") + ". Add them under Settings, Manage SKUs."));
+    c.rows.forEach(function (r) { if (!r.category || (core.isSpoon(r.sku) && !core.listed(r.sku))) uncat[r.sku || "(no SKU)"] = 1; });
+    if (Object.keys(uncat).length) notes.appendChild(el("div", "note warn", "Not in your SKU list (unlisted ones show as Other, spoon ones in their own Spoon block, both last in the summary and PDFs): " + Object.keys(uncat).join(", ") + ". Add them under Settings, Manage SKUs."));
     if (c.skippedPages) notes.appendChild(el("div", "note info", c.skippedPages + " page" + (c.skippedPages === 1 ? "" : "s") + " without a label were skipped."));
 
     $("summary").textContent = core.buildSummary(c.rows, c.dateStr);
@@ -3620,7 +3645,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     var cats = $("cats"); cats.textContent = "";
     var order = (window.MeeshoCore && (window.MeeshoCore.categoryOrder ? window.MeeshoCore.categoryOrder() : window.MeeshoCore.CATEGORY_ORDER)) || [];
     var keys = Object.keys(s.cats).sort(function (a, b) {
-      var ia = order.indexOf(a), ib = order.indexOf(b); if (ia < 0) ia = 99; if (ib < 0) ib = 99; return ia - ib || (a < b ? -1 : 1);
+      var ia = order.indexOf(a), ib = order.indexOf(b); if (ia < 0) ia = 99; if (ib < 0) ib = 99; if (/spoon/i.test(a)) ia += 1000; if (/spoon/i.test(b)) ib += 1000; return ia - ib || (a < b ? -1 : 1);
     });
     var cmax = 0; keys.forEach(function (k) { if (s.cats[k] > cmax) cmax = s.cats[k]; });
     keys.forEach(function (k) {

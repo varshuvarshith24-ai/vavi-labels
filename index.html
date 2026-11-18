@@ -2148,6 +2148,13 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 .dc-addr { font-size: 0.9rem; } .dc-prod { font-size: 0.9rem; font-weight: 600; } .dc-nos { opacity: 0.75; }
 @media (prefers-color-scheme: dark) { .dc-t-fraud { color: #ff8a86; } .dc-t-ret { color: #ffc258; } .dc-t-viz { color: #c4a3ff; } .dc-t-loy { color: #6fdc9c; } .dc-t-multi { color: #6fd8df; } }
 :root[data-theme="dark"] .dc-t-fraud { color: #ff8a86; } :root[data-theme="dark"] .dc-t-ret { color: #ffc258; } :root[data-theme="dark"] .dc-t-viz { color: #c4a3ff; } :root[data-theme="dark"] .dc-t-loy { color: #6fdc9c; } :root[data-theme="dark"] .dc-t-multi { color: #6fd8df; }
+.de-hidden { display: none !important; }
+#dash-body.de-editing .de-hidden { display: block !important; opacity: 0.45; }
+#dash-body.de-editing .fold-body { display: none !important; }
+#dash-body.de-editing details > summary { pointer-events: none; }
+.de-bar { display: flex; align-items: center; gap: 8px; background-color: var(--surface); color: var(--ink); border: 1px dashed var(--line); border-radius: 10px; padding: 8px 10px; margin-bottom: -4px; }
+.de-bar .de-t { flex: 1; font-weight: 700; overflow-wrap: anywhere; }
+#upd-banner:not([hidden]) { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border: 2px solid currentColor; }
 </style>
 </head>
 <body>
@@ -2170,7 +2177,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       </button>
       </div>
     </div>
-    <div class="note info" id="upd-banner" role="status" hidden></div>
+    <div class="note info" id="upd-banner" role="status" hidden style="position:sticky;top:0;z-index:60;background-color:var(--surface);color:var(--ink)"></div>
     <p class="lede" id="lede">Choose the day's label PDFs. You get the courier-wise PDFs and the WhatsApp summary. Everything runs on this device and your PDFs are not uploaded.</p>
     <div class="backbar" id="backbar" hidden><button class="icon-btn" id="back-home" type="button" aria-label="Back to Home"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button></div>
     <div class="tabs" id="tabs" role="tablist" hidden>
@@ -2698,7 +2705,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       out.push("🚚 *" + c.toUpperCase() + " – " + rs.length + "*");
       out.push("📋 SKU-wise count");
       var plainRows = rs.filter(function (r) { return !isSpoon(r.sku, r.category); }), spoonRows = rs.filter(function (r) { return isSpoon(r.sku, r.category); });
-      var block = function (list) {
+      var block = function (list, isSpoonBlock) {
         var bc = groupBy(list, function (r) { return r.category || ("Other (" + r.sku + ")"); });
         bc.order.sort(function (a, b) {
           var d = catRank(a) - catRank(b);
@@ -2706,7 +2713,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
         });
         bc.order.forEach(function (cat) {
           var items = bc.map[cat];
-          out.push("*" + cat + " – " + items.length + "*");
+          out.push("*" + (isSpoonBlock && !SPOON_RE.test(cat) ? cat + " + Spoon" : cat) + " – " + items.length + "*");
           var sc = groupBy(items, function (r) { return r.sku; });
           sc.order.sort(function (x, y) { return (skuRank(x) - skuRank(y)) || (x < y ? -1 : x > y ? 1 : 0); });
           sc.order.forEach(function (s) { out.push("  " + s + " – " + sc.map[s].length); });
@@ -2716,7 +2723,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
       if (spoonRows.length) {
         out.push("");
         out.push("🥄 *SPOON ORDERS – " + spoonRows.length + "*");
-        block(spoonRows);
+        block(spoonRows, true);
       }
       out.push("");
     });
@@ -4212,7 +4219,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   if (window.claude && window.claude.use) return;
   var core = window.MeeshoCore, SH = window.VaviSheet;
   if (!core || !SH || !window.VaviShow) return;
-  var LS = "vavi_sku_cfg";
+  var LS = "vavi_sku_cfg", PEND = "vavi_sku_pending", flushing = false, retryTimer = null, retryN = 0;
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   function lsGet(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
@@ -4230,6 +4237,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   // asks the sheet for the current list; keeps the saved copy when the sheet cannot be reached
   function refresh() {
     if (!SH.connected()) return Promise.resolve(false);
+    if (pendingGet()) { flush(); return Promise.resolve(false); }   // your newer edits are still waiting to upload: keep them
     var t = new Promise(function (res) { setTimeout(function () { res("timeout"); }, 6000); });
     return Promise.race([SH.call("sku_get"), t]).then(function (r) {
       if (r === "timeout") return false;
@@ -4246,21 +4254,61 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
   function setStatus(text, bad) { status = { text: text, bad: !!bad }; var n = $("sku-status"); if (n) { n.textContent = text; n.className = "msg" + (bad ? " bad" : ""); } }
 
+  // Local first: every change is kept on this phone at once (and used for your labels straight away),
+  // then uploaded to the sheet in the background. A failed upload retries by itself until it works.
+  function pendingGet() { try { var p = JSON.parse(lsGet(PEND) || "null"); return p && p.model ? p : null; } catch (e) { return null; } }
+  function waitText() { return "Saved on this phone. Uploading to your sheet in the background; it retries by itself, you can leave this page."; }
+  function flush() {
+    if (flushing) return;
+    var p = pendingGet(); if (!p) return;
+    if (!SH.connected()) return;
+    flushing = true; clearTimeout(retryTimer);
+    SH.call("sku_save", { categories: p.model }, { tries: 2 }).then(function (r) {
+      flushing = false; retryN = 0;
+      var cur = pendingGet();
+      if (cur && cur.t !== p.t) { flush(); return; }               // edited again while uploading: upload the newer one
+      lsSet(PEND, ""); dirty = false; exists = true;
+      if (r && r.summaryError) setStatus("Saved to your sheet, but " + r.summaryError.charAt(0).toLowerCase() + r.summaryError.slice(1), true); else setStatus("Saved to your sheet.");
+      var rb = $("sku-retry"); if (rb) rb.hidden = true;
+    }).catch(function (e) {
+      flushing = false; retryN++;
+      var wait = Math.min(60000, 4000 * Math.pow(2, Math.min(retryN, 4)));
+      setStatus("Saved on this phone. Not uploaded yet (" + (e && e.message ? e.message : "no answer") + "). Trying again in " + Math.round(wait / 1000) + " s; you can leave this page.", true);
+      retryTimer = setTimeout(flush, wait);
+    });
+  }
   function save() {
     dirty = true;
-    setStatus("Saving to your sheet …");
-    return SH.call("sku_save", { categories: model }).then(function (r) {
-      dirty = false; exists = true; apply(model);
-      if (r && r.summaryError) setStatus("Saved to your sheet, but " + r.summaryError.charAt(0).toLowerCase() + r.summaryError.slice(1), true); else setStatus("Saved to your sheet.");
-    }).catch(function (e) { setStatus(e.message + " The change is on this screen only. Tap Retry.", true); var r = $("sku-retry"); if (r) r.hidden = false; });
+    var copy = JSON.parse(JSON.stringify(model));
+    apply(copy);                                                     // labels use the new list right now
+    lsSet(PEND, JSON.stringify({ model: copy, t: Date.now() }));
+    setStatus(waitText());
+    flush();
+    return Promise.resolve();
   }
+  window.addEventListener("online", flush);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) flush(); });
+  setTimeout(flush, 2500);                                          // after a restart, finish anything left over
 
   function load() {
     body.textContent = "";
+    var pend = pendingGet(), local = null;
+    if (pend) local = pend.model; else { try { local = JSON.parse(lsGet(LS) || "null"); } catch (e) {} }
+    if (local && local.length) {                                    // instant: no waiting for the sheet
+      model = JSON.parse(JSON.stringify(local)); exists = true; loaded = true; open = -1;
+      if (pend) status = { text: waitText(), bad: false };
+      render();
+      if (pend) { flush(); return; }
+      if (SH.connected()) SH.call("sku_get").then(function (r) {   // quiet refresh, only if nothing was edited meanwhile
+        if (dirty || pendingGet() || !r.categories || !r.categories.length) return;
+        if (JSON.stringify(r.categories) !== JSON.stringify(model)) { model = r.categories; apply(model); render(); }
+      }).catch(function () {});
+      return;
+    }
     if (!SH.connected()) { body.appendChild(head()); body.appendChild(el("div", "note info", "Connect your sheet first (Sheet settings), then come back here.")); return; }
     body.appendChild(head()); body.appendChild(el("p", "msg", "Loading your list …"));
-    SH.call("sku_get").then(function (r) { model = r.categories || []; exists = !!r.exists && model.length > 0; loaded = true; open = -1; render(); })
-      .catch(function (e) { body.textContent = ""; body.appendChild(head()); var m = el("p", "msg bad", e.message); body.appendChild(m); });
+    SH.call("sku_get", null, { tries: 3 }).then(function (r) { model = r.categories || []; exists = !!r.exists && model.length > 0; loaded = true; open = -1; render(); })
+      .catch(function (e) { body.textContent = ""; body.appendChild(head()); var m = el("p", "msg bad", e.message + " Tap the button to try again."); body.appendChild(m); var rt = ib("Try again", "Try again", load); body.appendChild(rt); });
   }
 
   function head() {
@@ -4282,8 +4330,9 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 
   function statusBlock() {
     var box = el("div", "stack"); box.style.gap = "6px";
+    if (pendingGet() && !status.text) status = { text: waitText(), bad: false };
     var s = el("p", "msg" + (status.bad ? " bad" : ""), status.text); s.id = "sku-status"; s.setAttribute("role", "status"); box.appendChild(s);
-    var r = ib("Retry", "Retry saving", function () { r.hidden = true; save(); }); r.id = "sku-retry"; r.hidden = !status.bad; box.appendChild(r);
+    var r = ib("Retry", "Retry saving", function () { r.hidden = true; retryN = 0; flush(); }); r.id = "sku-retry"; r.hidden = !status.bad; box.appendChild(r);
     return box;
   }
 
@@ -4976,7 +5025,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="15 Nov 2026, 18:04";
+  var VAVI_APP_VERSION="18 Nov 2026, 09:20";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";
@@ -5014,7 +5063,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     host.appendChild(btn); host.appendChild(st);
   }
   setTimeout(function () { check(false); }, 4000);
-  document.addEventListener("visibilitychange", function () { if (!document.hidden && Date.now() - lastCheck > 600000) check(false); });
+  document.addEventListener("visibilitychange", function () { if (!document.hidden && Date.now() - lastCheck > 120000) check(false); });
+  setInterval(function () { if (!document.hidden) check(false); }, 600000);
 })();
 
 </script>
@@ -5972,6 +6022,61 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   // refresh quietly after Send to Sheet (the app calls this when its background refresh finishes)
   var prev = window.VaviWarmFraud;
   window.VaviWarmFraud = function () { try { if (prev) prev.apply(this, arguments); } catch (e) {} if (dateIn.value === today() && card.open) load(true); };
+})();
+</script>
+<script>
+(function () {
+  var body = document.getElementById("dash-body"), bar = document.getElementById("ranges");
+  if (!body || !bar) return;
+  var KEY = "vavi_dash_layout", editing = false;
+  function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+  function load() { try { var v = JSON.parse(localStorage.getItem(KEY) || "null"); return v && v.order ? v : { order: [], hidden: [] }; } catch (e) { return { order: [], hidden: [] }; } }
+  function store(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} }
+  function cards() { return Array.prototype.filter.call(body.children, function (n) { return n.tagName === "DETAILS" && n.id; }); }
+  function title(c) { var h = c.querySelector("summary h2"); return h ? h.textContent : c.id; }
+  var cfg = load();
+  function applyOrder() {
+    // saved order first, anything new keeps its place after them
+    var all = cards(), byId = {}; all.forEach(function (c) { byId[c.id] = c; });
+    var anchor = all.length ? all[0] : null, first = anchor ? anchor.previousSibling : null;
+    var want = cfg.order.filter(function (id) { return byId[id]; }).concat(all.map(function (c) { return c.id; }).filter(function (id) { return cfg.order.indexOf(id) < 0; }));
+    want.forEach(function (id) { body.appendChild(byId[id]); });
+    all.forEach(function (c) { c.classList.toggle("de-hidden", cfg.hidden.indexOf(c.id) >= 0); });
+  }
+  function bars() {
+    Array.prototype.slice.call(body.querySelectorAll(".de-bar")).forEach(function (b) { b.remove(); });
+    if (!editing) return;
+    var cs = cards();
+    cs.forEach(function (c, i) {
+      var b = el("div", "de-bar"), hid = cfg.hidden.indexOf(c.id) >= 0;
+      b.appendChild(el("span", "de-t", title(c) + (hid ? " (hidden)" : "")));
+      function btn(txt, label, fn, dis) { var x = el("button", "btn ghost sm", txt); x.type = "button"; x.setAttribute("aria-label", label); x.disabled = !!dis; x.addEventListener("click", fn); b.appendChild(x); }
+      btn("↑", "Move " + title(c) + " up", function () { mv(c.id, -1); }, i === 0);
+      btn("↓", "Move " + title(c) + " down", function () { mv(c.id, 1); }, i === cs.length - 1);
+      btn(hid ? "Show" : "Hide", (hid ? "Show " : "Hide ") + title(c), function () { var k = cfg.hidden.indexOf(c.id); if (k < 0) cfg.hidden.push(c.id); else cfg.hidden.splice(k, 1); store(cfg); applyOrder(); bars(); });
+      body.insertBefore(b, c);
+    });
+  }
+  function mv(id, d) {
+    var ids = cards().map(function (c) { return c.id; }), i = ids.indexOf(id), j = i + d;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    ids.splice(j, 0, ids.splice(i, 1)[0]); cfg.order = ids; store(cfg); applyOrder(); bars();
+    var c = document.getElementById(id); if (c && c.scrollIntoView) c.scrollIntoView({ block: "center" });
+  }
+  var pencil = el("button", "icon-btn de-pencil"); pencil.type = "button"; pencil.setAttribute("aria-label", "Edit dashboard layout");
+  pencil.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>';
+  var done = el("button", "btn sm de-done", "Done"); done.type = "button"; done.hidden = true;
+  var reset = el("button", "btn ghost sm de-reset", "Reset order"); reset.type = "button"; reset.hidden = true;
+  function setEditing(v) {
+    editing = v; body.classList.toggle("de-editing", v); done.hidden = !v; reset.hidden = !v; pencil.hidden = v;
+    if (v) { var h = document.getElementById("dash-body"); if (h.hidden) h.hidden = false; }
+    bars();
+  }
+  pencil.addEventListener("click", function () { setEditing(true); });
+  done.addEventListener("click", function () { setEditing(false); });
+  reset.addEventListener("click", function () { cfg = { order: [], hidden: [] }; store(cfg); location.reload(); });
+  bar.appendChild(pencil); bar.appendChild(done); bar.appendChild(reset);
+  applyOrder();
 })();
 </script>
 </body>

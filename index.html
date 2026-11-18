@@ -2155,6 +2155,8 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 .de-bar { display: flex; align-items: center; gap: 8px; background-color: var(--surface); color: var(--ink); border: 1px dashed var(--line); border-radius: 10px; padding: 8px 10px; margin-bottom: -4px; }
 .de-bar .de-t { flex: 1; font-weight: 700; overflow-wrap: anywhere; }
 #upd-banner:not([hidden]) { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border: 2px solid currentColor; }
+.wa-prev { white-space: pre-wrap; background-color: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font-size: 0.85rem; line-height: 1.4; max-height: 420px; overflow: auto; }
+.wa-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -2690,50 +2692,69 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     }).map(function (x) { return x.r; });
   }
 
+  // The WhatsApp summary is built from templates you can edit (Settings > WhatsApp summary). Saved in the sheet, so every phone gets the same.
+  var SEPL = "┈┈┈┈┈┈┈┈┈┈┈┈┈┈";
+  var SUMMARY_DEFAULT = {
+    main: "📦 *MEESHO ORDER SUMMARY*\n📅 Date: {date}\n🧾 *Total Orders: {total}*\n{courier_counts}\n🥄 Spoon orders: {spoon_total} (included above)\n{couriers}\n" + SEPL + "\n🔁 *Multi-Qty Orders*\n{multi}",
+    section: SEPL + "\n🚚 *{COURIER} – {courier_total}*\n📋 SKU-wise count\n{normal}\n{if spoon}\n" + SEPL + "\n🥄 *SPOON ORDERS – {spoon_count}*\n{spoon}\n{end}",
+    courierLine: "   • {courier}: {count}",
+    catLine: "*{category} – {count}*",
+    skuLine: "  • {sku} – {count}",
+    multiLine: "{courier} | {sku} | Qty {qty} | {customer}"
+  };
+  var FMT = JSON.parse(JSON.stringify(SUMMARY_DEFAULT));
+  function setSummaryFormat(f) { FMT = {}; Object.keys(SUMMARY_DEFAULT).forEach(function (k) { FMT[k] = f && typeof f[k] === "string" ? f[k] : SUMMARY_DEFAULT[k]; }); }
+  function getSummaryFormat() { return JSON.parse(JSON.stringify(FMT)); }
+
+  // fills {tokens}; a line whose token is empty is left out; {if name} ... {end} keeps its lines only when that part exists
+  function fillTemplate(tpl, vals, conds) {
+    var out = [], skip = [];
+    String(tpl).split("\n").forEach(function (line) {
+      var m = /^\s*\{if (\w+)\}\s*$/.exec(line);
+      if (m) { skip.push(!conds[m[1]]); return; }
+      if (/^\s*\{end\}\s*$/.test(line)) { skip.pop(); return; }
+      if (skip.some(function (x) { return x; })) return;
+      var drop = false;
+      var t = line.replace(/\{(\w+)\}/g, function (all, k) {
+        if (!Object.prototype.hasOwnProperty.call(vals, k)) return all;
+        if (vals[k] === "") drop = true;
+        return vals[k];
+      });
+      if (!drop) out.push(t);
+    });
+    return out.join("\n");
+  }
+  function one(tpl, vals) { return String(tpl).replace(/\{(\w+)\}/g, function (all, k) { return Object.prototype.hasOwnProperty.call(vals, k) ? vals[k] : all; }); }
+
   function buildSummary(rows, dateStr) {
-    var out = [];
     var cg = courierGroups(rows);
-    out.push("📦 *MEESHO ORDER SUMMARY*");
-    out.push("📅 Date: " + dateStr);
-    out.push("🧾 *Total Orders: " + rows.length + "*");
-    cg.order.forEach(function (c) { out.push("   • " + c + ": " + cg.map[c].length); });
+    var counts = cg.order.map(function (c) { return one(FMT.courierLine, { courier: c, count: cg.map[c].length }); }).join("\n");
     var spoonAll = rows.filter(function (r) { return isSpoon(r.sku, r.category); }).length;
-    if (spoonAll) out.push("🥄 Spoon orders: " + spoonAll + " (included above)");
-    out.push("");
-    cg.order.forEach(function (c) {
+    var sections = cg.order.map(function (c) {
       var rs = cg.map[c];
-      out.push("🚚 *" + c.toUpperCase() + " – " + rs.length + "*");
-      out.push("📋 SKU-wise count");
       var plainRows = rs.filter(function (r) { return !isSpoon(r.sku, r.category); }), spoonRows = rs.filter(function (r) { return isSpoon(r.sku, r.category); });
       var block = function (list, isSpoonBlock) {
-        var bc = groupBy(list, function (r) { return r.category || ("Other (" + r.sku + ")"); });
-        bc.order.sort(function (a, b) {
-          var d = catRank(a) - catRank(b);
-          return d || (a < b ? -1 : 1);
-        });
+        var bc = groupBy(list, function (r) { return r.category || ("Other (" + r.sku + ")"); }), lines = [];
+        bc.order.sort(function (a, b) { var d = catRank(a) - catRank(b); return d || (a < b ? -1 : 1); });
         bc.order.forEach(function (cat) {
           var items = bc.map[cat];
-          out.push("*" + (isSpoonBlock && !SPOON_RE.test(cat) ? cat + " + Spoon" : cat) + " – " + items.length + "*");
+          lines.push(one(FMT.catLine, { category: (isSpoonBlock && !SPOON_RE.test(cat) ? cat + " + Spoon" : cat), count: items.length }));
           var sc = groupBy(items, function (r) { return r.sku; });
           sc.order.sort(function (x, y) { return (skuRank(x) - skuRank(y)) || (x < y ? -1 : x > y ? 1 : 0); });
-          sc.order.forEach(function (s) { out.push("  " + s + " – " + sc.map[s].length); });
+          sc.order.forEach(function (s) { lines.push(one(FMT.skuLine, { sku: s, count: sc.map[s].length })); });
         });
+        return lines.join("\n");
       };
-      block(plainRows);
-      if (spoonRows.length) {
-        out.push("");
-        out.push("🥄 *SPOON ORDERS – " + spoonRows.length + "*");
-        block(spoonRows, true);
-      }
-      out.push("");
-    });
-    out.push("🔁 *Multi-Qty Orders*");
-    var multi = rows.filter(function (r) { return r.qty > 1; });
-    if (!multi.length) out.push("None");
-    multi.forEach(function (r) {
-      out.push(r.courier + " | " + r.sku + " | Qty " + r.qty + " | " + (r.customer.split("\n")[0] || ""));
-    });
-    return out.join("\n") + "\n";
+      return fillTemplate(FMT.section, {
+        courier: c, COURIER: c.toUpperCase(), courier_total: rs.length,
+        normal: block(plainRows, false), plain_count: plainRows.length || "",
+        spoon: spoonRows.length ? block(spoonRows, true) : "", spoon_count: spoonRows.length || ""
+      }, { spoon: spoonRows.length > 0, plain: plainRows.length > 0 });
+    }).join("\n");
+    var multiRows = rows.filter(function (r) { return r.qty > 1; });
+    var multi = multiRows.length ? multiRows.map(function (r) { return one(FMT.multiLine, { courier: r.courier, sku: r.sku, qty: r.qty, customer: (r.customer.split("\n")[0] || "") }); }).join("\n") : "None";
+    var text = fillTemplate(FMT.main, { date: dateStr, total: rows.length, courier_counts: counts, spoon_total: spoonAll || "", couriers: sections, multi: multi }, { spoon: spoonAll > 0, multi: multiRows.length > 0 });
+    return text.replace(/\s+$/, "") + "\n";
   }
 
   function buildCsv(rows) {
@@ -2769,7 +2790,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     linesFromItems: linesFromItems, parseLabel: parseLabel, getCategory: getCategory,
     buildSummary: buildSummary, buildCsv: buildCsv, dedupe: dedupe, stats: stats,
     manifestDate: manifestDate, courierGroups: courierGroups, sortForPdf: sortForPdf,
-    setSkuConfig: setSkuConfig, isSpoon: isSpoon, listed: function (sku) { return !CFG || CFG.map[skuKey(sku)] !== undefined; }, categoryOrder: categoryOrder, recategorize: recategorize,
+    setSkuConfig: setSkuConfig, setSummaryFormat: setSummaryFormat, getSummaryFormat: getSummaryFormat, summaryDefault: SUMMARY_DEFAULT, isSpoon: isSpoon, listed: function (sku) { return !CFG || CFG.map[skuKey(sku)] !== undefined; }, categoryOrder: categoryOrder, recategorize: recategorize,
     CATEGORY_ORDER: CATEGORY_ORDER
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
@@ -5025,7 +5046,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="18 Nov 2026, 09:20";
+  var VAVI_APP_VERSION="18 Nov 2026, 11:00";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "";
@@ -6078,6 +6099,9 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   bar.appendChild(pencil); bar.appendChild(done); bar.appendChild(reset);
   applyOrder();
 })();
+</script>
+<script>
+
 </script>
 </body>
 </html>

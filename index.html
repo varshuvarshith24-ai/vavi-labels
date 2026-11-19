@@ -3134,7 +3134,9 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
     if (Object.keys(uncat).length) notes.appendChild(el("div", "note warn", "Not in your SKU list (unlisted ones show as Other, spoon ones in their own Spoon block, both last in the summary and PDFs): " + Object.keys(uncat).join(", ") + ". Add them under Settings, Manage SKUs."));
     if (c.skippedPages) notes.appendChild(el("div", "note info", c.skippedPages + " page" + (c.skippedPages === 1 ? "" : "s") + " without a label were skipped."));
 
-    $("summary").textContent = core.buildSummary(c.rows, c.dateStr);
+    var td = new Date(), p2 = function (x) { return (x < 10 ? "0" : "") + x; };
+    // the WhatsApp message carries the day it is made and shared (not the label date), so the group is never confused
+    $("summary").textContent = core.buildSummary(c.rows, p2(td.getDate()) + "-" + p2(td.getMonth() + 1) + "-" + td.getFullYear());
     try { window.dispatchEvent(new CustomEvent("vavi:results", { detail: { rows: c.rows, allRows: c.allRows, removed: S.removed, removedCount: c.removedCount, dateStr: c.dateStr } })); } catch (e) {}
     renderFiles();
     results.hidden = false;
@@ -5051,7 +5053,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="18 Nov 2026, 11:45";
+  var VAVI_APP_VERSION="19 Nov 2026, 10:40";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "", showVn = function () {};

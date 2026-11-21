@@ -2285,6 +2285,13 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
         <div class="hero-l" id="hero-l"></div>
         <div class="stats" id="dash-stats"></div>
       </section>
+      <details class="card fold" id="f-today" open><summary><h2>Today's customers</h2></summary><div class="fold-body">
+        <div class="rep-bar"><p class="sub" id="dc-sub"></p><button class="btn ghost sm" id="dc-refresh" type="button">Refresh</button></div>
+        <label class="muted" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">Day <input type="date" id="dc-date"> (pick any earlier day to see that day)</label>
+        <label class="muted" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="dc-only"> Show only customers with a tag or 2+ orders</label>
+        <p class="sub" id="dc-sum"></p>
+        <div class="stack" id="dc-list" style="gap:10px"></div>
+      </div></details>
       <details class="card fold" id="f-day" open><summary><h2 id="h-day">Orders per day</h2></summary><div class="fold-body">
         <p class="sub" id="sub-day"></p>
         <div class="chart" id="chart-day"></div>
@@ -2314,13 +2321,6 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
         <div class="stack" id="states" style="gap:10px"></div>
         <p class="muted" id="note-states">State is worked out from the delivery pincode, so a few border areas may land in a neighbouring state.</p>
       </div></details>
-      <details class="card fold" id="f-today" open><summary><h2>Today's customers</h2></summary><div class="fold-body">
-        <div class="rep-bar"><p class="sub" id="dc-sub"></p><button class="btn ghost sm" id="dc-refresh" type="button">Refresh</button></div>
-        <label class="muted" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">Day <input type="date" id="dc-date"> (pick any earlier day to see that day)</label>
-        <label class="muted" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="dc-only"> Show only customers with a tag or 2+ orders</label>
-        <p class="sub" id="dc-sum"></p>
-        <div class="stack" id="dc-list" style="gap:10px"></div>
-      </div></details>
       <details class="card fold" id="f-rep" open><summary><h2 id="h-rep">Repeat customers</h2></summary><div class="fold-body">
         <div class="rep-bar"><p class="sub" id="sub-rep"></p><button class="btn ghost sm" id="rep-refresh" type="button">Refresh</button></div>
         <div class="stack" id="rep" style="gap:10px"></div>
@@ -2341,8 +2341,9 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   <div id="search-view" class="stack" hidden>
     <section class="card" aria-labelledby="h-sr">
       <h2 id="h-sr">Search orders</h2>
-      <p class="help">Type the order number, the AWB number or the customer name. Part of it is enough (at least 5 characters of a number, or 3 letters of a name).</p>
-      <div class="field"><label for="sr-q">Order number, AWB or customer name</label><input id="sr-q" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="e.g. 3420000000 or Asha"></div>
+      <p class="help">Search by order number, AWB, customer name or address (city, state, pincode, street). Part of it is enough. Several words in an address must all match, for example “hyderabad telangana”.</p>
+      <div class="field"><label for="sr-f">Search in</label><select id="sr-f"><option value="all">Everything</option><option value="number">Order number or AWB</option><option value="name">Customer name</option><option value="address">Address, city, state or pincode</option></select></div>
+      <div class="field"><label for="sr-q">What to look for</label><input id="sr-q" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="e.g. 3420000000, Asha, Hyderabad or 500029"></div>
       <label class="check" style="display:flex;gap:10px;align-items:center"><input type="checkbox" id="sr-arc"> <span>Also search the old archive (slower)</span></label>
       <div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap"><button class="btn" id="sr-go" type="button">Search</button><button class="btn ghost" id="sr-clear" type="button">Clear</button></div>
       <p class="msg" id="sr-msg" role="status" aria-live="polite"></p>
@@ -3512,11 +3513,13 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
         // Orders are already saved. Now refresh the Repeat Customers tab straight away (a background rebuild in the sheet is the safety net).
         setMsg("send-note", t + " Updating the Repeat Customers tab …", res.invalid > 0 || !!res.summaryError);
         var mn = retMin(), lmin = window.VaviLoyalMin ? window.VaviLoyalMin() : 10;
-        call("refresh_all", { write: true, min: mn, loyalMin: lmin }, { tries: 2 }).then(function (r) {
+        var dn = new Date(), dk = dn.getFullYear() + "-" + ("0" + (dn.getMonth() + 1)).slice(-2) + "-" + ("0" + dn.getDate()).slice(-2);
+        call("refresh_all", { write: true, min: mn, loyalMin: lmin, date: dk }, { tries: 2 }).then(function (r) {
           // one read of the sheet fed all of these
           if (r.repeat) { repAt = Date.now(); lsSet(LS_REP, JSON.stringify({ data: r.repeat, at: repAt })); repDone = true; if (isOpen("f-rep")) renderRep(r.repeat, ""); }
           if (r.returners) { retAt = Date.now(); lsSet(LS_RET, JSON.stringify({ min: mn, data: r.returners, at: retAt })); retDone = true; if (isOpen("f-ret")) renderRet(r.returners, ""); }
           if (r.loyal && window.VaviSetLoyal) window.VaviSetLoyal(lmin, r.loyal.customers);
+          try { if (r.today && window.VaviDayStore) window.VaviDayStore(r, lmin); } catch (e) {}
           setMsg("send-note", t + " Repeat Customers tab is up to date" + (r.sheetRows ? " (" + r.sheetRows + " customers)." : "."), res.invalid > 0 || !!res.summaryError);
         }).catch(function () {
           setMsg("send-note", t + " The Repeat Customers tab will update by itself in about a minute.", res.invalid > 0 || !!res.summaryError);
@@ -5030,10 +5033,10 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
   function run() {
     var q = input.value.trim(), compact = q.replace(/\s+/g, "");
     out.textContent = "";
-    if (compact.length < 5 && !(q.length >= 3 && /[^\d\s_]/.test(q))) { msg.className = "msg bad"; msg.textContent = "Type at least 5 characters of the order number or AWB, or at least 3 letters of the customer name."; return; }
+    if (compact.length < 5 && !(q.length >= 3 && /[^\d\s_]/.test(q))) { msg.className = "msg bad"; msg.textContent = "Type at least 5 characters of a number or pincode, or at least 3 letters of a name, city or address."; return; }
     if (!SH.connected()) { msg.className = "msg bad"; msg.textContent = "Connect your Google Sheet in Settings first."; return; }
     var my = ++token, arc = $("sr-arc").checked; go.disabled = true; msg.className = "msg"; msg.textContent = arc ? "Searching your sheet and the old archive. This can take up to a minute …" : "Searching your sheet …";
-    SH.call("find", { q: q, archive: arc }).then(function (r) {
+    SH.call("find", { q: q, archive: arc, field: ($("sr-f") || {}).value || "all" }).then(function (r) {
       if (my !== token) return;
       var n = r.results.length;
       if (!n) { msg.textContent = arc ? (r.archiveError || "Not found, even in the old archive. Check the spelling or the number.") : "Not found. Check the spelling or the number. For orders older than a year, tick “Also search the old archive”."; return; }
@@ -5053,7 +5056,7 @@ summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; al
 // App version and "new version available" notice (standalone page only). The page checks its own address for a newer build.
 (function () {
   if (window.claude && window.claude.use) return;
-  var VAVI_APP_VERSION="19 Nov 2026, 10:40";
+  var VAVI_APP_VERSION="21 Nov 2026, 16:20";
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
   var banner = $("upd-banner"), host = $("ver-card"), lastCheck = 0, newVer = "", showVn = function () {};
@@ -6036,7 +6039,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
   function load(force) {
     if (!SH.connected()) { sub.textContent = "Connect your Google Sheet in Settings first."; return; }
     var date = dateIn.value || today(), key = "vavi_daycust_" + date;
-    if (!force) { try { var sv = JSON.parse(ls(key) || "null"); if (sv && sv.data) { data = sv.data; at = sv.at; tagData = sv.tags || tagData; render(); } } catch (e) {} }
+    if (!force) { try { var sv = JSON.parse(ls(key) || "null"); if (sv && sv.data) { data = sv.data; at = sv.at; try { var tg = JSON.parse(ls("vavi_daycust_tags") || "null"); if (tg) tagData = { frauds: tg.frauds || [], loyal: tg.loyal || [], loyalMin: tg.loyalMin || 10, ok: true }; } catch (e) {} render(); if (Date.now() - at < 180000) return; } } catch (e) {} }
     if (busy) return; busy = true; btn.disabled = true; if (!data || data.date !== date) { host.textContent = "Loading …"; data = null; }
     var lmin = window.VaviLoyalMin ? window.VaviLoyalMin() : 10;
     Promise.all([
@@ -6046,19 +6049,29 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api; else 
     ]).then(function (r) {
       data = r[0]; at = Date.now();
       if (r[1]) tagData.frauds = r[1].frauds || []; if (r[2]) { tagData.loyal = r[2].customers || []; tagData.loyalMin = lmin; }
-      lsSet(key, JSON.stringify({ data: data, at: at, tags: { frauds: tagData.frauds, loyal: tagData.loyal.slice(0, 300), loyalMin: tagData.loyalMin } }));
+      lsSet(key, JSON.stringify({ data: data, at: at }));
+      lsSet("vavi_daycust_tags", JSON.stringify({ frauds: tagData.frauds, loyal: tagData.loyal.slice(0, 300), loyalMin: tagData.loyalMin }));
+      try { var ks = []; for (var i = 0; i < localStorage.length; i++) { var kk = localStorage.key(i); if (kk && kk.indexOf("vavi_daycust_2") === 0) ks.push(kk); } ks.sort().reverse().slice(5).forEach(function (k) { localStorage.removeItem(k); }); } catch (e) {}
       render();
     }).catch(function (e) { if (!data) host.textContent = ""; sub.textContent = e.message + " Tap Refresh to try again."; })
       .then(function () { busy = false; btn.disabled = false; });
   }
+  // called after Send to Sheet: the day's list is saved on the phone, so opening the card is instant
+  window.VaviDayStore = function (r, lmin) {
+    if (!r || !r.today) return;
+    if (r.frauds) tagData.frauds = r.frauds;
+    if (r.loyal) { tagData.loyal = r.loyal.customers || []; tagData.loyalMin = lmin || tagData.loyalMin; }
+    var key = "vavi_daycust_" + r.today.date; at = Date.now();
+    lsSet(key, JSON.stringify({ data: r.today, at: at }));
+    lsSet("vavi_daycust_tags", JSON.stringify({ frauds: tagData.frauds, loyal: tagData.loyal.slice(0, 300), loyalMin: tagData.loyalMin }));
+    if (dateIn.value === r.today.date) { data = r.today; render(); }
+  };
   btn.addEventListener("click", function () { load(true); });
   dateIn.addEventListener("change", function () { data = null; load(false); });
   onlyIn.addEventListener("change", render);
   card.addEventListener("toggle", function () { if (card.open) load(false); });
   if (card.open) setTimeout(function () { load(false); }, 400);
   // refresh quietly after Send to Sheet (the app calls this when its background refresh finishes)
-  var prev = window.VaviWarmFraud;
-  window.VaviWarmFraud = function () { try { if (prev) prev.apply(this, arguments); } catch (e) {} if (dateIn.value === today() && card.open) load(true); };
 })();
 </script>
 <script>
